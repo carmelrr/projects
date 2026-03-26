@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script>
+    (function () {
+      var path = window.location.pathname;
+      // Derive the base path dynamically (e.g. '/projects/' for a repo named 'projects')
+      var secondSlash = path.indexOf('/', 1);
+      var base = secondSlash !== -1 ? path.substring(0, secondSlash + 1) : '/';
+      var config = null;
+
+      // TV browsers may encode '#' as '%23' or include it literally in the path,
+      // causing GitHub Pages to serve this 404 page instead of index.html.
+      // Extract the base64 config payload and redirect using a query parameter.
+      var encodedIdx = path.indexOf('%23');
+      var hashIdx = path.indexOf('#');
+
+      if (encodedIdx !== -1) {
+        config = path.slice(encodedIdx + 3);
+      } else if (hashIdx !== -1) {
+        config = path.slice(hashIdx + 1);
+      }
+
+      if (config) {
+        window.location.replace(base + '?config=' + encodeURIComponent(config));
+      } else {
+        window.location.replace(base);
+      }
+    })();
+  </script>
+</head>
+<body></body>
+</html>
