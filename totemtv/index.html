@@ -432,7 +432,9 @@
     const VIDEO_MAX_DURATION = 120000;
     const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
     const TRANSITION_MS = 1200;
-    const PRELOAD_AHEAD = 1; // preload next media
+    const PRELOAD_AHEAD = 3; // preload next media
+    const MAX_RETRIES = 5;
+    const RETRY_BASE_DELAY = 2000; // 2s, doubles each retry
 
     const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
     const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/3gpp'];
@@ -460,6 +462,7 @@
     const pauseBtn = document.getElementById('pause-btn');
     const bufferingIndicator = document.getElementById('buffering-indicator');
     let preloadCache = {}; // cache preloaded blobs
+    let preloadPromises = {}; // track in-flight preloads
 
     // ── Save/Load config from URL hash ──
     function saveConfig() {
@@ -561,34 +564,61 @@
     }
 
     // ── Preload helpers ──
+    function preloadFile(file) {
+      if (!file || preloadCache[file.id]) return Promise.resolve();
+      if (preloadPromises[file.id]) return preloadPromises[file.id];
+
+      const promise = (async () => {
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          try {
+            if (isVideo(file)) {
+              const res = await fetch(getVideoUrl(file));
+              if (!res.ok) throw new Error('fetch failed');
+              const blob = await res.blob();
+              preloadCache[file.id] = URL.createObjectURL(blob);
+            } else {
+              await new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = getImageUrl(file);
+              });
+              preloadCache[file.id] = getImageUrl(file);
+            }
+            return; // success
+          } catch (e) {
+            if (attempt < MAX_RETRIES - 1) {
+              await new Promise(r => setTimeout(r, RETRY_BASE_DELAY * Math.pow(2, attempt)));
+            }
+          }
+        }
+      })();
+
+      preloadPromises[file.id] = promise;
+      return promise;
+    }
+
     function preloadNext() {
       for (let offset = 1; offset <= PRELOAD_AHEAD; offset++) {
         const idx = (currentIndex + offset) % files.length;
-        const file = files[idx];
-        if (!file || preloadCache[file.id]) continue;
-
-        if (isVideo(file)) {
-          // Fetch video as blob for smooth playback
-          fetch(getVideoUrl(file))
-            .then(r => r.blob())
-            .then(blob => { preloadCache[file.id] = URL.createObjectURL(blob); })
-            .catch(() => {});
-        } else {
-          // Preload image
-          const img = new Image();
-          img.src = getImageUrl(file);
-          preloadCache[file.id] = img.src;
-        }
+        preloadFile(files[idx]);
       }
     }
 
-    function showMedia() {
+    async function showMedia() {
       if (files.length === 0) return;
 
       const file = files[currentIndex];
       fileNameEl.textContent = file.name;
       counterEl.textContent = `${currentIndex + 1} / ${files.length}`;
       updateDots();
+
+      // If not cached yet, show spinner and wait for preload
+      if (!preloadCache[file.id]) {
+        bufferingIndicator.classList.add('visible');
+        await preloadFile(file);
+        bufferingIndicator.classList.remove('visible');
+      }
 
       // Fade out
       mediaContainer.style.opacity = '0';
@@ -598,17 +628,13 @@
 
         if (isVideo(file)) {
           const video = document.createElement('video');
-          const cachedUrl = preloadCache[file.id];
-          video.src = cachedUrl || getVideoUrl(file);
+          video.src = preloadCache[file.id] || getVideoUrl(file);
           video.preload = 'auto';
           video.playsInline = true;
           video.muted = false;
           video.style.width = '100%';
           video.style.height = '100%';
           video.style.objectFit = 'contain';
-
-          // Show buffering indicator while loading
-          bufferingIndicator.classList.add('visible');
 
           video.addEventListener('canplaythrough', () => {
             bufferingIndicator.classList.remove('visible');
@@ -618,27 +644,18 @@
             preloadNext();
           }, { once: true });
 
-          // Fallback: if canplaythrough doesn't fire within 15s, play anyway
-          const fallbackTimer = setTimeout(() => {
-            bufferingIndicator.classList.remove('visible');
-            video.play().catch(() => {});
-            mediaContainer.style.opacity = '1';
-            scheduleAdvance(VIDEO_MAX_DURATION);
-            preloadNext();
-          }, 15000);
-
-          video.addEventListener('canplaythrough', () => clearTimeout(fallbackTimer), { once: true });
-
           video.addEventListener('ended', () => {
             clearTimeout(advanceTimer);
             goNext();
           });
 
+          // On error: retry loading the same file instead of skipping
           video.addEventListener('error', () => {
-            bufferingIndicator.classList.remove('visible');
-            clearTimeout(fallbackTimer);
+            bufferingIndicator.classList.add('visible');
+            delete preloadCache[file.id];
+            delete preloadPromises[file.id];
             clearTimeout(advanceTimer);
-            goNext();
+            setTimeout(() => showMedia(), RETRY_BASE_DELAY);
           });
 
           // Show stall indicator if video buffers mid-playback
@@ -659,9 +676,12 @@
             preloadNext();
           }, { once: true });
 
+          // On error: retry loading instead of skipping
           img.addEventListener('error', () => {
+            delete preloadCache[file.id];
+            delete preloadPromises[file.id];
             clearTimeout(advanceTimer);
-            goNext();
+            setTimeout(() => showMedia(), RETRY_BASE_DELAY);
           });
 
           mediaContainer.appendChild(img);
@@ -745,6 +765,11 @@
         slideshowScreen.style.display = 'block';
 
         currentIndex = 0;
+
+        // Preload first few files before starting
+        const preloadBatch = files.slice(0, Math.min(PRELOAD_AHEAD + 1, files.length));
+        await Promise.all(preloadBatch.map(f => preloadFile(f)));
+
         showMedia();
 
         // Periodic refresh
