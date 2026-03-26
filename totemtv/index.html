@@ -563,10 +563,6 @@
       return `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${apiKey}`;
     }
 
-    function getVideoEmbedUrl(file) {
-      return `https://drive.google.com/file/d/${file.id}/preview`;
-    }
-
     function getVideoDuration(file) {
       if (file.videoMediaMetadata && file.videoMediaMetadata.durationMillis) {
         return parseInt(file.videoMediaMetadata.durationMillis) + 3000; // +3s buffer
@@ -632,22 +628,42 @@
         mediaContainer.innerHTML = '';
 
         if (isVideo(file)) {
-          // Use Google Drive embed player — Google handles streaming & codecs
-          const iframe = document.createElement('iframe');
-          iframe.src = getVideoEmbedUrl(file);
-          iframe.style.width = '100%';
-          iframe.style.height = '100%';
-          iframe.style.border = 'none';
-          iframe.allow = 'autoplay; encrypted-media';
-          iframe.setAttribute('allowfullscreen', '');
-
-          iframe.addEventListener('load', () => {
-            bufferingIndicator.classList.remove('visible');
-            mediaContainer.style.opacity = '1';
-          });
+          const video = document.createElement('video');
+          video.src = getVideoUrl(file);
+          video.autoplay = true;
+          video.playsInline = true;
+          video.muted = true; // muted needed for autoplay on most browsers
+          video.controls = false;
+          video.preload = 'auto';
+          video.style.width = '100%';
+          video.style.height = '100%';
+          video.style.objectFit = 'contain';
 
           bufferingIndicator.classList.add('visible');
-          mediaContainer.appendChild(iframe);
+
+          video.addEventListener('playing', () => {
+            bufferingIndicator.classList.remove('visible');
+            mediaContainer.style.opacity = '1';
+            // Unmute after autoplay started
+            video.muted = false;
+          }, { once: true });
+
+          video.addEventListener('ended', () => {
+            clearTimeout(advanceTimer);
+            goNext();
+          });
+
+          video.addEventListener('error', () => {
+            bufferingIndicator.classList.add('visible');
+            clearTimeout(advanceTimer);
+            setTimeout(() => showMedia(), RETRY_BASE_DELAY);
+          });
+
+          // Show/hide buffering indicator during playback stalls
+          video.addEventListener('waiting', () => bufferingIndicator.classList.add('visible'));
+          video.addEventListener('playing', () => bufferingIndicator.classList.remove('visible'));
+
+          mediaContainer.appendChild(video);
 
           const duration = getVideoDuration(file);
           scheduleAdvance(duration);
