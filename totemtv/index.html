@@ -444,8 +444,16 @@
 
     function loadConfig() {
       try {
+        var source = '';
         if (window.location.hash.length > 1) {
-          const data = JSON.parse(atob(window.location.hash.slice(1)));
+          source = window.location.hash.slice(1);
+        } else {
+          // Fallback for TV browsers redirected via 404.html with ?config=
+          var match = window.location.search.match(/[?&]config=([^&]+)/);
+          if (match) source = decodeURIComponent(match[1]);
+        }
+        if (source) {
+          const data = JSON.parse(atob(source));
           if (data.apiKey && data.folderId) {
             apiKey = data.apiKey;
             folderId = data.folderId;
