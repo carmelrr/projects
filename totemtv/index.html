@@ -329,6 +329,27 @@
     }
 
     #sync-status.visible { opacity: 1; }
+
+    /* ── Buffering indicator ── */
+    #buffering-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      display: none;
+    }
+
+    #buffering-indicator.visible { display: flex; }
+
+    #buffering-indicator .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(200,170,110,0.2);
+      border-top: 3px solid #C4A265;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
   </style>
 </head>
 <body>
@@ -402,6 +423,7 @@
     <div id="dots"></div>
   </div>
 
+  <div id="buffering-indicator"><div class="spinner"></div></div>
   <div id="sync-status"></div>
 
   <script>
@@ -410,6 +432,7 @@
     const VIDEO_MAX_DURATION = 120000;
     const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
     const TRANSITION_MS = 1200;
+    const PRELOAD_AHEAD = 1; // preload next media
 
     const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
     const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/3gpp'];
@@ -435,6 +458,8 @@
     const dotsEl = document.getElementById('dots');
     const syncStatus = document.getElementById('sync-status');
     const pauseBtn = document.getElementById('pause-btn');
+    const bufferingIndicator = document.getElementById('buffering-indicator');
+    let preloadCache = {}; // cache preloaded blobs
 
     // ── Save/Load config from URL hash ──
     function saveConfig() {
@@ -535,6 +560,28 @@
       return `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${apiKey}`;
     }
 
+    // ── Preload helpers ──
+    function preloadNext() {
+      for (let offset = 1; offset <= PRELOAD_AHEAD; offset++) {
+        const idx = (currentIndex + offset) % files.length;
+        const file = files[idx];
+        if (!file || preloadCache[file.id]) continue;
+
+        if (isVideo(file)) {
+          // Fetch video as blob for smooth playback
+          fetch(getVideoUrl(file))
+            .then(r => r.blob())
+            .then(blob => { preloadCache[file.id] = URL.createObjectURL(blob); })
+            .catch(() => {});
+        } else {
+          // Preload image
+          const img = new Image();
+          img.src = getImageUrl(file);
+          preloadCache[file.id] = img.src;
+        }
+      }
+    }
+
     function showMedia() {
       if (files.length === 0) return;
 
@@ -551,13 +598,36 @@
 
         if (isVideo(file)) {
           const video = document.createElement('video');
-          video.src = getVideoUrl(file);
-          video.autoplay = true;
+          const cachedUrl = preloadCache[file.id];
+          video.src = cachedUrl || getVideoUrl(file);
+          video.preload = 'auto';
           video.playsInline = true;
           video.muted = false;
           video.style.width = '100%';
           video.style.height = '100%';
           video.style.objectFit = 'contain';
+
+          // Show buffering indicator while loading
+          bufferingIndicator.classList.add('visible');
+
+          video.addEventListener('canplaythrough', () => {
+            bufferingIndicator.classList.remove('visible');
+            video.play().catch(() => {});
+            mediaContainer.style.opacity = '1';
+            scheduleAdvance(VIDEO_MAX_DURATION);
+            preloadNext();
+          }, { once: true });
+
+          // Fallback: if canplaythrough doesn't fire within 15s, play anyway
+          const fallbackTimer = setTimeout(() => {
+            bufferingIndicator.classList.remove('visible');
+            video.play().catch(() => {});
+            mediaContainer.style.opacity = '1';
+            scheduleAdvance(VIDEO_MAX_DURATION);
+            preloadNext();
+          }, 15000);
+
+          video.addEventListener('canplaythrough', () => clearTimeout(fallbackTimer), { once: true });
 
           video.addEventListener('ended', () => {
             clearTimeout(advanceTimer);
@@ -565,21 +635,29 @@
           });
 
           video.addEventListener('error', () => {
+            bufferingIndicator.classList.remove('visible');
+            clearTimeout(fallbackTimer);
             clearTimeout(advanceTimer);
             goNext();
           });
 
-          mediaContainer.appendChild(video);
+          // Show stall indicator if video buffers mid-playback
+          video.addEventListener('waiting', () => bufferingIndicator.classList.add('visible'));
+          video.addEventListener('playing', () => bufferingIndicator.classList.remove('visible'));
 
-          // Safety timeout for videos
-          scheduleAdvance(VIDEO_MAX_DURATION);
+          mediaContainer.appendChild(video);
         } else {
           const img = document.createElement('img');
-          img.src = getImageUrl(file);
+          img.src = preloadCache[file.id] || getImageUrl(file);
           img.alt = file.name;
           img.style.width = '100%';
           img.style.height = '100%';
           img.style.objectFit = 'contain';
+
+          img.addEventListener('load', () => {
+            mediaContainer.style.opacity = '1';
+            preloadNext();
+          }, { once: true });
 
           img.addEventListener('error', () => {
             clearTimeout(advanceTimer);
@@ -588,10 +666,10 @@
 
           mediaContainer.appendChild(img);
           scheduleAdvance(PHOTO_DURATION);
-        }
 
-        // Fade in
-        mediaContainer.style.opacity = '1';
+          // Fade in immediately if cached
+          if (img.complete) mediaContainer.style.opacity = '1';
+        }
       }, TRANSITION_MS);
     }
 
