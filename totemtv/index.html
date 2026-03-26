@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Office Slideshow</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=DM+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #000;
+      font-family: 'DM Sans', sans-serif;
+      color: #F5EDE0;
+      overflow: hidden;
+      min-height: 100vh;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Setup Screen ── */
+    #setup-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0D0B08;
+      position: relative;
+    }
+
+    #setup-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 20%, rgba(180,140,80,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 80%, rgba(120,90,50,0.06) 0%, transparent 50%);
+    }
+
+    .setup-card {
+      position: relative;
+      background: rgba(26, 22, 16, 0.9);
+      border: 1px solid rgba(200,170,110,0.15);
+      border-radius: 20px;
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+      margin: 0 20px;
+      backdrop-filter: blur(20px);
+      direction: ltr;
+      text-align: left;
+    }
+
+    .setup-card h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 24px 0 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .setup-card .subtitle {
+      font-size: 14px;
+      color: rgba(245,237,224,0.5);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(232,213,183,0.7);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 14px;
+      background: rgba(245,237,224,0.06);
+      border: 1px solid rgba(200,170,110,0.2);
+      border-radius: 10px;
+      color: #F5EDE0;
+      outline: none;
+      font-family: 'DM Mono', monospace;
+      transition: border-color 0.2s;
+    }
+
+    .input-group input:focus {
+      border-color: rgba(200,170,110,0.5);
+    }
+
+    .input-group .hint {
+      font-size: 11px;
+      color: rgba(245,237,224,0.35);
+      margin-top: 4px;
+    }
+
+    .error-msg {
+      color: #E8A087;
+      font-size: 13px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      background: rgba(232,160,135,0.08);
+      border-radius: 8px;
+      border: 1px solid rgba(232,160,135,0.15);
+      display: none;
+    }
+
+    .start-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #C4A265, #A8863E);
+      color: #0D0B08;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      margin-top: 8px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .start-btn:hover {
+      opacity: 0.9;
+    }
+
+    .instructions {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(200,170,110,0.1);
+    }
+
+    .instructions p.title {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(232,213,183,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .instructions p.step {
+      font-size: 13px;
+      color: rgba(245,237,224,0.4);
+      line-height: 1.7;
+    }
+
+    /* ── Loading ── */
+    #loading-screen {
+      display: none;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0D0B08;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(200,170,110,0.15);
+      border-top: 3px solid #C4A265;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    #loading-screen p {
+      margin-top: 20px;
+      color: rgba(245,237,224,0.5);
+      font-size: 14px;
+    }
+
+    /* ── Slideshow ── */
+    #slideshow-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    #media-container {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1.2s ease-in-out;
+    }
+
+    #media-container img,
+    #media-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+
+    #overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      padding: 60px 32px 24px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    #slideshow-screen:hover #overlay,
+    #slideshow-screen.show-ui #overlay {
+      opacity: 1;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .ctrl-btn {
+      background: rgba(255,255,255,0.12);
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+
+    .ctrl-btn:hover { background: rgba(255,255,255,0.22); }
+
+    .info-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      direction: ltr;
+    }
+
+    #file-name {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      max-width: 70%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #counter {
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    #settings-btn {
+      position: absolute;
+      top: 16px;
+      right: 32px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: rgba(255,255,255,0.6);
+      font-size: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    #dots {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    #slideshow-screen:hover #dots,
+    #slideshow-screen.show-ui #dots {
+      opacity: 1;
+    }
+
+    .dot {
+      height: 6px;
+      width: 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.35);
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      background: #fff;
+      width: 18px;
+    }
+
+    /* ── Status indicator ── */
+    #sync-status {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      background: rgba(0,0,0,0.6);
+      color: rgba(255,255,255,0.5);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 100;
+      direction: ltr;
+    }
+
+    #sync-status.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Setup Screen ── -->
+  <div id="setup-screen">
+    <div class="setup-card">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect width="48" height="48" rx="12" fill="#E8D5B7"/>
+        <path d="M14 16L24 12L34 16V32L24 36L14 32V16Z" fill="#1A1410" opacity="0.9"/>
+        <circle cx="24" cy="24" r="5" fill="#E8D5B7"/>
+        <path d="M21 24L23 26L27 22" stroke="#1A1410" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>Office Slideshow</h1>
+      <p class="subtitle">Connect your Google Drive folder to display photos and videos on your TV</p>
+
+      <div class="input-group">
+        <label>Google API Key</label>
+        <input type="password" id="api-key-input" placeholder="AIzaSy..." />
+      </div>
+
+      <div class="input-group">
+        <label>Drive Folder ID</label>
+        <input type="text" id="folder-id-input" placeholder="1aBcDeFgHiJkLmNoPqRsT" />
+        <p class="hint">The part after /folders/ in your Google Drive URL</p>
+      </div>
+
+      <p class="error-msg" id="setup-error"></p>
+
+      <button class="start-btn" id="launch-btn">Launch Slideshow</button>
+
+      <div class="instructions">
+        <p class="title">Quick Setup</p>
+        <p class="step">1. Go to console.cloud.google.com and enable the Drive API</p>
+        <p class="step">2. Create an API key under Credentials</p>
+        <p class="step">3. Share your Drive folder as "Anyone with the link"</p>
+        <p class="step">4. Paste both values above and launch</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Loading Screen ── -->
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <p>Fetching your photos...</p>
+  </div>
+
+  <!-- ── Slideshow Screen ── -->
+  <div id="slideshow-screen">
+    <div id="media-container"></div>
+
+    <div id="overlay">
+      <div class="controls">
+        <button class="ctrl-btn" id="prev-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+        <button class="ctrl-btn" id="pause-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button class="ctrl-btn" id="next-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </button>
+      </div>
+      <div class="info-bar">
+        <span id="file-name"></span>
+        <span id="counter"></span>
+      </div>
+      <button id="settings-btn">✕ Settings</button>
+    </div>
+
+    <div id="dots"></div>
+  </div>
+
+  <div id="sync-status"></div>
+
+  <script>
+    // ── Config ──
+    const PHOTO_DURATION = 8000;
+    const VIDEO_MAX_DURATION = 120000;
+    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+    const TRANSITION_MS = 1200;
+
+    const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+    const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/3gpp'];
+
+    // ── State ──
+    let apiKey = '';
+    let folderId = '';
+    let files = [];
+    let currentIndex = 0;
+    let isPaused = false;
+    let advanceTimer = null;
+    let refreshTimer = null;
+    let hideUITimer = null;
+
+    // ── DOM ──
+    const setupScreen = document.getElementById('setup-screen');
+    const loadingScreen = document.getElementById('loading-screen');
+    const slideshowScreen = document.getElementById('slideshow-screen');
+    const mediaContainer = document.getElementById('media-container');
+    const setupError = document.getElementById('setup-error');
+    const fileNameEl = document.getElementById('file-name');
+    const counterEl = document.getElementById('counter');
+    const dotsEl = document.getElementById('dots');
+    const syncStatus = document.getElementById('sync-status');
+    const pauseBtn = document.getElementById('pause-btn');
+
+    // ── Save/Load config from URL hash ──
+    function saveConfig() {
+      const data = btoa(JSON.stringify({ apiKey, folderId }));
+      window.location.hash = data;
+    }
+
+    function loadConfig() {
+      try {
+        if (window.location.hash.length > 1) {
+          const data = JSON.parse(atob(window.location.hash.slice(1)));
+          if (data.apiKey && data.folderId) {
+            apiKey = data.apiKey;
+            folderId = data.folderId;
+            return true;
+          }
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    // ── Fetch files from Drive ──
+    async function fetchFiles() {
+      const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+      const fields = encodeURIComponent('files(id,name,mimeType,createdTime)');
+      const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&orderBy=createdTime desc&pageSize=1000&key=${apiKey}`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `API Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      return (data.files || []).filter(f =>
+        IMAGE_TYPES.includes(f.mimeType) ||
+        VIDEO_TYPES.some(t => f.mimeType?.startsWith(t.split('/')[0]))
+      );
+    }
+
+    // ── Show sync status ──
+    function showSyncStatus(msg) {
+      syncStatus.textContent = msg;
+      syncStatus.classList.add('visible');
+      setTimeout(() => syncStatus.classList.remove('visible'), 3000);
+    }
+
+    // ── Refresh files (background) ──
+    async function refreshFiles() {
+      try {
+        const newFiles = await fetchFiles();
+        const oldIds = new Set(files.map(f => f.id));
+        const newIds = new Set(newFiles.map(f => f.id));
+
+        const added = newFiles.filter(f => !oldIds.has(f.id)).length;
+        const removed = files.filter(f => !newIds.has(f.id)).length;
+
+        if (added > 0 || removed > 0) {
+          // Preserve current file if it still exists
+          const currentFileId = files[currentIndex]?.id;
+          files = newFiles;
+
+          if (currentFileId) {
+            const newIdx = files.findIndex(f => f.id === currentFileId);
+            if (newIdx >= 0) {
+              currentIndex = newIdx;
+            } else {
+              currentIndex = 0;
+            }
+          }
+
+          updateDots();
+          showSyncStatus(`Synced: ${added > 0 ? `+${added}` : ''} ${removed > 0 ? `-${removed}` : ''} files`);
+        }
+      } catch (e) {
+        showSyncStatus('Sync failed — will retry');
+      }
+    }
+
+    // ── Display current media ──
+    function isVideo(file) {
+      return file && VIDEO_TYPES.some(t => file.mimeType?.startsWith(t.split('/')[0]));
+    }
+
+    function getImageUrl(file) {
+      return `https://lh3.googleusercontent.com/d/${file.id}=w1920-h1080-rj`;
+    }
+
+    function getVideoUrl(file) {
+      return `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${apiKey}`;
+    }
+
+    function showMedia() {
+      if (files.length === 0) return;
+
+      const file = files[currentIndex];
+      fileNameEl.textContent = file.name;
+      counterEl.textContent = `${currentIndex + 1} / ${files.length}`;
+      updateDots();
+
+      // Fade out
+      mediaContainer.style.opacity = '0';
+
+      setTimeout(() => {
+        mediaContainer.innerHTML = '';
+
+        if (isVideo(file)) {
+          const video = document.createElement('video');
+          video.src = getVideoUrl(file);
+          video.autoplay = true;
+          video.playsInline = true;
+          video.muted = false;
+          video.style.width = '100%';
+          video.style.height = '100%';
+          video.style.objectFit = 'contain';
+
+          video.addEventListener('ended', () => {
+            clearTimeout(advanceTimer);
+            goNext();
+          });
+
+          video.addEventListener('error', () => {
+            clearTimeout(advanceTimer);
+            goNext();
+          });
+
+          mediaContainer.appendChild(video);
+
+          // Safety timeout for videos
+          scheduleAdvance(VIDEO_MAX_DURATION);
+        } else {
+          const img = document.createElement('img');
+          img.src = getImageUrl(file);
+          img.alt = file.name;
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'contain';
+
+          img.addEventListener('error', () => {
+            clearTimeout(advanceTimer);
+            goNext();
+          });
+
+          mediaContainer.appendChild(img);
+          scheduleAdvance(PHOTO_DURATION);
+        }
+
+        // Fade in
+        mediaContainer.style.opacity = '1';
+      }, TRANSITION_MS);
+    }
+
+    function scheduleAdvance(ms) {
+      clearTimeout(advanceTimer);
+      if (!isPaused) {
+        advanceTimer = setTimeout(goNext, ms);
+      }
+    }
+
+    function goNext() {
+      if (files.length <= 1) return;
+      currentIndex = (currentIndex + 1) % files.length;
+      showMedia();
+    }
+
+    function goPrev() {
+      if (files.length <= 1) return;
+      currentIndex = (currentIndex - 1 + files.length) % files.length;
+      showMedia();
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      pauseBtn.innerHTML = isPaused
+        ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
+        : '<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
+      if (!isPaused) {
+        const file = files[currentIndex];
+        scheduleAdvance(isVideo(file) ? VIDEO_MAX_DURATION : PHOTO_DURATION);
+      } else {
+        clearTimeout(advanceTimer);
+      }
+    }
+
+    // ── Dots ──
+    function updateDots() {
+      dotsEl.innerHTML = '';
+      if (files.length > 30 || files.length <= 1) return;
+
+      files.forEach((_, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'dot' + (i === currentIndex ? ' active' : '');
+        dotsEl.appendChild(dot);
+      });
+    }
+
+    // ── UI visibility ──
+    function showUITemporarily() {
+      slideshowScreen.classList.add('show-ui');
+      slideshowScreen.style.cursor = 'default';
+      clearTimeout(hideUITimer);
+      hideUITimer = setTimeout(() => {
+        slideshowScreen.classList.remove('show-ui');
+        slideshowScreen.style.cursor = 'none';
+      }, 4000);
+    }
+
+    // ── Launch ──
+    async function launch() {
+      setupScreen.style.display = 'none';
+      loadingScreen.style.display = 'flex';
+
+      try {
+        files = await fetchFiles();
+
+        if (files.length === 0) {
+          throw new Error('No photos or videos found in this folder. Make sure the folder contains media files and is shared publicly.');
+        }
+
+        loadingScreen.style.display = 'none';
+        slideshowScreen.style.display = 'block';
+
+        currentIndex = 0;
+        showMedia();
+
+        // Periodic refresh
+        refreshTimer = setInterval(refreshFiles, REFRESH_INTERVAL);
+
+      } catch (err) {
+        loadingScreen.style.display = 'none';
+        setupScreen.style.display = 'flex';
+        setupError.textContent = err.message;
+        setupError.style.display = 'block';
+      }
+    }
+
+    function backToSetup() {
+      clearTimeout(advanceTimer);
+      clearInterval(refreshTimer);
+      slideshowScreen.style.display = 'none';
+      setupScreen.style.display = 'flex';
+      files = [];
+      currentIndex = 0;
+      window.location.hash = '';
+    }
+
+    // ── Event Listeners ──
+    document.getElementById('launch-btn').addEventListener('click', () => {
+      apiKey = document.getElementById('api-key-input').value.trim();
+      folderId = document.getElementById('folder-id-input').value.trim();
+
+      if (!apiKey || !folderId) {
+        setupError.textContent = 'Please enter both API Key and Folder ID';
+        setupError.style.display = 'block';
+        return;
+      }
+
+      setupError.style.display = 'none';
+      saveConfig();
+      launch();
+    });
+
+    document.getElementById('prev-btn').addEventListener('click', (e) => { e.stopPropagation(); goPrev(); });
+    document.getElementById('next-btn').addEventListener('click', (e) => { e.stopPropagation(); goNext(); });
+    document.getElementById('pause-btn').addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
+    document.getElementById('settings-btn').addEventListener('click', (e) => { e.stopPropagation(); backToSetup(); });
+
+    slideshowScreen.addEventListener('mousemove', showUITemporarily);
+    slideshowScreen.addEventListener('click', showUITemporarily);
+
+    // Keyboard controls (for TV remote)
+    document.addEventListener('keydown', (e) => {
+      if (slideshowScreen.style.display === 'block') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev();
+        else if (e.key === ' ' || e.key === 'Enter') togglePause();
+        else if (e.key === 'Escape') backToSetup();
+        showUITemporarily();
+      }
+    });
+
+    // ── Auto-launch if config in URL ──
+    if (loadConfig()) {
+      document.getElementById('api-key-input').value = apiKey;
+      document.getElementById('folder-id-input').value = folderId;
+      launch();
+    }
+  </script>
+</body>
+</html>
