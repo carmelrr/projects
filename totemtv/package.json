@@ -1,0 +1,23 @@
+{
+  "name": "totemtv",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "sync": "npx cap sync android",
+    "build": "npx cap sync android && cd android && gradlew.bat assembleDebug",
+    "build:release": "npx cap sync android && cd android && gradlew.bat assembleRelease",
+    "open": "npx cap open android",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/filesystem": "^8.1.2"
+  }
+}

@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TotemTV</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=DM+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #000;
+      font-family: 'DM Sans', sans-serif;
+      color: #F5EDE0;
+      overflow: hidden;
+      min-height: 100vh;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Setup Screen ── */
+    #setup-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0D0B08;
+      position: relative;
+    }
+
+    #setup-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 20%, rgba(180,140,80,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 80%, rgba(120,90,50,0.06) 0%, transparent 50%);
+    }
+
+    .setup-card {
+      position: relative;
+      background: rgba(26, 22, 16, 0.9);
+      border: 1px solid rgba(200,170,110,0.15);
+      border-radius: 20px;
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+      margin: 0 20px;
+      backdrop-filter: blur(20px);
+      direction: ltr;
+      text-align: left;
+    }
+
+    .setup-card h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 24px 0 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .setup-card .subtitle {
+      font-size: 14px;
+      color: rgba(245,237,224,0.5);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(232,213,183,0.7);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 14px;
+      background: rgba(245,237,224,0.06);
+      border: 1px solid rgba(200,170,110,0.2);
+      border-radius: 10px;
+      color: #F5EDE0;
+      outline: none;
+      font-family: 'DM Mono', monospace;
+      transition: border-color 0.2s;
+    }
+
+    .input-group input:focus {
+      border-color: rgba(200,170,110,0.5);
+    }
+
+    .input-group .hint {
+      font-size: 11px;
+      color: rgba(245,237,224,0.35);
+      margin-top: 4px;
+    }
+
+    .error-msg {
+      color: #E8A087;
+      font-size: 13px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      background: rgba(232,160,135,0.08);
+      border-radius: 8px;
+      border: 1px solid rgba(232,160,135,0.15);
+      display: none;
+    }
+
+    .start-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #C4A265, #A8863E);
+      color: #0D0B08;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      margin-top: 8px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .start-btn:hover {
+      opacity: 0.9;
+    }
+
+    .instructions {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(200,170,110,0.1);
+    }
+
+    .instructions p.title {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(232,213,183,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .instructions p.step {
+      font-size: 13px;
+      color: rgba(245,237,224,0.4);
+      line-height: 1.7;
+    }
+
+    /* ── Loading ── */
+    #loading-screen {
+      display: none;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0D0B08;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(200,170,110,0.15);
+      border-top: 3px solid #C4A265;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    #loading-screen p {
+      margin-top: 20px;
+      color: rgba(245,237,224,0.5);
+      font-size: 14px;
+    }
+
+    /* ── Download Progress ── */
+    #download-screen {
+      display: none;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0D0B08;
+    }
+
+    #download-screen .progress-container {
+      width: 360px;
+      max-width: 90%;
+      text-align: center;
+    }
+
+    #download-screen .progress-text {
+      color: rgba(245,237,224,0.7);
+      font-size: 15px;
+      margin-bottom: 16px;
+    }
+
+    #download-screen .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(200,170,110,0.15);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    #download-screen .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #C4A265, #E8D5B7);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    #download-screen .progress-detail {
+      color: rgba(245,237,224,0.35);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ── Slideshow ── */
+    #slideshow-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    #media-container {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1.2s ease-in-out;
+    }
+
+    #media-container img,
+    #media-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .video-wrapper video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    #overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      padding: 60px 32px 24px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    #slideshow-screen:hover #overlay,
+    #slideshow-screen.show-ui #overlay {
+      opacity: 1;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .ctrl-btn {
+      background: rgba(255,255,255,0.12);
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+
+    .ctrl-btn:hover { background: rgba(255,255,255,0.22); }
+
+    .info-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      direction: ltr;
+    }
+
+    #file-name {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      max-width: 70%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #counter {
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    #settings-btn {
+      position: absolute;
+      top: 16px;
+      right: 32px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: rgba(255,255,255,0.6);
+      font-size: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    #dots {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    #slideshow-screen:hover #dots,
+    #slideshow-screen.show-ui #dots {
+      opacity: 1;
+    }
+
+    .dot {
+      height: 6px;
+      width: 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.35);
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      background: #fff;
+      width: 18px;
+    }
+
+    /* ── Status indicator ── */
+    #sync-status {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      background: rgba(0,0,0,0.6);
+      color: rgba(255,255,255,0.5);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 100;
+      direction: ltr;
+    }
+
+    #sync-status.visible { opacity: 1; }
+
+    /* ── Buffering indicator ── */
+    #buffering-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      display: none;
+    }
+
+    #buffering-indicator.visible { display: flex; }
+
+    #buffering-indicator .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(200,170,110,0.2);
+      border-top: 3px solid #C4A265;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Setup Screen ── -->
+  <div id="setup-screen">
+    <div class="setup-card">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect width="48" height="48" rx="12" fill="#E8D5B7"/>
+        <path d="M14 16L24 12L34 16V32L24 36L14 32V16Z" fill="#1A1410" opacity="0.9"/>
+        <circle cx="24" cy="24" r="5" fill="#E8D5B7"/>
+        <path d="M21 24L23 26L27 22" stroke="#1A1410" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>TotemTV</h1>
+      <p class="subtitle">Connect your Google Drive folder to display photos and videos on your TV — with offline caching</p>
+
+      <div class="input-group">
+        <label>Google API Key</label>
+        <input type="password" id="api-key-input" placeholder="AIzaSy..." />
+      </div>
+
+      <div class="input-group">
+        <label>Drive Folder ID</label>
+        <input type="text" id="folder-id-input" placeholder="1aBcDeFgHiJkLmNoPqRsT" />
+        <p class="hint">The part after /folders/ in your Google Drive URL</p>
+      </div>
+
+      <p class="error-msg" id="setup-error"></p>
+
+      <button class="start-btn" id="launch-btn">Launch Slideshow</button>
+
+      <div class="instructions">
+        <p class="title">Quick Setup</p>
+        <p class="step">1. Go to console.cloud.google.com and enable the Drive API</p>
+        <p class="step">2. Create an API key under Credentials</p>
+        <p class="step">3. Share your Drive folder as "Anyone with the link"</p>
+        <p class="step">4. Paste both values above and launch</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Loading Screen ── -->
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <p>Fetching your files...</p>
+  </div>
+
+  <!-- ── Download Progress Screen ── -->
+  <div id="download-screen">
+    <div class="progress-container">
+      <div class="spinner" style="margin: 0 auto 24px;"></div>
+      <p class="progress-text" id="download-text">Downloading files for offline use...</p>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="download-bar"></div>
+      </div>
+      <p class="progress-detail" id="download-detail">0 / 0</p>
+    </div>
+  </div>
+
+  <!-- ── Slideshow Screen ── -->
+  <div id="slideshow-screen">
+    <div id="media-container"></div>
+
+    <div id="overlay">
+      <div class="controls">
+        <button class="ctrl-btn" id="prev-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+        <button class="ctrl-btn" id="pause-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button class="ctrl-btn" id="next-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </button>
+      </div>
+      <div class="info-bar">
+        <span id="file-name"></span>
+        <span id="counter"></span>
+      </div>
+      <button id="settings-btn">✕ Settings</button>
+    </div>
+
+    <div id="dots"></div>
+  </div>
+
+  <div id="buffering-indicator"><div class="spinner"></div></div>
+  <div id="sync-status"></div>
+
+  <!--
+    Capacitor native bridge is injected automatically by the Android WebView shell.
+    No external script needed — window.Capacitor and Capacitor.Plugins are available at runtime.
+  -->
+
+  <script>
+    // ── Capacitor Filesystem bridge ──
+    // We detect if Capacitor native is available; if not, fall back to in-memory (browser mode)
+    let isNative = false;
+    let Filesystem = null;
+    let FilesystemDirectory = null;
+
+    try {
+      isNative = window.Capacitor && Capacitor.isNativePlatform();
+      if (isNative && Capacitor.Plugins && Capacitor.Plugins.Filesystem) {
+        Filesystem = Capacitor.Plugins.Filesystem;
+        FilesystemDirectory = { Documents: 'DOCUMENTS', Data: 'DATA', Cache: 'CACHE', External: 'EXTERNAL' };
+      }
+    } catch (e) {
+      console.warn('Capacitor not available, running in browser mode', e);
+    }
+
+    // ── Cache Manager ──
+    const CACHE_DIR = 'totemtv_cache';
+    const MANIFEST_KEY = 'totemtv_manifest';
+    // Max file size to download (50MB) — larger videos will be streamed
+    const MAX_DOWNLOAD_SIZE = 50 * 1024 * 1024;
+
+    class CacheManager {
+      constructor() {
+        this.manifest = this._loadManifest();
+      }
+
+      _loadManifest() {
+        try {
+          return JSON.parse(localStorage.getItem(MANIFEST_KEY) || '{}');
+        } catch { return {}; }
+      }
+
+      _saveManifest() {
+        try {
+          localStorage.setItem(MANIFEST_KEY, JSON.stringify(this.manifest));
+        } catch (e) {
+          console.warn('Failed to save manifest:', e);
+        }
+      }
+
+      async init() {
+        if (!Filesystem) return;
+        try {
+          await Filesystem.mkdir({
+            path: CACHE_DIR,
+            directory: FilesystemDirectory.Data,
+            recursive: true
+          });
+        } catch (e) {
+          // Directory may already exist — this is fine
+        }
+      }
+
+      // Download a file from Google Drive and save to local storage
+      async downloadFile(fileId, fileName, mimeType, apiKey) {
+        if (!Filesystem) {
+          // Browser fallback: just store the URL reference (no actual download)
+          this.manifest[fileId] = {
+            fileId, fileName, mimeType,
+            localPath: null,
+            cachedAt: Date.now()
+          };
+          this._saveManifest();
+          return;
+        }
+
+        const isVideoFile = VIDEO_TYPES.some(t => mimeType?.startsWith(t.split('/')[0]));
+        const ext = this._getExtension(fileName, mimeType);
+        const localFileName = `${fileId}.${ext}`;
+        const localPath = `${CACHE_DIR}/${localFileName}`;
+
+        // Build download URL
+        // For both images and videos, use Drive API alt=media (reliable, works with API key)
+        const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
+
+        try {
+          // Use Filesystem.downloadFile — streams directly to disk without loading into JS memory
+          // This prevents OOM crashes on large video files
+          await Filesystem.downloadFile({
+            url: downloadUrl,
+            path: localPath,
+            directory: FilesystemDirectory.Data
+          });
+
+          this.manifest[fileId] = {
+            fileId, fileName, mimeType,
+            localPath: localPath,
+            cachedAt: Date.now()
+          };
+          this._saveManifest();
+        } catch (e) {
+          console.error(`Failed to cache ${fileName}:`, e);
+          // If native download fails, try the fetch+base64 approach for small images only
+          if (!isVideoFile) {
+            try {
+              await this._downloadViaFetch(fileId, fileName, mimeType, localPath);
+              return;
+            } catch (e2) {
+              console.error(`Fallback download also failed for ${fileName}:`, e2);
+            }
+          }
+          throw e;
+        }
+      }
+
+      // Fallback download for small images only — fetch, convert to base64, write
+      async _downloadViaFetch(fileId, fileName, mimeType, localPath) {
+        const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-rj`;
+        const response = await fetch(imageUrl);
+        if (!response.ok) throw new Error(`Image download failed: ${response.status}`);
+
+        const blob = await response.blob();
+        // Safety: don't convert files larger than 10MB to base64
+        if (blob.size > 10 * 1024 * 1024) throw new Error('File too large for base64 fallback');
+
+        const base64 = await this._blobToBase64(blob);
+
+        await Filesystem.writeFile({
+          path: localPath,
+          data: base64,
+          directory: FilesystemDirectory.Data
+        });
+
+        this.manifest[fileId] = {
+          fileId, fileName, mimeType,
+          localPath: localPath,
+          cachedAt: Date.now()
+        };
+        this._saveManifest();
+      }
+
+      // Delete a cached file
+      async deleteFile(fileId) {
+        const entry = this.manifest[fileId];
+        if (!entry) return;
+
+        if (Filesystem && entry.localPath) {
+          try {
+            await Filesystem.deleteFile({
+              path: entry.localPath,
+              directory: FilesystemDirectory.Data
+            });
+          } catch (e) {
+            console.warn(`Failed to delete cached file ${entry.localPath}:`, e);
+          }
+        }
+
+        delete this.manifest[fileId];
+        this._saveManifest();
+      }
+
+      // Get a local URL for a cached file (usable in <img> or <video> src)
+      async getCachedUrl(fileId) {
+        const entry = this.manifest[fileId];
+        if (!entry) return null;
+
+        if (!Filesystem || !entry.localPath) {
+          // Browser fallback: return Drive URL for images
+          const isVideoFile = VIDEO_TYPES.some(t => entry.mimeType?.startsWith(t.split('/')[0]));
+          if (isVideoFile) return null;
+          return `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-rj`;
+        }
+
+        try {
+          const result = await Filesystem.getUri({
+            path: entry.localPath,
+            directory: FilesystemDirectory.Data
+          });
+          // Convert native file URI to web-viewable URI
+          return Capacitor.convertFileSrc(result.uri);
+        } catch (e) {
+          console.warn(`Failed to get URI for ${fileId}:`, e);
+          return null;
+        }
+      }
+
+      isCached(fileId) {
+        return !!this.manifest[fileId];
+      }
+
+      getCachedIds() {
+        return new Set(Object.keys(this.manifest));
+      }
+
+      getManifestEntry(fileId) {
+        return this.manifest[fileId] || null;
+      }
+
+      // Clear all cached files
+      async clearAll() {
+        if (Filesystem) {
+          try {
+            await Filesystem.rmdir({
+              path: CACHE_DIR,
+              directory: FilesystemDirectory.Data,
+              recursive: true
+            });
+          } catch (e) {}
+        }
+        this.manifest = {};
+        this._saveManifest();
+        await this.init();
+      }
+
+      _blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      _getExtension(fileName, mimeType) {
+        const match = fileName.match(/\.(\w+)$/);
+        if (match) return match[1].toLowerCase();
+        const map = {
+          'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+          'image/webp': 'webp', 'image/bmp': 'bmp',
+          'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov',
+          'video/x-msvideo': 'avi', 'video/3gpp': '3gp'
+        };
+        return map[mimeType] || 'bin';
+      }
+    }
+
+    // ── Config ──
+    const PHOTO_DURATION = 8000;
+    const VIDEO_MAX_DURATION = 120000;
+    const REFRESH_INTERVAL = 5 * 60 * 1000;
+    const TRANSITION_MS = 1200;
+    const PRELOAD_AHEAD = 3;
+    const MAX_RETRIES = 3;
+    const RETRY_BASE_DELAY = 2000;
+    const CONCURRENT_DOWNLOADS = 1; // download one at a time to prevent memory pressure
+
+    const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+    const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/3gpp'];
+
+    // ── State ──
+    let apiKey = '';
+    let folderId = '';
+    let files = [];       // raw files from Drive
+    let playlist = [];    // ordered playlist (interleaved images/videos)
+    let currentIndex = 0;
+    let isPaused = false;
+    let advanceTimer = null;
+    let refreshTimer = null;
+    let hideUITimer = null;
+    let watchdogTimer = null;
+    let lastAdvanceTime = 0;
+    const WATCHDOG_INTERVAL = 30000; // check every 30s
+    const MAX_STUCK_TIME = 180000;   // force advance after 3min stuck
+    const cacheManager = new CacheManager();
+
+    // ── DOM ──
+    const setupScreen = document.getElementById('setup-screen');
+    const loadingScreen = document.getElementById('loading-screen');
+    const downloadScreen = document.getElementById('download-screen');
+    const slideshowScreen = document.getElementById('slideshow-screen');
+    const mediaContainer = document.getElementById('media-container');
+    const setupError = document.getElementById('setup-error');
+    const fileNameEl = document.getElementById('file-name');
+    const counterEl = document.getElementById('counter');
+    const dotsEl = document.getElementById('dots');
+    const syncStatus = document.getElementById('sync-status');
+    const pauseBtn = document.getElementById('pause-btn');
+    const bufferingIndicator = document.getElementById('buffering-indicator');
+    const downloadText = document.getElementById('download-text');
+    const downloadBar = document.getElementById('download-bar');
+    const downloadDetail = document.getElementById('download-detail');
+    let preloadCache = {};
+    let preloadPromises = {};
+
+    // ── Save/Load config ──
+    function saveConfig() {
+      const data = btoa(JSON.stringify({ apiKey, folderId }));
+      try {
+        localStorage.setItem('totemtv_config', data);
+      } catch (e) {}
+      window.location.hash = data;
+    }
+
+    function loadConfig() {
+      try {
+        // Try localStorage first (preferred for APK)
+        var stored = localStorage.getItem('totemtv_config');
+        if (stored) {
+          var data = JSON.parse(atob(stored));
+          if (data.apiKey && data.folderId) {
+            apiKey = data.apiKey;
+            folderId = data.folderId;
+            return true;
+          }
+        }
+
+        // Fallback: URL hash
+        var source = '';
+        if (window.location.hash.length > 1) {
+          source = window.location.hash.slice(1);
+        } else {
+          var match = window.location.search.match(/[?&]config=([^&]+)/);
+          if (match) source = decodeURIComponent(match[1]);
+        }
+        if (source) {
+          var data2 = JSON.parse(atob(source));
+          if (data2.apiKey && data2.folderId) {
+            apiKey = data2.apiKey;
+            folderId = data2.folderId;
+            return true;
+          }
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    // ── Build interleaved playlist ──
+    // Rule: alternate image, video, image, video...
+    // Images repeat if there are more videos (images = ads, show them often)
+    function buildPlaylist(fileList) {
+      const images = fileList.filter(f => !isVideo(f));
+      const videos = fileList.filter(f => isVideo(f));
+
+      // If only one type, return as-is
+      if (images.length === 0 || videos.length === 0) return fileList.slice();
+
+      const result = [];
+      const totalPairs = Math.max(images.length, videos.length);
+
+      for (let i = 0; i < totalPairs; i++) {
+        result.push(images[i % images.length]);
+        result.push(videos[i % videos.length]);
+      }
+
+      return result;
+    }
+
+    // ── Fetch files from Drive ──
+    async function fetchFiles() {
+      const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+      const fields = encodeURIComponent('files(id,name,mimeType,createdTime,videoMediaMetadata)');
+      const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&orderBy=createdTime desc&pageSize=1000&key=${apiKey}`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `API Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      return (data.files || []).filter(f =>
+        IMAGE_TYPES.includes(f.mimeType) ||
+        VIDEO_TYPES.some(t => f.mimeType?.startsWith(t.split('/')[0]))
+      );
+    }
+
+    // ── Download all files to device ──
+    async function downloadAllFiles(fileList) {
+      const toDownload = fileList.filter(f => !cacheManager.isCached(f.id));
+      if (toDownload.length === 0) return;
+
+      downloadScreen.style.display = 'flex';
+      let completed = 0;
+      let failed = 0;
+      const total = toDownload.length;
+
+      downloadText.textContent = `Downloading ${total} files for offline use...`;
+      downloadDetail.textContent = `0 / ${total}`;
+      downloadBar.style.width = '0%';
+
+      // Download ONE file at a time to prevent memory pressure / OOM crashes
+      for (const file of toDownload) {
+        let success = false;
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          try {
+            downloadText.textContent = `Downloading: ${file.name}`;
+            await cacheManager.downloadFile(file.id, file.name, file.mimeType, apiKey);
+            success = true;
+            break;
+          } catch (e) {
+            console.warn(`Download attempt ${attempt + 1} failed for ${file.name}:`, e.message || e);
+            if (attempt < MAX_RETRIES - 1) {
+              await new Promise(r => setTimeout(r, RETRY_BASE_DELAY * Math.pow(2, attempt)));
+            }
+          }
+        }
+
+        completed++;
+        if (!success) {
+          failed++;
+          console.error(`Skipped ${file.name} after ${MAX_RETRIES} attempts`);
+        }
+        const pct = Math.round((completed / total) * 100);
+        downloadBar.style.width = pct + '%';
+        downloadDetail.textContent = `${completed} / ${total}${failed > 0 ? ` (${failed} failed)` : ''}`;
+      }
+
+      downloadText.textContent = failed > 0
+        ? `Done — ${completed - failed} downloaded, ${failed} failed`
+        : `All ${completed} files downloaded!`;
+
+      // Brief pause so user sees the completion message
+      await new Promise(r => setTimeout(r, 1500));
+      downloadScreen.style.display = 'none';
+    }
+
+    // ── Sync: add new files, remove deleted ones ──
+    async function syncFiles(newFileList) {
+      const driveIds = new Set(newFileList.map(f => f.id));
+      const cachedIds = cacheManager.getCachedIds();
+
+      // Find files to delete (in cache but not in Drive)
+      const toDelete = [];
+      for (const cachedId of cachedIds) {
+        if (!driveIds.has(cachedId)) {
+          toDelete.push(cachedId);
+        }
+      }
+
+      // Delete removed files
+      for (const id of toDelete) {
+        await cacheManager.deleteFile(id);
+      }
+
+      // Download new files (in Drive but not cached)
+      const toDownload = newFileList.filter(f => !cacheManager.isCached(f.id));
+      if (toDownload.length > 0) {
+        // Download silently in background (no progress screen during sync)
+        for (const file of toDownload) {
+          try {
+            await cacheManager.downloadFile(file.id, file.name, file.mimeType, apiKey);
+          } catch (e) {
+            console.warn(`Background sync: failed to download ${file.name}`);
+          }
+        }
+      }
+
+      return { added: toDownload.length, removed: toDelete.length };
+    }
+
+    // ── Show sync status ──
+    function showSyncStatus(msg) {
+      syncStatus.textContent = msg;
+      syncStatus.classList.add('visible');
+      setTimeout(() => syncStatus.classList.remove('visible'), 3000);
+    }
+
+    // ── Refresh files (background) ──
+    async function refreshFiles() {
+      try {
+        const newFiles = await fetchFiles();
+
+        const { added, removed } = await syncFiles(newFiles);
+
+        if (added > 0 || removed > 0) {
+          const currentFileId = playlist[currentIndex]?.id;
+          files = newFiles;
+          playlist = buildPlaylist(files);
+
+          if (currentFileId) {
+            const newIdx = playlist.findIndex(f => f.id === currentFileId);
+            currentIndex = newIdx >= 0 ? newIdx : 0;
+          }
+
+          updateDots();
+          showSyncStatus(`Synced: ${added > 0 ? `+${added}` : ''} ${removed > 0 ? `-${removed}` : ''} files`);
+        }
+      } catch (e) {
+        showSyncStatus('Sync failed — will retry');
+      }
+    }
+
+    // ── Display current media ──
+    function isVideo(file) {
+      return file && VIDEO_TYPES.some(t => file.mimeType?.startsWith(t.split('/')[0]));
+    }
+
+    function getImageUrl(file) {
+      return `https://lh3.googleusercontent.com/d/${file.id}=w1920-h1080-rj`;
+    }
+
+    function getVideoDuration(file) {
+      if (file.videoMediaMetadata && file.videoMediaMetadata.durationMillis) {
+        return parseInt(file.videoMediaMetadata.durationMillis) + 3000;
+      }
+      return VIDEO_MAX_DURATION;
+    }
+
+    // ── Preload helpers ──
+    function preloadFile(file) {
+      if (!file || preloadCache[file.id]) return Promise.resolve();
+      if (isVideo(file)) return Promise.resolve();
+      if (preloadPromises[file.id]) return preloadPromises[file.id];
+
+      const promise = (async () => {
+        // Try local cache first
+        const cachedUrl = await cacheManager.getCachedUrl(file.id);
+        if (cachedUrl) {
+          // Verify the cached URL loads
+          try {
+            await new Promise((resolve, reject) => {
+              const img = new Image();
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = cachedUrl;
+            });
+            preloadCache[file.id] = cachedUrl;
+            return;
+          } catch (e) {
+            // Cached file corrupt, fall through to remote
+          }
+        }
+
+        // Fallback to remote
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          try {
+            const url = getImageUrl(file);
+            await new Promise((resolve, reject) => {
+              const img = new Image();
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = url;
+            });
+            preloadCache[file.id] = url;
+            return;
+          } catch (e) {
+            if (attempt < MAX_RETRIES - 1) {
+              await new Promise(r => setTimeout(r, RETRY_BASE_DELAY * Math.pow(2, attempt)));
+            }
+          }
+        }
+      })();
+
+      preloadPromises[file.id] = promise;
+      return promise;
+    }
+
+    function preloadNext() {
+      for (let offset = 1; offset <= PRELOAD_AHEAD; offset++) {
+        const idx = (currentIndex + offset) % playlist.length;
+        preloadFile(playlist[idx]);
+      }
+    }
+
+    async function showMedia() {
+     try {
+      if (playlist.length === 0) return;
+
+      lastAdvanceTime = Date.now();
+      const file = playlist[currentIndex];
+      if (!file) { currentIndex = 0; return showMedia(); }
+      fileNameEl.textContent = file.name;
+      counterEl.textContent = `${currentIndex + 1} / ${playlist.length}`;
+      updateDots();
+
+      if (!isVideo(file) && !preloadCache[file.id]) {
+        bufferingIndicator.classList.add('visible');
+        await preloadFile(file);
+        bufferingIndicator.classList.remove('visible');
+      }
+
+      // Fade out
+      mediaContainer.style.opacity = '0';
+
+      setTimeout(async () => {
+        mediaContainer.innerHTML = '';
+
+        if (isVideo(file)) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'video-wrapper';
+
+          const video = document.createElement('video');
+          video.autoplay = true;
+          video.muted = false;
+          video.playsInline = true;
+          video.setAttribute('preload', 'auto');
+
+          // Try local cache first
+          const cachedUrl = await cacheManager.getCachedUrl(file.id);
+          if (cachedUrl) {
+            video.src = cachedUrl;
+          } else {
+            // Fallback: stream from Drive API (direct download URL)
+            video.src = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${apiKey}`;
+          }
+
+          bufferingIndicator.classList.add('visible');
+
+          video.addEventListener('canplay', () => {
+            bufferingIndicator.classList.remove('visible');
+            mediaContainer.style.opacity = '1';
+          }, { once: true });
+
+          video.addEventListener('ended', () => {
+            goNext();
+          });
+
+          video.addEventListener('error', () => {
+            bufferingIndicator.classList.remove('visible');
+            // On error, skip to next after a short delay
+            setTimeout(goNext, 2000);
+          });
+
+          wrapper.appendChild(video);
+          mediaContainer.appendChild(wrapper);
+
+          // Fallback timer in case video doesn't trigger 'ended'
+          const duration = getVideoDuration(file);
+          scheduleAdvance(duration);
+          preloadNext();
+        } else {
+          const img = document.createElement('img');
+          img.src = preloadCache[file.id] || await cacheManager.getCachedUrl(file.id) || getImageUrl(file);
+          img.alt = file.name;
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'contain';
+
+          img.addEventListener('load', () => {
+            mediaContainer.style.opacity = '1';
+            preloadNext();
+          }, { once: true });
+
+          img.addEventListener('error', () => {
+            delete preloadCache[file.id];
+            delete preloadPromises[file.id];
+            clearTimeout(advanceTimer);
+            setTimeout(() => showMedia(), RETRY_BASE_DELAY);
+          });
+
+          mediaContainer.appendChild(img);
+          scheduleAdvance(PHOTO_DURATION);
+
+          if (img.complete) mediaContainer.style.opacity = '1';
+        }
+      }, TRANSITION_MS);
+     } catch (err) {
+      console.error('showMedia error — auto-recovering:', err);
+      // Auto-recover: skip to next item after a short delay
+      clearTimeout(advanceTimer);
+      setTimeout(() => { goNext(); }, 3000);
+     }
+    }
+
+    function scheduleAdvance(ms) {
+      clearTimeout(advanceTimer);
+      if (!isPaused) {
+        advanceTimer = setTimeout(goNext, ms);
+      }
+    }
+
+    function goNext() {
+      if (playlist.length <= 1) return;
+      currentIndex = (currentIndex + 1) % playlist.length;
+      showMedia();
+    }
+
+    function goPrev() {
+      if (playlist.length <= 1) return;
+      currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+      showMedia();
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      pauseBtn.innerHTML = isPaused
+        ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
+        : '<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
+      if (!isPaused) {
+        const file = playlist[currentIndex];
+        scheduleAdvance(isVideo(file) ? VIDEO_MAX_DURATION : PHOTO_DURATION);
+      } else {
+        clearTimeout(advanceTimer);
+      }
+    }
+
+    // ── Dots ──
+    function updateDots() {
+      dotsEl.innerHTML = '';
+      if (playlist.length > 30 || playlist.length <= 1) return;
+
+      playlist.forEach((_, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'dot' + (i === currentIndex ? ' active' : '');
+        dotsEl.appendChild(dot);
+      });
+    }
+
+    // ── UI visibility ──
+    function showUITemporarily() {
+      slideshowScreen.classList.add('show-ui');
+      slideshowScreen.style.cursor = 'default';
+      clearTimeout(hideUITimer);
+      hideUITimer = setTimeout(() => {
+        slideshowScreen.classList.remove('show-ui');
+        slideshowScreen.style.cursor = 'none';
+      }, 4000);
+    }
+
+    // ── Launch ──
+    async function launch() {
+      setupScreen.style.display = 'none';
+      loadingScreen.style.display = 'flex';
+
+      try {
+        // Initialize cache
+        await cacheManager.init();
+
+        // Fetch file list from Drive
+        files = await fetchFiles();
+
+        if (files.length === 0) {
+          throw new Error('No photos or videos found in this folder. Make sure the folder contains media files and is shared publicly.');
+        }
+
+        loadingScreen.style.display = 'none';
+
+        // Download all files to device for offline use
+        try {
+          await downloadAllFiles(files);
+        } catch (dlErr) {
+          console.error('Download phase error (non-fatal):', dlErr);
+          downloadScreen.style.display = 'none';
+          // Continue to slideshow even if some downloads failed
+          // Files that weren't cached will stream from Drive
+        }
+
+        // Build interleaved playlist
+        playlist = buildPlaylist(files);
+
+        // Show slideshow
+        slideshowScreen.style.display = 'block';
+        currentIndex = 0;
+
+        // Preload first few images
+        try {
+          const imageBatch = playlist.filter(f => !isVideo(f)).slice(0, PRELOAD_AHEAD + 1);
+          await Promise.all(imageBatch.map(f => preloadFile(f)));
+        } catch (preloadErr) {
+          console.warn('Preload phase error (non-fatal):', preloadErr);
+        }
+
+        showMedia();
+        startWatchdog();
+
+        // Periodic sync (refresh file list + download new / delete removed)
+        refreshTimer = setInterval(refreshFiles, REFRESH_INTERVAL);
+
+      } catch (err) {
+        console.error('Launch error:', err);
+        loadingScreen.style.display = 'none';
+        downloadScreen.style.display = 'none';
+        setupScreen.style.display = 'flex';
+        setupError.textContent = err.message || 'An unexpected error occurred';
+        setupError.style.display = 'block';
+      }
+    }
+
+    // ── Watchdog: detect stuck slideshow and force-advance ──
+    function startWatchdog() {
+      clearInterval(watchdogTimer);
+      lastAdvanceTime = Date.now();
+      watchdogTimer = setInterval(() => {
+        if (isPaused || playlist.length === 0) return;
+        const elapsed = Date.now() - lastAdvanceTime;
+        if (elapsed > MAX_STUCK_TIME) {
+          console.warn(`Watchdog: slideshow stuck for ${Math.round(elapsed/1000)}s — forcing advance`);
+          clearTimeout(advanceTimer);
+          goNext();
+        }
+      }, WATCHDOG_INTERVAL);
+    }
+
+    function backToSetup() {
+      clearTimeout(advanceTimer);
+      clearInterval(refreshTimer);
+      clearInterval(watchdogTimer);
+      slideshowScreen.style.display = 'none';
+      setupScreen.style.display = 'flex';
+      files = [];
+      playlist = [];
+      currentIndex = 0;
+    }
+
+    // ── Event Listeners ──
+    document.getElementById('launch-btn').addEventListener('click', () => {
+      apiKey = document.getElementById('api-key-input').value.trim();
+      folderId = document.getElementById('folder-id-input').value.trim();
+
+      if (!apiKey || !folderId) {
+        setupError.textContent = 'Please enter both API Key and Folder ID';
+        setupError.style.display = 'block';
+        return;
+      }
+
+      setupError.style.display = 'none';
+      saveConfig();
+      launch();
+    });
+
+    document.getElementById('prev-btn').addEventListener('click', (e) => { e.stopPropagation(); goPrev(); });
+    document.getElementById('next-btn').addEventListener('click', (e) => { e.stopPropagation(); goNext(); });
+    document.getElementById('pause-btn').addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
+    document.getElementById('settings-btn').addEventListener('click', (e) => { e.stopPropagation(); backToSetup(); });
+
+    slideshowScreen.addEventListener('mousemove', showUITemporarily);
+    slideshowScreen.addEventListener('click', showUITemporarily);
+
+    // Keyboard controls (TV remote compatible)
+    document.addEventListener('keydown', (e) => {
+      if (slideshowScreen.style.display === 'block') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev();
+        else if (e.key === ' ' || e.key === 'Enter') togglePause();
+        else if (e.key === 'Escape') backToSetup();
+        showUITemporarily();
+      }
+    });
+
+    // ── Global error handler — prevent crashes, attempt recovery ──
+    window.addEventListener('error', (e) => {
+      console.error('Global error:', e.message, e.filename, e.lineno);
+      // If slideshow is active, try to recover by advancing
+      if (slideshowScreen.style.display === 'block' && playlist.length > 0) {
+        clearTimeout(advanceTimer);
+        setTimeout(() => { try { goNext(); } catch(ex) {} }, 5000);
+      }
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled promise rejection:', e.reason);
+      // If slideshow is active, try to recover
+      if (slideshowScreen.style.display === 'block' && playlist.length > 0) {
+        clearTimeout(advanceTimer);
+        setTimeout(() => { try { goNext(); } catch(ex) {} }, 5000);
+      }
+    });
+
+    // ── Auto-launch if config saved ──
+    if (loadConfig()) {
+      document.getElementById('api-key-input').value = apiKey;
+      document.getElementById('folder-id-input').value = folderId;
+      launch();
+    }
+  </script>
+</body>
+</html>

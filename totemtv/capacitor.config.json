@@ -1,0 +1,16 @@
+{
+  "appId": "com.totemtv.app",
+  "appName": "TotemTV",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "Filesystem": {
+      "defaultDirectory": "Documents"
+    }
+  }
+}
