@@ -1,30 +1,33 @@
 // ============================================================
 // TotemTV Automation — Google Apps Script
 // ============================================================
-// This script watches the "totemtv unedited" Drive folder for
-// new videos, emails you a Google Form link to fill in details,
-// and triggers a Cloud Run service to process the video.
+// Watches "totemtv unedited" Drive folder for new videos,
+// emails a Google Form link, and triggers GitHub Actions
+// to process the video with FFmpeg.
 // ============================================================
 
 // ── CONFIGURATION ──────────────────────────────────────────
 const CONFIG = {
-  // Google Drive folder IDs (get from the folder URL)
+  // Google Drive folder IDs (from folder URL)
   UNEDITED_FOLDER_ID: 'YOUR_UNEDITED_FOLDER_ID',   // "totemtv unedited"
   OUTPUT_FOLDER_ID:   'YOUR_OUTPUT_FOLDER_ID',      // "totemtv"
 
-  // Google Form URL (the edit URL, NOT the published URL)
+  // Google Form pre-filled URL base
   FORM_URL: 'YOUR_GOOGLE_FORM_URL',
 
-  // Cloud Run service URL
-  CLOUD_RUN_URL: 'YOUR_CLOUD_RUN_URL',
+  // GitHub — for triggering Actions workflow
+  GITHUB_TOKEN: 'YOUR_GITHUB_PAT',                  // Personal Access Token (fine-grained)
+  GITHUB_OWNER: 'carmelrr',
+  GITHUB_REPO:  'projects',
+  GITHUB_WORKFLOW: 'process-video.yml',
 
-  // Your email address for notifications
+  // Notification email
   NOTIFICATION_EMAIL: 'YOUR_EMAIL@gmail.com',
 
-  // Sheet tab name for tracking
+  // Sheet
   SHEET_NAME: 'Tracking',
 
-  // Video file extensions to watch
+  // Video extensions
   VIDEO_EXTENSIONS: ['mp4', 'webm', 'mov', 'avi', 'mkv', '3gp'],
 };
 
@@ -41,11 +44,10 @@ const COL = {
   ERROR:      8,  // I
 };
 
-// Status values
 const STATUS = {
   NEW:        'new',
-  PENDING:    'pending',      // email sent, waiting for form
-  PROCESSING: 'processing',   // Cloud Run is working
+  PENDING:    'pending',
+  PROCESSING: 'processing',
   DONE:       'done',
   ERROR:      'error',
 };
@@ -73,28 +75,22 @@ function checkForNewVideos() {
     // Skip already tracked files
     if (existingIds.has(fileId)) continue;
 
-    // Add new row to sheet
+    // Add new row
     const now = new Date();
     sheet.appendRow([
-      fileId,
-      fileName,
-      STATUS.NEW,
-      '', '', '', // climber, route, grade (empty)
+      fileId, fileName, STATUS.NEW,
+      '', '', '',
       now.toISOString(),
-      '', '',     // output ID, error
+      '', '',
     ]);
 
-    // Build pre-filled form URL
+    // Send email with form link
     const formUrl = buildFormUrl_(fileId, fileName);
-
-    // Send email notification
     sendNotificationEmail_(fileName, fileId, formUrl);
-
-    // Update status to pending
     updateStatus_(sheet, fileId, STATUS.PENDING);
 
     newCount++;
-    Logger.log('New video found: ' + fileName + ' (' + fileId + ')');
+    Logger.log('New video: ' + fileName + ' (' + fileId + ')');
   }
 
   if (newCount > 0) {
@@ -103,13 +99,11 @@ function checkForNewVideos() {
 }
 
 // ============================================================
-// FORM SUBMIT HANDLER — triggered when the Google Form is submitted
+// FORM SUBMIT HANDLER
 // ============================================================
 function onFormSubmit(e) {
   const responses = e.response.getItemResponses();
 
-  // Parse form responses
-  // Form fields order: Video File ID, Climber Name, Route Name, Grade
   let fileId = '';
   let climber = '';
   let route = '';
@@ -136,70 +130,83 @@ function onFormSubmit(e) {
   }
 
   const sheet = getOrCreateSheet_();
-
-  // Update sheet with form data
   const row = findRowByFileId_(sheet, fileId);
   if (row === -1) {
     Logger.log('ERROR: File ID not found in sheet: ' + fileId);
     return;
   }
 
+  const fileName = sheet.getRange(row, COL.FILENAME + 1).getValue();
+
+  // Save form data to sheet
   sheet.getRange(row, COL.CLIMBER + 1).setValue(climber);
   sheet.getRange(row, COL.ROUTE + 1).setValue(route);
   sheet.getRange(row, COL.GRADE + 1).setValue(grade);
   updateStatus_(sheet, fileId, STATUS.PROCESSING);
 
-  // Trigger Cloud Run processing
-  triggerCloudRun_(fileId, climber, route, grade);
+  // Trigger GitHub Actions
+  triggerGitHubActions_(fileId, fileName, climber, route, grade, row);
 }
 
 // ============================================================
-// CLOUD RUN CALLBACK — called by Cloud Run when processing is done
+// GITHUB ACTIONS TRIGGER
 // ============================================================
-function doPost(e) {
+function triggerGitHubActions_(fileId, fileName, climber, route, grade, sheetRow) {
+  const url = 'https://api.github.com/repos/'
+    + CONFIG.GITHUB_OWNER + '/' + CONFIG.GITHUB_REPO
+    + '/actions/workflows/' + CONFIG.GITHUB_WORKFLOW
+    + '/dispatches';
+
+  const payload = {
+    ref: 'main',
+    inputs: {
+      file_id:      fileId,
+      file_name:    fileName,
+      climber_name: climber,
+      route_name:   route,
+      grade:        grade,
+      sheet_row:    String(sheetRow),
+    },
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + CONFIG.GITHUB_TOKEN,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  };
+
   try {
-    const data = JSON.parse(e.postData.contents);
-    const sheet = getOrCreateSheet_();
+    const response = UrlFetchApp.fetch(url, options);
+    const code = response.getResponseCode();
 
-    if (data.status === 'done') {
-      const row = findRowByFileId_(sheet, data.fileId);
+    if (code === 204) {
+      Logger.log('GitHub Actions triggered for: ' + fileId);
+    } else {
+      const body = response.getContentText();
+      Logger.log('GitHub API error (' + code + '): ' + body);
+
+      const sheet = getOrCreateSheet_();
+      const row = findRowByFileId_(sheet, fileId);
       if (row !== -1) {
-        sheet.getRange(row, COL.OUTPUT_ID + 1).setValue(data.outputFileId || '');
-        updateStatus_(sheet, data.fileId, STATUS.DONE);
+        sheet.getRange(row, COL.ERROR + 1).setValue('GitHub trigger error: ' + code);
+        updateStatus_(sheet, fileId, STATUS.ERROR);
       }
-      return ContentService.createTextOutput(JSON.stringify({ success: true }))
-        .setMimeType(ContentService.MimeType.JSON);
     }
-
-    if (data.status === 'error') {
-      const row = findRowByFileId_(sheet, data.fileId);
-      if (row !== -1) {
-        sheet.getRange(row, COL.ERROR + 1).setValue(data.error || 'Unknown error');
-        updateStatus_(sheet, data.fileId, STATUS.ERROR);
-      }
-      // Send error email
-      MailApp.sendEmail(
-        CONFIG.NOTIFICATION_EMAIL,
-        'TotemTV Error: ' + data.fileId,
-        'Error processing video: ' + (data.error || 'Unknown error')
-      );
-      return ContentService.createTextOutput(JSON.stringify({ success: true }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({ error: 'Unknown status' }))
-      .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    Logger.log('doPost error: ' + err.message);
-    return ContentService.createTextOutput(JSON.stringify({ error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Logger.log('GitHub trigger exception: ' + err.message);
+    const sheet = getOrCreateSheet_();
+    const row = findRowByFileId_(sheet, fileId);
+    if (row !== -1) {
+      sheet.getRange(row, COL.ERROR + 1).setValue('Trigger error: ' + err.message);
+      updateStatus_(sheet, fileId, STATUS.ERROR);
+    }
   }
-}
-
-// Allow GET for health check
-function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================================
@@ -214,11 +221,9 @@ function getOrCreateSheet_() {
     sheet = ss.insertSheet(CONFIG.SHEET_NAME);
     sheet.appendRow([
       'File ID', 'Filename', 'Status', 'Climber', 'Route', 'Grade',
-      'Timestamp', 'Output File ID', 'Error'
+      'Timestamp', 'Output File ID', 'Error',
     ]);
-    // Freeze header row
     sheet.setFrozenRows(1);
-    // Bold header
     sheet.getRange(1, 1, 1, 9).setFontWeight('bold');
   }
 
@@ -228,10 +233,8 @@ function getOrCreateSheet_() {
 function getExistingFileIds_(sheet) {
   const ids = new Set();
   const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) { // skip header
-    if (data[i][COL.FILE_ID]) {
-      ids.add(data[i][COL.FILE_ID]);
-    }
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][COL.FILE_ID]) ids.add(data[i][COL.FILE_ID]);
   }
   return ids;
 }
@@ -244,33 +247,23 @@ function isVideoFile_(name) {
 function findRowByFileId_(sheet, fileId) {
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (data[i][COL.FILE_ID] === fileId) {
-      return i + 1; // 1-indexed for sheet
-    }
+    if (data[i][COL.FILE_ID] === fileId) return i + 1;
   }
   return -1;
 }
 
 function updateStatus_(sheet, fileId, status) {
   const row = findRowByFileId_(sheet, fileId);
-  if (row !== -1) {
-    sheet.getRange(row, COL.STATUS + 1).setValue(status);
-  }
+  if (row !== -1) sheet.getRange(row, COL.STATUS + 1).setValue(status);
 }
 
 function buildFormUrl_(fileId, fileName) {
-  // Pre-fill the form with file ID and filename
-  // You need to replace these entry IDs with your actual form field entry IDs
-  // To find them: open the form, click "Get pre-filled link", inspect the URL
   const baseUrl = CONFIG.FORM_URL;
-
-  // These entry IDs will be replaced after creating the form
-  // Format: entry.XXXXXXXXX=value
+  // Replace entry IDs with your actual form field entry IDs
   const params = new URLSearchParams({
-    'entry.FILE_ID_FIELD': fileId,        // Replace with actual entry ID
-    'entry.FILENAME_FIELD': fileName,     // Replace with actual entry ID
+    'entry.FILE_ID_FIELD': fileId,
+    'entry.FILENAME_FIELD': fileName,
   });
-
   return baseUrl + '?' + params.toString();
 }
 
@@ -291,64 +284,24 @@ function sendNotificationEmail_(fileName, fileId, formUrl) {
   MailApp.sendEmail(CONFIG.NOTIFICATION_EMAIL, subject, body);
 }
 
-function triggerCloudRun_(fileId, climber, route, grade) {
-  const payload = {
-    fileId: fileId,
-    climber: climber,
-    route: route,
-    grade: grade,
-    uneditedFolderId: CONFIG.UNEDITED_FOLDER_ID,
-    outputFolderId: CONFIG.OUTPUT_FOLDER_ID,
-    callbackUrl: ScriptApp.getService().getUrl(), // Web app URL for callback
-  };
-
-  const options = {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true,
-    // If Cloud Run requires authentication, add:
-    // headers: { 'Authorization': 'Bearer ' + ScriptApp.getIdentityToken() }
-  };
-
-  try {
-    const response = UrlFetchApp.fetch(CONFIG.CLOUD_RUN_URL, options);
-    Logger.log('Cloud Run response: ' + response.getContentText());
-  } catch (err) {
-    Logger.log('Cloud Run trigger error: ' + err.message);
-    const sheet = getOrCreateSheet_();
-    const row = findRowByFileId_(sheet, fileId);
-    if (row !== -1) {
-      sheet.getRange(row, COL.ERROR + 1).setValue('Trigger error: ' + err.message);
-      updateStatus_(sheet, fileId, STATUS.ERROR);
-    }
-  }
-}
-
 // ============================================================
-// SETUP — run once to create triggers
+// SETUP — run once
 // ============================================================
 function setupTriggers() {
-  // Remove existing triggers
-  const triggers = ScriptApp.getProjectTriggers();
-  for (const trigger of triggers) {
-    ScriptApp.deleteTrigger(trigger);
-  }
+  ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
 
-  // Create time-based trigger for folder watcher (every 5 minutes)
   ScriptApp.newTrigger('checkForNewVideos')
     .timeBased()
     .everyMinutes(5)
     .create();
 
-  // Create form submit trigger
-  // NOTE: This needs to be set up after linking the form to the script
-  // Go to the form → Script Editor → Triggers → Add trigger → onFormSubmit → From form → On form submit
-  Logger.log('Time trigger created. Set up form submit trigger manually in the Form script editor.');
+  Logger.log('Time trigger created.');
+  Logger.log('IMPORTANT: Set up form submit trigger manually:');
+  Logger.log('  Triggers → Add → onFormSubmit → From form → On form submit');
 }
 
 // ============================================================
-// MANUAL REPROCESS — retry failed videos
+// RETRY FAILED
 // ============================================================
 function retryFailed() {
   const sheet = getOrCreateSheet_();
@@ -356,16 +309,17 @@ function retryFailed() {
 
   for (let i = 1; i < data.length; i++) {
     if (data[i][COL.STATUS] === STATUS.ERROR) {
-      const fileId = data[i][COL.FILE_ID];
-      const climber = data[i][COL.CLIMBER];
-      const route = data[i][COL.ROUTE];
-      const grade = data[i][COL.GRADE];
+      const fileId   = data[i][COL.FILE_ID];
+      const fileName = data[i][COL.FILENAME];
+      const climber  = data[i][COL.CLIMBER];
+      const route    = data[i][COL.ROUTE];
+      const grade    = data[i][COL.GRADE];
 
       if (climber && route && grade) {
         updateStatus_(sheet, fileId, STATUS.PROCESSING);
         sheet.getRange(i + 1, COL.ERROR + 1).setValue('');
-        triggerCloudRun_(fileId, climber, route, grade);
-        Logger.log('Retrying: ' + data[i][COL.FILENAME]);
+        triggerGitHubActions_(fileId, fileName, climber, route, grade, i + 1);
+        Logger.log('Retrying: ' + fileName);
       }
     }
   }
