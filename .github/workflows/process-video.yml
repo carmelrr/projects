@@ -1,0 +1,61 @@
+name: TotemTV Process Video
+
+on:
+  workflow_dispatch:
+      inputs:
+            file_id:
+                    description: 'Google Drive File ID'
+                            required: true
+                                  file_name:
+                                          description: 'Original filename'
+                                                  required: true
+                                                        climber_name:
+                                                                description: 'Climber name'
+                                                                        required: true
+                                                                              route_name:
+                                                                                      description: 'Route name'
+                                                                                              required: true
+                                                                                                    grade:
+                                                                                                            description: 'Grade'
+                                                                                                                    required: true
+                                                                                                                          sheet_row:
+                                                                                                                                  description: 'Sheet row number to update'
+                                                                                                                                          required: false
+                                                                                                                                                  default: ''
+                                                                                                                                                  
+                                                                                                                                                  jobs:
+                                                                                                                                                    process:
+                                                                                                                                                        runs-on: ubuntu-latest
+                                                                                                                                                            timeout-minutes: 30
+                                                                                                                                                            
+                                                                                                                                                                steps:
+                                                                                                                                                                      - name: Checkout
+                                                                                                                                                                              uses: actions/checkout@v4
+                                                                                                                                                                              
+                                                                                                                                                                                    - name: Install FFmpeg
+                                                                                                                                                                                            run: sudo apt-get install -y ffmpeg
+                                                                                                                                                                                            
+                                                                                                                                                                                                  - name: Set up Python
+                                                                                                                                                                                                          uses: actions/setup-python@v5
+                                                                                                                                                                                                                  with:
+                                                                                                                                                                                                                            python-version: '3.11'
+                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                  - name: Install Python dependencies
+                                                                                                                                                                                                                                          run: pip install google-auth google-auth-httplib2 google-api-python-client Pillow
+                                                                                                                                                                                                                                          
+                                                                                                                                                                                                                                                - name: Decode service account
+                                                                                                                                                                                                                                                        run: |
+                                                                                                                                                                                                                                                                  echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" | base64 -d > /tmp/service-account.json
+                                                                                                                                                                                                                                                                  
+                                                                                                                                                                                                                                                                        - name: Process video
+                                                                                                                                                                                                                                                                                env:
+                                                                                                                                                                                                                                                                                          FILE_ID: ${{ inputs.file_id }}
+                                                                                                                                                                                                                                                                                                    FILE_NAME: ${{ inputs.file_name }}
+                                                                                                                                                                                                                                                                                                              CLIMBER_NAME: ${{ inputs.climber_name }}
+                                                                                                                                                                                                                                                                                                                        ROUTE_NAME: ${{ inputs.route_name }}
+                                                                                                                                                                                                                                                                                                                                  GRADE: ${{ inputs.grade }}
+                                                                                                                                                                                                                                                                                                                                            SHEET_ROW: ${{ inputs.sheet_row }}
+                                                                                                                                                                                                                                                                                                                                                      OUTPUT_FOLDER_ID: ${{ secrets.OUTPUT_FOLDER_ID }}
+                                                                                                                                                                                                                                                                                                                                                                SHEET_ID: ${{ secrets.SHEET_ID }}
+                                                                                                                                                                                                                                                                                                                                                                          GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
+                                                                                                                                                                                                                                                                                                                                                                                  run: python .github/scripts/process_video.py
