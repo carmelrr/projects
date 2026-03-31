@@ -29,7 +29,7 @@ FILE_NAME          = os.environ['FILE_NAME']
 CLIMBER_NAME       = os.environ['CLIMBER_NAME']
 ROUTE_NAME         = os.environ['ROUTE_NAME']
 GRADE              = os.environ['GRADE']
-SHEET_ROW          = int(os.environ['SHEET_ROW'])
+SHEET_ROW          = int(os.environ['SHEET_ROW']) if os.environ.get('SHEET_ROW', '').strip() else None
 
 SCOPES = [
     'https://www.googleapis.com/auth/drive',
