@@ -178,6 +178,9 @@ def update_sheet(creds, status, output_file_id=None, error=None):
       Column G (7) = "Done" or error
       Column H (8) = output file ID
     """
+    if not SHEET_ROW or not SHEET_ID:
+        print('  sheet update skipped (no SHEET_ROW or SHEET_ID)')
+        return
     gc = gspread.authorize(creds)
     ws = gc.open_by_key(SHEET_ID).worksheet('Tracking')
     ws.update_cell(SHEET_ROW, 3, status)          # C = status
