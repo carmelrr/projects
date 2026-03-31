@@ -31,6 +31,8 @@ ROUTE_NAME         = os.environ['ROUTE_NAME']
 GRADE              = os.environ['GRADE']
 SHEET_ROW          = int(os.environ['SHEET_ROW']) if os.environ.get('SHEET_ROW', '').strip() else None
 
+print(f'[INFO] Service Account: {json.loads(GOOGLE_CREDENTIALS).get("client_email", "unknown")}')
+
 SCOPES = [
     'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/spreadsheets',
