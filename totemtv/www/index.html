@@ -414,10 +414,11 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 18vh;
+      height: 10vw;
       z-index: 20;
       display: none;
       pointer-events: none;
+      overflow: hidden;
     }
 
     #video-banner.visible {
@@ -431,6 +432,16 @@
       background-size: 100% auto;
     }
 
+    #video-banner .banner-logo {
+      position: absolute;
+      top: 0.6vw;
+      right: 1vw;
+      height: 5vw;
+      width: auto;
+      z-index: 2;
+      opacity: 0.9;
+    }
+
     #video-banner .banner-text {
       position: absolute;
       bottom: 0;
@@ -441,7 +452,7 @@
       align-items: center;
       justify-content: center;
       gap: 24px;
-      padding: 0 60px;
+      padding: 0.4vw 60px 0;
       direction: rtl;
     }
 
@@ -545,6 +556,7 @@
     <!-- ── Video Banner Overlay ── -->
     <div id="video-banner">
       <div class="banner-bg"></div>
+      <img class="banner-logo" src="totem-logo.png" alt="TOTEM">
       <div class="banner-text">
         <span id="banner-climber"></span>
         <span class="banner-separator">|</span>
