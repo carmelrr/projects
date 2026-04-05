@@ -3,3 +3,4 @@ android/app/build/
 android/.gradle/
 *.apk
 .DS_Store
+output/

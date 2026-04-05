@@ -1,0 +1,59 @@
+name: Process Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_id:
+        description: "Google Drive file ID of the unedited video"
+        required: true
+      file_name:
+        description: "Original filename"
+        required: true
+      climber_name:
+        description: "Climber name (Hebrew or English)"
+        required: true
+      route_name:
+        description: "Route name"
+        required: true
+      grade:
+        description: "Grade / location"
+        required: true
+      sheet_row:
+        description: "Row number in tracking sheet"
+        required: false
+        default: ""
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+
+      - name: Install Python dependencies
+        run: pip install -r .github/scripts/requirements.txt
+
+      - name: Process video
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          OUTPUT_FOLDER_ID: ${{ secrets.OUTPUT_FOLDER_ID }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          INPUT_FILE_ID: ${{ github.event.inputs.file_id }}
+          INPUT_FILE_NAME: ${{ github.event.inputs.file_name }}
+          INPUT_CLIMBER_NAME: ${{ github.event.inputs.climber_name }}
+          INPUT_ROUTE_NAME: ${{ github.event.inputs.route_name }}
+          INPUT_GRADE: ${{ github.event.inputs.grade }}
+          INPUT_SHEET_ROW: ${{ github.event.inputs.sheet_row }}
+        run: python .github/scripts/process_video.py
