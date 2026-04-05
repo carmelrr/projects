@@ -407,6 +407,57 @@
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
+
+    /* ── Video Banner Overlay ── */
+    #video-banner {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 18vh;
+      z-index: 20;
+      display: none;
+      pointer-events: none;
+    }
+
+    #video-banner.visible {
+      display: block;
+    }
+
+    #video-banner .banner-bg {
+      position: absolute;
+      inset: 0;
+      background: url('totem-banner.jpeg') no-repeat bottom center;
+      background-size: 100% auto;
+    }
+
+    #video-banner .banner-text {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 0 60px;
+      direction: rtl;
+    }
+
+    #video-banner .banner-text span {
+      color: #fff;
+      font-size: clamp(16px, 2.5vw, 28px);
+      font-weight: 600;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
+      white-space: nowrap;
+    }
+
+    #video-banner .banner-separator {
+      color: rgba(255,255,255,0.5);
+      font-size: clamp(14px, 2vw, 24px);
+      font-weight: 300;
+    }
   </style>
 </head>
 <body>
@@ -490,6 +541,18 @@
     </div>
 
     <div id="dots"></div>
+
+    <!-- ── Video Banner Overlay ── -->
+    <div id="video-banner">
+      <div class="banner-bg"></div>
+      <div class="banner-text">
+        <span id="banner-climber"></span>
+        <span class="banner-separator">|</span>
+        <span id="banner-route"></span>
+        <span class="banner-separator">|</span>
+        <span id="banner-grade"></span>
+      </div>
+    </div>
   </div>
 
   <div id="buffering-indicator"><div class="spinner"></div></div>
@@ -1049,6 +1112,56 @@
       }
     }
 
+    // ── Parse video filename for banner info ──
+    // Expected formats:
+    //   "RouteName- Grade, Location - ClimberName - RouteName Grade.ext"
+    //   "ClimberName - RouteName Grade.ext"
+    function parseVideoFilename(name) {
+      // Remove file extension
+      const base = name.replace(/\.[^.]+$/, '');
+      const parts = base.split(/\s*-\s*/);
+
+      if (parts.length >= 3) {
+        // Format: "Route- Grade, Location - Climber - Route Grade"
+        return {
+          climber: parts[parts.length - 2].trim(),
+          route: parts[0].trim(),
+          grade: parts[parts.length - 1].trim()
+        };
+      } else if (parts.length === 2) {
+        return {
+          climber: parts[0].trim(),
+          route: parts[1].trim(),
+          grade: ''
+        };
+      }
+      return { climber: base, route: '', grade: '' };
+    }
+
+    // ── Show/hide video banner ──
+    const videoBanner = document.getElementById('video-banner');
+    const bannerClimber = document.getElementById('banner-climber');
+    const bannerRoute = document.getElementById('banner-route');
+    const bannerGrade = document.getElementById('banner-grade');
+
+    function showVideoBanner(file) {
+      const info = parseVideoFilename(file.name);
+      bannerClimber.textContent = info.climber;
+      bannerRoute.textContent = info.route;
+      bannerGrade.textContent = info.grade;
+
+      // Hide separators if fields are empty
+      const seps = videoBanner.querySelectorAll('.banner-separator');
+      seps[0].style.display = info.climber && info.route ? '' : 'none';
+      seps[1].style.display = (info.route || info.climber) && info.grade ? '' : 'none';
+
+      videoBanner.classList.add('visible');
+    }
+
+    function hideVideoBanner() {
+      videoBanner.classList.remove('visible');
+    }
+
     async function showMedia() {
      try {
       if (playlist.length === 0) return;
@@ -1059,6 +1172,13 @@
       fileNameEl.textContent = file.name;
       counterEl.textContent = `${currentIndex + 1} / ${playlist.length}`;
       updateDots();
+
+      // Show/hide banner based on media type
+      if (isVideo(file)) {
+        showVideoBanner(file);
+      } else {
+        hideVideoBanner();
+      }
 
       if (!isVideo(file) && !preloadCache[file.id]) {
         bufferingIndicator.classList.add('visible');
