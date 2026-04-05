@@ -1,27 +1,27 @@
-﻿name: TotemTV Process Video
+name: Process Video
 
 on:
   workflow_dispatch:
     inputs:
       file_id:
-        description: 'Google Drive File ID'
+        description: "Google Drive file ID of the unedited video"
         required: true
       file_name:
-        description: 'Original filename'
+        description: "Original filename"
         required: true
       climber_name:
-        description: 'Climber name'
+        description: "Climber name (Hebrew or English)"
         required: true
       route_name:
-        description: 'Route name'
+        description: "Route name"
         required: true
       grade:
-        description: 'Grade'
+        description: "Grade / location"
         required: true
       sheet_row:
-        description: 'Sheet row number to update'
+        description: "Row number in tracking sheet"
         required: false
-        default: ''
+        default: ""
 
 jobs:
   process:
@@ -29,34 +29,31 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y ffmpeg fonts-noto fonts-dejavu-core libfribidi-dev
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.12"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
 
       - name: Install Python dependencies
-        run: pip install google-auth google-auth-httplib2 google-api-python-client gspread
+        run: pip install -r .github/scripts/requirements.txt
 
       - name: Process video
         env:
-          FILE_ID: ${{ inputs.file_id }}
-          FILE_NAME: ${{ inputs.file_name }}
-          CLIMBER_NAME: ${{ inputs.climber_name }}
-          ROUTE_NAME: ${{ inputs.route_name }}
-          GRADE: ${{ inputs.grade }}
-          SHEET_ROW: ${{ inputs.sheet_row }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           OUTPUT_FOLDER_ID: ${{ secrets.OUTPUT_FOLDER_ID }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
-          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
-          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
-          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+          INPUT_FILE_ID: ${{ github.event.inputs.file_id }}
+          INPUT_FILE_NAME: ${{ github.event.inputs.file_name }}
+          INPUT_CLIMBER_NAME: ${{ github.event.inputs.climber_name }}
+          INPUT_ROUTE_NAME: ${{ github.event.inputs.route_name }}
+          INPUT_GRADE: ${{ github.event.inputs.grade }}
+          INPUT_SHEET_ROW: ${{ github.event.inputs.sheet_row }}
         run: python .github/scripts/process_video.py
