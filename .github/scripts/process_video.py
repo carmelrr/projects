@@ -15,6 +15,7 @@ import sys
 import tempfile
 import urllib.request
 import urllib.parse
+import urllib.error
 from pathlib import Path
 
 from google.oauth2 import service_account
@@ -144,65 +145,73 @@ def process_video(src, dst, climber, route, grade):
     print(f'  output: {dst} ({mb:.1f} MB)')
 
 def get_oauth_access_token():
+    """Get OAuth access token using refresh token. Returns None on failure."""
     if not GDRIVE_REFRESH_TOKEN or not GDRIVE_CLIENT_ID or not GDRIVE_CLIENT_SECRET:
         return None
-    data = urllib.parse.urlencode({
-        'client_id': GDRIVE_CLIENT_ID,
-        'client_secret': GDRIVE_CLIENT_SECRET,
-        'refresh_token': GDRIVE_REFRESH_TOKEN,
-        'grant_type': 'refresh_token',
-    }).encode()
-    req = urllib.request.Request(
-        'https://oauth2.googleapis.com/token',
-        data=data,
-        headers={'Content-Type': 'application/x-www-form-urlencoded'},
-    )
-    with urllib.request.urlopen(req) as resp:
-        token_data = json.loads(resp.read())
-    return token_data.get('access_token')
+    try:
+        data = urllib.parse.urlencode({
+            'client_id': GDRIVE_CLIENT_ID,
+            'client_secret': GDRIVE_CLIENT_SECRET,
+            'refresh_token': GDRIVE_REFRESH_TOKEN,
+            'grant_type': 'refresh_token',
+        }).encode()
+        req = urllib.request.Request(
+            'https://oauth2.googleapis.com/token',
+            data=data,
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        )
+        with urllib.request.urlopen(req) as resp:
+            token_data = json.loads(resp.read())
+        return token_data.get('access_token')
+    except Exception as e:
+        print(f'  OAuth token fetch failed ({e}), falling back to service account', file=sys.stderr)
+        return None
 
 def upload_file(svc, path, folder_id, name):
     access_token = get_oauth_access_token()
     if access_token:
         print('  uploading via OAuth user token (resumable) ...')
-        file_size = os.path.getsize(path)
-        metadata = json.dumps({'name': name, 'parents': [folder_id]}).encode()
-        init_req = urllib.request.Request(
-            'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
-            data=metadata,
-            headers={
-                'Authorization': f'Bearer {access_token}',
-                'Content-Type': 'application/json; charset=UTF-8',
-                'X-Upload-Content-Type': 'video/mp4',
-                'X-Upload-Content-Length': str(file_size),
-            },
-            method='POST',
-        )
-        with urllib.request.urlopen(init_req) as resp:
-            upload_url = resp.headers['Location']
-        with open(path, 'rb') as f:
-            upload_req = urllib.request.Request(
-                upload_url,
-                data=f.read(),
+        try:
+            file_size = os.path.getsize(path)
+            metadata = json.dumps({'name': name, 'parents': [folder_id]}).encode()
+            init_req = urllib.request.Request(
+                'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+                data=metadata,
                 headers={
-                    'Content-Type': 'video/mp4',
-                    'Content-Length': str(file_size),
+                    'Authorization': f'Bearer {access_token}',
+                    'Content-Type': 'application/json; charset=UTF-8',
+                    'X-Upload-Content-Type': 'video/mp4',
+                    'X-Upload-Content-Length': str(file_size),
                 },
-                method='PUT',
+                method='POST',
             )
-        with urllib.request.urlopen(upload_req) as resp:
-            result = json.loads(resp.read())
-        fid = result['id']
-        print(f'  uploaded to {fid}')
-        return fid
-    else:
-        print('  uploading via service account ...')
-        meta  = {'name': name, 'parents': [folder_id]}
-        media = MediaFileUpload(str(path), mimetype='video/mp4', resumable=True)
-        f = svc.files().create(body=meta, media_body=media, fields='id').execute()
-        fid = f['id']
-        print(f'  uploaded to {fid}')
-        return fid
+            with urllib.request.urlopen(init_req) as resp:
+                upload_url = resp.headers['Location']
+            with open(path, 'rb') as f:
+                upload_req = urllib.request.Request(
+                    upload_url,
+                    data=f.read(),
+                    headers={
+                        'Content-Type': 'video/mp4',
+                        'Content-Length': str(file_size),
+                    },
+                    method='PUT',
+                )
+            with urllib.request.urlopen(upload_req) as resp:
+                result = json.loads(resp.read())
+            fid = result['id']
+            print(f'  uploaded to {fid}')
+            return fid
+        except Exception as e:
+            print(f'  OAuth upload failed ({e}), falling back to service account', file=sys.stderr)
+
+    print('  uploading via service account ...')
+    meta  = {'name': name, 'parents': [folder_id]}
+    media = MediaFileUpload(str(path), mimetype='video/mp4', resumable=True)
+    f = svc.files().create(body=meta, media_body=media, fields='id').execute()
+    fid = f['id']
+    print(f'  uploaded to {fid}')
+    return fid
 
 def update_sheet(creds, status, output_file_id=None, error=None):
     if not SHEET_ROW or not SHEET_ID:
