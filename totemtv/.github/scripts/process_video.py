@@ -129,8 +129,9 @@ def build_ffmpeg_command(
     # [2:v] = logo image
     filters = []
 
-    # Scale banner to exact video width × banner_h
-    filters.append(f"[1:v]scale={vw}:{banner_h}[banner]")
+    # Scale banner to video width (keep aspect ratio), then crop bottom portion
+    # Mimics CSS: background-size: 100% auto; background-position: bottom center;
+    filters.append(f"[1:v]scale={vw}:-1,crop={vw}:{banner_h}:0:ih-{banner_h}[banner]")
 
     # Scale logo proportionally to logo_h height
     filters.append(f"[2:v]scale=-1:{logo_h}[logo]")
