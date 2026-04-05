@@ -24,12 +24,12 @@ import sys
 import tempfile
 
 # ── Layout constants (match www/index.html CSS) ────────────────
-BANNER_HEIGHT_RATIO = 0.10       # 10% of video height
-LOGO_HEIGHT_RATIO = 0.50         # logo = 50% of banner height
+BANNER_HEIGHT_RATIO = 0.06       # 6% of video height — compact banner
+LOGO_HEIGHT_RATIO = 0.55         # logo = 55% of banner height
 LOGO_RIGHT_MARGIN_RATIO = 0.01   # 1% from right edge
-LOGO_TOP_MARGIN_RATIO = 0.06     # 6% from top of banner
-FONT_SIZE_RATIO = 0.028          # font size relative to video height
-SEPARATOR = "  |  "
+LOGO_TOP_MARGIN_RATIO = 0.08     # 8% from top of banner
+FONT_SIZE_RATIO = 0.038          # font size relative to shorter dimension
+SEPARATOR = " | "
 CRF = 20                         # quality: 18 = near-lossless, 23 = default
 
 
@@ -108,8 +108,9 @@ def build_ffmpeg_command(
     logo_h = int(banner_h * LOGO_HEIGHT_RATIO)
     logo_right = int(vw * LOGO_RIGHT_MARGIN_RATIO)
     logo_top = int(banner_h * LOGO_TOP_MARGIN_RATIO)
-    font_size = int(vh * FONT_SIZE_RATIO)
-    sep_font_size = int(font_size * 0.85)
+    # Use the shorter dimension so text never overflows on portrait videos
+    ref_dim = min(vw, vh)
+    font_size = int(ref_dim * FONT_SIZE_RATIO)
 
     # Build the display text: "climber | route | grade"
     parts = [p for p in [climber, route, grade] if p]
@@ -125,28 +126,32 @@ def build_ffmpeg_command(
 
     # ── Filter graph ──────────────────────────────────────────
     # [0:v] = input video
-    # [1:v] = banner background image
+    # [1:v] = banner background image (mostly white, design only at bottom ~12%)
     # [2:v] = logo image
     filters = []
 
-    # Scale banner to video width (keep aspect ratio), then crop bottom portion
-    # Mimics CSS: background-size: 100% auto; background-position: bottom center;
-    filters.append(f"[1:v]scale={vw}:-1,crop={vw}:{banner_h}:0:ih-{banner_h}[banner]")
+    # 1) Crop only the dark design strip from the very bottom of the
+    #    banner image (orange line + green waves on dark background).
+    #    Original image is 1600x900; the design is ~bottom 7%.
+    #    Then scale to fill the banner area exactly.
+    filters.append(
+        f"[1:v]crop=iw:ih*0.07:0:ih-ih*0.07,scale={vw}:{banner_h}[banner]"
+    )
 
-    # Scale logo proportionally to logo_h height
+    # 2) Scale logo proportionally to logo_h height
     filters.append(f"[2:v]scale=-1:{logo_h}[logo]")
 
-    # Overlay banner at bottom of video
+    # 3) Overlay banner at bottom of video
     banner_y = vh - banner_h
     filters.append(f"[0:v][banner]overlay=0:{banner_y}[with_banner]")
 
-    # Overlay logo at top-right of banner area
+    # 4) Overlay logo at top-right of banner area
     logo_x = f"W-overlay_w-{logo_right}"
     logo_y = banner_y + logo_top
     filters.append(f"[with_banner][logo]overlay={logo_x}:{logo_y}[with_logo]")
 
-    # Draw text centered on the banner
-    text_y = banner_y + (banner_h // 2)
+    # 5) Draw text centered on the banner (transparent — no box/border)
+    text_y = banner_y + int(banner_h * 0.45) - (font_size // 2)
     resolved_font = font_file or find_default_font()
     if resolved_font:
         # Escape backslashes and colons for FFmpeg on Windows
@@ -161,10 +166,9 @@ def build_ffmpeg_command(
         f"fontsize={font_size}:"
         f"fontcolor=white:"
         f"shadowcolor=black@0.7:"
-        f"shadowx=1:shadowy=1:"
+        f"shadowx=2:shadowy=2:"
         f"x=(w-text_w)/2:"
-        f"y={text_y}-(text_h/2):"
-        f"borderw=2:bordercolor=black@0.5"
+        f"y={text_y}"
     )
     filters.append(f"[with_logo]{drawtext}[out]")
 
