@@ -1,4 +1,4 @@
-name: TotemTV Process Video
+﻿name: TotemTV Process Video
 
 on:
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y ffmpeg fonts-noto-core fonts-dejavu-core
+          sudo apt-get install -y ffmpeg fonts-noto fonts-dejavu-core libfribidi-dev
 
       - name: Set up Python
         uses: actions/setup-python@v5

@@ -1,8 +1,8 @@
-"""
-TotemTV Video Processor — GitHub Actions Script
+﻿"""
+TotemTV Video Processor -- GitHub Actions Script
 
 1. Downloads raw video from Google Drive (FILE_ID)
-2. FFmpeg: drawbox + drawtext — black banner at TOP with:
+2. FFmpeg: drawbox + drawtext -- black banner at BOTTOM with:
         {CLIMBER_NAME} | {ROUTE_NAME} {GRADE}
     3. Uploads edited video to OUTPUT_FOLDER_ID on Drive
     4. Updates status in Google Sheet (row SHEET_ROW, column G -> "Done")
@@ -45,15 +45,16 @@ SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
 ]
 
-# -- Banner / text constants (tweak after first test) -----------------
-BANNER_HEIGHT = 60    # pixels - black bar at the top
-FONT_SIZE     = 36    # drawtext font size
-FONT_COLOR    = 'white'
-BANNER_COLOR  = 'black@0.85'
+# -- Banner / text constants (ratio-based for any resolution) ---------
+BANNER_HEIGHT_RATIO = 0.10    # banner = 10% of video height
+FONT_SIZE_RATIO     = 0.035   # font = 3.5% of video height
+FONT_COLOR          = 'white'
+BANNER_COLOR        = 'black@0.85'
 
-# Fonts available on ubuntu-latest + fonts-noto-core
+# Fonts available on ubuntu-latest + fonts-noto
 FONT_CANDIDATES = [
     '/usr/share/fonts/truetype/noto/NotoSansHebrew-Bold.ttf',
+    '/usr/share/fonts/truetype/noto/NotoSansHebrew-Regular.ttf',
     '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
     '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
     '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
@@ -116,17 +117,25 @@ def process_video(src, dst, climber, route, grade):
     print(f'  video: {w}x{h}')
     font = find_font()
     print(f'  font: {font}')
+
+    # Compute pixel values from ratios
+    banner_h = max(int(h * BANNER_HEIGHT_RATIO), 40)
+    font_size = max(int(h * FONT_SIZE_RATIO), 18)
+    banner_y = h - banner_h
+
+    print(f'  banner: y={banner_y} h={banner_h} font_size={font_size}')
+
     label = f'{climber} | {route} {grade}'
     label_esc = escape_text(label)
     vf = (
-        f"drawbox=x=0:y=0:w=iw:h={BANNER_HEIGHT}:color={BANNER_COLOR}:t=fill,"
+        f"drawbox=x=0:y={banner_y}:w=iw:h={banner_h}:color={BANNER_COLOR}:t=fill,"
         f"drawtext="
         f"fontfile='{font}':"
         f"text='{label_esc}':"
         f"fontcolor={FONT_COLOR}:"
-        f"fontsize={FONT_SIZE}:"
+        f"fontsize={font_size}:"
         f"x=(w-text_w)/2:"
-        f"y=({BANNER_HEIGHT}-text_h)/2:"
+        f"y={banner_y}+({banner_h}-text_h)/2:"
         f"shadowcolor=black@0.6:shadowx=1:shadowy=1"
     )
     cmd = [
