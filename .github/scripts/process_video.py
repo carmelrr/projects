@@ -335,18 +335,69 @@ def process_cloud():
                 sheet.update_cell(row, 9, error_msg[:200])
             sys.exit(1)
 
-        # ── Upload ──
+        # ── Upload via OAuth user token (bypasses service account storage quota) ──
         print(f"Uploading {output_name} to Drive...")
-        file_metadata = {
-            "name": output_name,
-            "parents": [output_folder_id],
-        }
-        media = MediaFileUpload(output_path, mimetype="video/mp4", resumable=True)
-        uploaded = drive.files().create(
-            body=file_metadata, media_body=media, fields="id"
-        ).execute()
-        output_file_id = uploaded["id"]
-        print(f"Uploaded: {output_file_id}")
+        import urllib.request
+        import urllib.parse
+
+        gdrive_refresh_token = os.environ.get("GDRIVE_REFRESH_TOKEN", "")
+        gdrive_client_id = os.environ.get("GDRIVE_CLIENT_ID", "")
+        gdrive_client_secret = os.environ.get("GDRIVE_CLIENT_SECRET", "")
+
+        output_file_id = None
+
+        if gdrive_refresh_token and gdrive_client_id and gdrive_client_secret:
+            try:
+                token_data = urllib.parse.urlencode({
+                    "client_id": gdrive_client_id,
+                    "client_secret": gdrive_client_secret,
+                    "refresh_token": gdrive_refresh_token,
+                    "grant_type": "refresh_token",
+                }).encode()
+                token_req = urllib.request.Request(
+                    "https://oauth2.googleapis.com/token",
+                    data=token_data,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
+                with urllib.request.urlopen(token_req) as resp:
+                    access_token = json.loads(resp.read())["access_token"]
+                file_size = os.path.getsize(output_path)
+                metadata = json.dumps({"name": output_name, "parents": [output_folder_id]}).encode()
+                init_req = urllib.request.Request(
+                    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
+                    data=metadata,
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Content-Type": "application/json; charset=UTF-8",
+                        "X-Upload-Content-Type": "video/mp4",
+                        "X-Upload-Content-Length": str(file_size),
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(init_req) as resp:
+                    upload_url = resp.headers["Location"]
+                with open(output_path, "rb") as f:
+                    upload_req = urllib.request.Request(
+                        upload_url,
+                        data=f.read(),
+                        headers={
+                            "Content-Type": "video/mp4",
+                            "Content-Length": str(file_size),
+                        },
+                        method="PUT",
+                    )
+                    with urllib.request.urlopen(upload_req) as resp:
+                        output_file_id = json.loads(resp.read())["id"]
+                print(f"Uploaded via OAuth: {output_file_id}")
+            except Exception as e:
+                print(f"OAuth upload failed ({e}), falling back to service account", file=sys.stderr)
+
+        if output_file_id is None:
+            file_metadata = {"name": output_name, "parents": [output_folder_id]}
+            media = MediaFileUpload(output_path, mimetype="video/mp4", resumable=True)
+            uploaded = drive.files().create(body=file_metadata, media_body=media, fields="id").execute()
+            output_file_id = uploaded["id"]
+            print(f"Uploaded via service account: {output_file_id}")
 
         # ── Update sheet: done ──
         if sheet and sheet_row:
