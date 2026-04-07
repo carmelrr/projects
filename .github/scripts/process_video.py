@@ -19,6 +19,7 @@ Usage (local test — see scripts/test_local.py):
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,24 @@ LOGO_TOP_MARGIN_RATIO = 0.08     # 8% from top of banner
 FONT_SIZE_RATIO = 0.038          # font size relative to shorter dimension
 SEPARATOR = " | "
 CRF = 20                         # quality: 18 = near-lossless, 23 = default
+MAX_HEIGHT = 1080                 # scale down to 1080p for TV compatibility
+MAX_FPS = 30                      # 30fps is plenty for TV playback
+# Characters not allowed in filenames (Windows + Drive)
+INVALID_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
+
+
+def build_output_name(climber: str, route: str, grade: str, fallback: str) -> str:
+    """Build a descriptive output filename from metadata, or fall back to original name."""
+    parts = [p.strip() for p in [route, grade, climber] if p.strip()]
+    if parts:
+        base = " - ".join(parts)
+    else:
+        base = os.path.splitext(fallback)[0]
+    # Sanitize
+    base = INVALID_FILENAME_CHARS.sub("", base).strip()
+    if not base:
+        base = os.path.splitext(fallback)[0]
+    return f"{base}.mp4"
 
 
 def get_video_dimensions(path: str):
@@ -104,6 +123,14 @@ def build_ffmpeg_command(
     """Build the FFmpeg command that burns the banner into the video."""
     vw, vh = get_video_dimensions(input_path)
 
+    # Scale down to 1080p if larger (keep aspect ratio, ensure even dimensions)
+    if vh > MAX_HEIGHT:
+        scale_factor = MAX_HEIGHT / vh
+        vw = int(vw * scale_factor)
+        vh = MAX_HEIGHT
+        # Ensure even dimensions (required by libx264)
+        vw = vw + (vw % 2)
+
     banner_h = int(vh * BANNER_HEIGHT_RATIO)
     logo_h = int(banner_h * LOGO_HEIGHT_RATIO)
     logo_right = int(vw * LOGO_RIGHT_MARGIN_RATIO)
@@ -130,6 +157,12 @@ def build_ffmpeg_command(
     # [2:v] = logo image
     filters = []
 
+    # 0) Scale video to target resolution and limit framerate for TV compatibility
+    filters.append(
+        f"[0:v]scale={vw}:{vh}:force_original_aspect_ratio=decrease,"
+        f"pad={vw}:{vh}:(ow-iw)/2:(oh-ih)/2,fps={MAX_FPS}[scaled]"
+    )
+
     # 1) Crop only the dark design strip from the very bottom of the
     #    banner image (orange line + green waves on dark background).
     #    Original image is 1600x900; the design is ~bottom 7%.
@@ -143,7 +176,7 @@ def build_ffmpeg_command(
 
     # 3) Overlay banner at bottom of video
     banner_y = vh - banner_h
-    filters.append(f"[0:v][banner]overlay=0:{banner_y}[with_banner]")
+    filters.append(f"[scaled][banner]overlay=0:{banner_y}[with_banner]")
 
     # 4) Overlay logo at top-right of banner area
     logo_x = f"W-overlay_w-{logo_right}"
@@ -183,8 +216,12 @@ def build_ffmpeg_command(
         "-map", "[out]",
         "-map", "0:a?",
         "-c:v", "libx264",
+        "-profile:v", "main",
+        "-level", "4.1",
         "-preset", "medium",
         "-crf", str(CRF),
+        "-maxrate", "15M",
+        "-bufsize", "30M",
         "-c:a", "aac",
         "-b:a", "192k",
         "-movflags", "+faststart",
@@ -193,24 +230,13 @@ def build_ffmpeg_command(
     return cmd
 
 
-def find_asset(repo_root, filename):
-    """Find an asset file in the repo root or totemtv/ subfolder."""
-    for candidate in [
-        os.path.join(repo_root, filename),
-        os.path.join(repo_root, "totemtv", filename),
-    ]:
-        if os.path.isfile(candidate):
-            return candidate
-    return os.path.join(repo_root, filename)  # fallback for error message
-
-
 def process_local(args):
     """Process a local video file (no cloud interaction)."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
 
-    banner_path = args.banner or find_asset(repo_root, "totem-banner.jpeg")
-    logo_path = args.logo or find_asset(repo_root, "totem-logo.png")
+    banner_path = args.banner or os.path.join(repo_root, "totem-banner.jpeg")
+    logo_path = args.logo or os.path.join(repo_root, "totem-logo.png")
 
     if not os.path.isfile(banner_path):
         sys.exit(f"Banner image not found: {banner_path}")
@@ -280,8 +306,8 @@ def process_cloud():
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
-    banner_path = find_asset(repo_root, "totem-banner.jpeg")
-    logo_path = find_asset(repo_root, "totem-logo.png")
+    banner_path = os.path.join(repo_root, "totem-banner.jpeg")
+    logo_path = os.path.join(repo_root, "totem-logo.png")
 
     # ── Update sheet: processing ──
     gc = None
@@ -311,8 +337,7 @@ def process_cloud():
                     print(f"  Download: {pct}%")
 
         # ── Process ──
-        base_name = os.path.splitext(file_name)[0]
-        output_name = f"{base_name}.mp4"
+        output_name = build_output_name(climber, route, grade, file_name)
         output_path = os.path.join(tmpdir, output_name)
 
         print(f"Processing video with FFmpeg...")
@@ -335,69 +360,18 @@ def process_cloud():
                 sheet.update_cell(row, 9, error_msg[:200])
             sys.exit(1)
 
-        # ── Upload via OAuth user token (bypasses service account storage quota) ──
+        # ── Upload ──
         print(f"Uploading {output_name} to Drive...")
-        import urllib.request
-        import urllib.parse
-
-        gdrive_refresh_token = os.environ.get("GDRIVE_REFRESH_TOKEN", "")
-        gdrive_client_id = os.environ.get("GDRIVE_CLIENT_ID", "")
-        gdrive_client_secret = os.environ.get("GDRIVE_CLIENT_SECRET", "")
-
-        output_file_id = None
-
-        if gdrive_refresh_token and gdrive_client_id and gdrive_client_secret:
-            try:
-                token_data = urllib.parse.urlencode({
-                    "client_id": gdrive_client_id,
-                    "client_secret": gdrive_client_secret,
-                    "refresh_token": gdrive_refresh_token,
-                    "grant_type": "refresh_token",
-                }).encode()
-                token_req = urllib.request.Request(
-                    "https://oauth2.googleapis.com/token",
-                    data=token_data,
-                    headers={"Content-Type": "application/x-www-form-urlencoded"},
-                )
-                with urllib.request.urlopen(token_req) as resp:
-                    access_token = json.loads(resp.read())["access_token"]
-                file_size = os.path.getsize(output_path)
-                metadata = json.dumps({"name": output_name, "parents": [output_folder_id]}).encode()
-                init_req = urllib.request.Request(
-                    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
-                    data=metadata,
-                    headers={
-                        "Authorization": f"Bearer {access_token}",
-                        "Content-Type": "application/json; charset=UTF-8",
-                        "X-Upload-Content-Type": "video/mp4",
-                        "X-Upload-Content-Length": str(file_size),
-                    },
-                    method="POST",
-                )
-                with urllib.request.urlopen(init_req) as resp:
-                    upload_url = resp.headers["Location"]
-                with open(output_path, "rb") as f:
-                    upload_req = urllib.request.Request(
-                        upload_url,
-                        data=f.read(),
-                        headers={
-                            "Content-Type": "video/mp4",
-                            "Content-Length": str(file_size),
-                        },
-                        method="PUT",
-                    )
-                    with urllib.request.urlopen(upload_req) as resp:
-                        output_file_id = json.loads(resp.read())["id"]
-                print(f"Uploaded via OAuth: {output_file_id}")
-            except Exception as e:
-                print(f"OAuth upload failed ({e}), falling back to service account", file=sys.stderr)
-
-        if output_file_id is None:
-            file_metadata = {"name": output_name, "parents": [output_folder_id]}
-            media = MediaFileUpload(output_path, mimetype="video/mp4", resumable=True)
-            uploaded = drive.files().create(body=file_metadata, media_body=media, fields="id").execute()
-            output_file_id = uploaded["id"]
-            print(f"Uploaded via service account: {output_file_id}")
+        file_metadata = {
+            "name": output_name,
+            "parents": [output_folder_id],
+        }
+        media = MediaFileUpload(output_path, mimetype="video/mp4", resumable=True)
+        uploaded = drive.files().create(
+            body=file_metadata, media_body=media, fields="id"
+        ).execute()
+        output_file_id = uploaded["id"]
+        print(f"Uploaded: {output_file_id}")
 
         # ── Update sheet: done ──
         if sheet and sheet_row:

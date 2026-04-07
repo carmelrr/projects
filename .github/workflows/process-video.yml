@@ -56,7 +56,4 @@ jobs:
           INPUT_ROUTE_NAME: ${{ github.event.inputs.route_name }}
           INPUT_GRADE: ${{ github.event.inputs.grade }}
           INPUT_SHEET_ROW: ${{ github.event.inputs.sheet_row }}
-          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
-          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
-          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         run: python .github/scripts/process_video.py
