@@ -408,67 +408,7 @@
       animation: spin 0.8s linear infinite;
     }
 
-    /* ── Video Banner Overlay ── */
-    #video-banner {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 10vw;
-      z-index: 20;
-      display: none;
-      pointer-events: none;
-      overflow: hidden;
-    }
 
-    #video-banner.visible {
-      display: block;
-    }
-
-    #video-banner .banner-bg {
-      position: absolute;
-      inset: 0;
-      background: url('totem-banner.jpeg') no-repeat bottom center;
-      background-size: 100% auto;
-    }
-
-    #video-banner .banner-logo {
-      position: absolute;
-      top: 0.6vw;
-      right: 1vw;
-      height: 5vw;
-      width: auto;
-      z-index: 2;
-      opacity: 0.9;
-    }
-
-    #video-banner .banner-text {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 24px;
-      padding: 0.4vw 60px 0;
-      direction: rtl;
-    }
-
-    #video-banner .banner-text span {
-      color: #fff;
-      font-size: clamp(16px, 2.5vw, 28px);
-      font-weight: 600;
-      text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
-      white-space: nowrap;
-    }
-
-    #video-banner .banner-separator {
-      color: rgba(255,255,255,0.5);
-      font-size: clamp(14px, 2vw, 24px);
-      font-weight: 300;
-    }
   </style>
 </head>
 <body>
@@ -553,18 +493,7 @@
 
     <div id="dots"></div>
 
-    <!-- ── Video Banner Overlay ── -->
-    <div id="video-banner">
-      <div class="banner-bg"></div>
-      <img class="banner-logo" src="totem-logo.png" alt="TOTEM">
-      <div class="banner-text">
-        <span id="banner-climber"></span>
-        <span class="banner-separator">|</span>
-        <span id="banner-route"></span>
-        <span class="banner-separator">|</span>
-        <span id="banner-grade"></span>
-      </div>
-    </div>
+
   </div>
 
   <div id="buffering-indicator"><div class="spinner"></div></div>
@@ -595,8 +524,6 @@
     // ── Cache Manager ──
     const CACHE_DIR = 'totemtv_cache';
     const MANIFEST_KEY = 'totemtv_manifest';
-    // Max file size to download (50MB) — larger videos will be streamed
-    const MAX_DOWNLOAD_SIZE = 50 * 1024 * 1024;
 
     class CacheManager {
       constructor() {
@@ -631,7 +558,7 @@
       }
 
       // Download a file from Google Drive and save to local storage
-      async downloadFile(fileId, fileName, mimeType, apiKey) {
+      async downloadFile(fileId, fileName, mimeType, apiKey, expectedSize) {
         if (!Filesystem) {
           // Browser fallback: just store the URL reference (no actual download)
           this.manifest[fileId] = {
@@ -660,6 +587,26 @@
             path: localPath,
             directory: FilesystemDirectory.Data
           });
+
+          // Validate file integrity by checking size
+          if (expectedSize && expectedSize > 0) {
+            try {
+              const stat = await Filesystem.stat({
+                path: localPath,
+                directory: FilesystemDirectory.Data
+              });
+              const localSize = stat.size || 0;
+              // Allow 1KB tolerance for metadata differences
+              if (localSize < expectedSize - 1024) {
+                console.warn(`Size mismatch for ${fileName}: expected ${expectedSize}, got ${localSize}`);
+                await Filesystem.deleteFile({ path: localPath, directory: FilesystemDirectory.Data });
+                throw new Error(`Incomplete download: ${fileName} (${localSize}/${expectedSize} bytes)`);
+              }
+            } catch (statErr) {
+              if (statErr.message && statErr.message.includes('Incomplete download')) throw statErr;
+              console.warn(`Could not verify file size for ${fileName}:`, statErr);
+            }
+          }
 
           this.manifest[fileId] = {
             fileId, fileName, mimeType,
@@ -755,6 +702,58 @@
 
       isCached(fileId) {
         return !!this.manifest[fileId];
+      }
+
+      // Validate all cached files against Drive file sizes.
+      // Removes entries for files that are missing or incomplete on disk.
+      async validateCache(driveFiles, onProgress) {
+        if (!Filesystem) return 0;
+
+        const driveMap = new Map();
+        for (const f of driveFiles) {
+          driveMap.set(f.id, parseInt(f.size) || 0);
+        }
+
+        const ids = Object.keys(this.manifest);
+        let removed = 0;
+
+        for (let i = 0; i < ids.length; i++) {
+          const fileId = ids[i];
+          const entry = this.manifest[fileId];
+          if (!entry || !entry.localPath) continue;
+
+          const expectedSize = driveMap.get(fileId);
+          // Skip if file no longer in Drive (syncFiles handles deletion)
+          if (expectedSize === undefined) continue;
+
+          if (onProgress) onProgress(i + 1, ids.length, entry.fileName);
+
+          try {
+            const stat = await Filesystem.stat({
+              path: entry.localPath,
+              directory: FilesystemDirectory.Data
+            });
+            const localSize = stat.size || 0;
+
+            // If Drive reports a size and local file is significantly smaller → incomplete
+            if (expectedSize > 0 && localSize < expectedSize - 1024) {
+              console.warn(`Integrity check: ${entry.fileName} incomplete (${localSize}/${expectedSize}). Re-downloading.`);
+              try {
+                await Filesystem.deleteFile({ path: entry.localPath, directory: FilesystemDirectory.Data });
+              } catch (_) {}
+              delete this.manifest[fileId];
+              removed++;
+            }
+          } catch (e) {
+            // File missing from disk — remove from manifest
+            console.warn(`Integrity check: ${entry.fileName} missing from disk. Re-downloading.`);
+            delete this.manifest[fileId];
+            removed++;
+          }
+        }
+
+        if (removed > 0) this._saveManifest();
+        return removed;
       }
 
       getCachedIds() {
@@ -920,7 +919,7 @@
     // ── Fetch files from Drive ──
     async function fetchFiles() {
       const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-      const fields = encodeURIComponent('files(id,name,mimeType,createdTime,videoMediaMetadata)');
+      const fields = encodeURIComponent('files(id,name,mimeType,createdTime,videoMediaMetadata,size)');
       const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&orderBy=createdTime desc&pageSize=1000&key=${apiKey}`;
 
       const res = await fetch(url);
@@ -956,7 +955,7 @@
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
           try {
             downloadText.textContent = `Downloading: ${file.name}`;
-            await cacheManager.downloadFile(file.id, file.name, file.mimeType, apiKey);
+            await cacheManager.downloadFile(file.id, file.name, file.mimeType, apiKey, parseInt(file.size) || 0);
             success = true;
             break;
           } catch (e) {
@@ -1010,7 +1009,7 @@
         // Download silently in background (no progress screen during sync)
         for (const file of toDownload) {
           try {
-            await cacheManager.downloadFile(file.id, file.name, file.mimeType, apiKey);
+            await cacheManager.downloadFile(file.id, file.name, file.mimeType, apiKey, parseInt(file.size) || 0);
           } catch (e) {
             console.warn(`Background sync: failed to download ${file.name}`);
           }
@@ -1124,55 +1123,7 @@
       }
     }
 
-    // ── Parse video filename for banner info ──
-    // Expected formats:
-    //   "RouteName- Grade, Location - ClimberName - RouteName Grade.ext"
-    //   "ClimberName - RouteName Grade.ext"
-    function parseVideoFilename(name) {
-      // Remove file extension
-      const base = name.replace(/\.[^.]+$/, '');
-      const parts = base.split(/\s*-\s*/);
 
-      if (parts.length >= 3) {
-        // Format: "Route- Grade, Location - Climber - Route Grade"
-        return {
-          climber: parts[parts.length - 2].trim(),
-          route: parts[0].trim(),
-          grade: parts[parts.length - 1].trim()
-        };
-      } else if (parts.length === 2) {
-        return {
-          climber: parts[0].trim(),
-          route: parts[1].trim(),
-          grade: ''
-        };
-      }
-      return { climber: base, route: '', grade: '' };
-    }
-
-    // ── Show/hide video banner ──
-    const videoBanner = document.getElementById('video-banner');
-    const bannerClimber = document.getElementById('banner-climber');
-    const bannerRoute = document.getElementById('banner-route');
-    const bannerGrade = document.getElementById('banner-grade');
-
-    function showVideoBanner(file) {
-      const info = parseVideoFilename(file.name);
-      bannerClimber.textContent = info.climber;
-      bannerRoute.textContent = info.route;
-      bannerGrade.textContent = info.grade;
-
-      // Hide separators if fields are empty
-      const seps = videoBanner.querySelectorAll('.banner-separator');
-      seps[0].style.display = info.climber && info.route ? '' : 'none';
-      seps[1].style.display = (info.route || info.climber) && info.grade ? '' : 'none';
-
-      videoBanner.classList.add('visible');
-    }
-
-    function hideVideoBanner() {
-      videoBanner.classList.remove('visible');
-    }
 
     async function showMedia() {
      try {
@@ -1185,13 +1136,6 @@
       counterEl.textContent = `${currentIndex + 1} / ${playlist.length}`;
       updateDots();
 
-      // Show/hide banner based on media type
-      if (isVideo(file)) {
-        showVideoBanner(file);
-      } else {
-        hideVideoBanner();
-      }
-
       if (!isVideo(file) && !preloadCache[file.id]) {
         bufferingIndicator.classList.add('visible');
         await preloadFile(file);
@@ -1202,46 +1146,58 @@
       mediaContainer.style.opacity = '0';
 
       setTimeout(async () => {
+        // Clean up previous video elements to free memory
+        const oldVideos = mediaContainer.querySelectorAll('video');
+        oldVideos.forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); });
         mediaContainer.innerHTML = '';
 
         if (isVideo(file)) {
+          // Only play videos from local cache — never stream from internet
+          const cachedUrl = await cacheManager.getCachedUrl(file.id);
+          if (!cachedUrl) {
+            // Video not cached — skip to next item
+            console.warn(`Skipping uncached video: ${file.name}`);
+            mediaContainer.style.opacity = '1';
+            goNext();
+            return;
+          }
+
           const wrapper = document.createElement('div');
           wrapper.className = 'video-wrapper';
 
           const video = document.createElement('video');
-          video.autoplay = true;
           video.muted = false;
           video.playsInline = true;
           video.setAttribute('preload', 'auto');
 
-          // Try local cache first
-          const cachedUrl = await cacheManager.getCachedUrl(file.id);
-          if (cachedUrl) {
-            video.src = cachedUrl;
-          } else {
-            // Fallback: stream from Drive API (direct download URL)
-            video.src = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${apiKey}`;
-          }
-
           bufferingIndicator.classList.add('visible');
 
-          video.addEventListener('canplay', () => {
+          // Wait for video to fully buffer before starting playback
+          video.addEventListener('canplaythrough', () => {
             bufferingIndicator.classList.remove('visible');
             mediaContainer.style.opacity = '1';
+            video.play().catch(e => console.warn('Play failed:', e));
           }, { once: true });
 
           video.addEventListener('ended', () => {
             goNext();
           });
 
-          video.addEventListener('error', () => {
+          video.addEventListener('error', async () => {
             bufferingIndicator.classList.remove('visible');
-            // On error, skip to next after a short delay
+            // Delete corrupted cached file so it gets re-downloaded on next sync
+            if (cacheManager.isCached(file.id)) {
+              console.warn(`Video playback error for ${file.name} — deleting corrupt cache`);
+              await cacheManager.deleteFile(file.id);
+            }
             setTimeout(goNext, 2000);
           });
 
           wrapper.appendChild(video);
           mediaContainer.appendChild(wrapper);
+
+          // Set src after attaching to DOM so events fire properly
+          video.src = cachedUrl;
 
           // Fallback timer in case video doesn't trigger 'ended'
           const duration = getVideoDuration(file);
@@ -1355,14 +1311,37 @@
 
         loadingScreen.style.display = 'none';
 
-        // Download all files to device for offline use
+        // Validate existing cache — purge incomplete/corrupt files so they get re-downloaded
+        try {
+          downloadScreen.style.display = 'flex';
+          downloadText.textContent = 'Checking cached files...';
+          downloadDetail.textContent = '';
+          downloadBar.style.width = '0%';
+
+          const purged = await cacheManager.validateCache(files, (done, total, name) => {
+            downloadText.textContent = `Checking: ${name}`;
+            downloadDetail.textContent = `${done} / ${total}`;
+            downloadBar.style.width = Math.round((done / total) * 100) + '%';
+          });
+
+          if (purged > 0) {
+            downloadText.textContent = `Found ${purged} incomplete file(s) — re-downloading...`;
+            await new Promise(r => setTimeout(r, 1000));
+          }
+          downloadScreen.style.display = 'none';
+        } catch (valErr) {
+          console.warn('Cache validation error (non-fatal):', valErr);
+          downloadScreen.style.display = 'none';
+        }
+
+        // Download all files to device for offline use (including any purged ones)
         try {
           await downloadAllFiles(files);
         } catch (dlErr) {
           console.error('Download phase error (non-fatal):', dlErr);
           downloadScreen.style.display = 'none';
           // Continue to slideshow even if some downloads failed
-          // Files that weren't cached will stream from Drive
+          // Uncached videos will be skipped until next sync downloads them
         }
 
         // Build interleaved playlist

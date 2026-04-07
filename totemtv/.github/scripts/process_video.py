@@ -19,6 +19,7 @@ Usage (local test — see scripts/test_local.py):
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,24 @@ LOGO_TOP_MARGIN_RATIO = 0.08     # 8% from top of banner
 FONT_SIZE_RATIO = 0.038          # font size relative to shorter dimension
 SEPARATOR = " | "
 CRF = 20                         # quality: 18 = near-lossless, 23 = default
+MAX_HEIGHT = 1080                 # scale down to 1080p for TV compatibility
+MAX_FPS = 30                      # 30fps is plenty for TV playback
+# Characters not allowed in filenames (Windows + Drive)
+INVALID_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
+
+
+def build_output_name(climber: str, route: str, grade: str, fallback: str) -> str:
+    """Build a descriptive output filename from metadata, or fall back to original name."""
+    parts = [p.strip() for p in [route, grade, climber] if p.strip()]
+    if parts:
+        base = " - ".join(parts)
+    else:
+        base = os.path.splitext(fallback)[0]
+    # Sanitize
+    base = INVALID_FILENAME_CHARS.sub("", base).strip()
+    if not base:
+        base = os.path.splitext(fallback)[0]
+    return f"{base}.mp4"
 
 
 def get_video_dimensions(path: str):
@@ -104,6 +123,14 @@ def build_ffmpeg_command(
     """Build the FFmpeg command that burns the banner into the video."""
     vw, vh = get_video_dimensions(input_path)
 
+    # Scale down to 1080p if larger (keep aspect ratio, ensure even dimensions)
+    if vh > MAX_HEIGHT:
+        scale_factor = MAX_HEIGHT / vh
+        vw = int(vw * scale_factor)
+        vh = MAX_HEIGHT
+        # Ensure even dimensions (required by libx264)
+        vw = vw + (vw % 2)
+
     banner_h = int(vh * BANNER_HEIGHT_RATIO)
     logo_h = int(banner_h * LOGO_HEIGHT_RATIO)
     logo_right = int(vw * LOGO_RIGHT_MARGIN_RATIO)
@@ -130,6 +157,12 @@ def build_ffmpeg_command(
     # [2:v] = logo image
     filters = []
 
+    # 0) Scale video to target resolution and limit framerate for TV compatibility
+    filters.append(
+        f"[0:v]scale={vw}:{vh}:force_original_aspect_ratio=decrease,"
+        f"pad={vw}:{vh}:(ow-iw)/2:(oh-ih)/2,fps={MAX_FPS}[scaled]"
+    )
+
     # 1) Crop only the dark design strip from the very bottom of the
     #    banner image (orange line + green waves on dark background).
     #    Original image is 1600x900; the design is ~bottom 7%.
@@ -143,7 +176,7 @@ def build_ffmpeg_command(
 
     # 3) Overlay banner at bottom of video
     banner_y = vh - banner_h
-    filters.append(f"[0:v][banner]overlay=0:{banner_y}[with_banner]")
+    filters.append(f"[scaled][banner]overlay=0:{banner_y}[with_banner]")
 
     # 4) Overlay logo at top-right of banner area
     logo_x = f"W-overlay_w-{logo_right}"
@@ -183,8 +216,12 @@ def build_ffmpeg_command(
         "-map", "[out]",
         "-map", "0:a?",
         "-c:v", "libx264",
+        "-profile:v", "main",
+        "-level", "4.1",
         "-preset", "medium",
         "-crf", str(CRF),
+        "-maxrate", "15M",
+        "-bufsize", "30M",
         "-c:a", "aac",
         "-b:a", "192k",
         "-movflags", "+faststart",
@@ -300,8 +337,7 @@ def process_cloud():
                     print(f"  Download: {pct}%")
 
         # ── Process ──
-        base_name = os.path.splitext(file_name)[0]
-        output_name = f"{base_name}.mp4"
+        output_name = build_output_name(climber, route, grade, file_name)
         output_path = os.path.join(tmpdir, output_name)
 
         print(f"Processing video with FFmpeg...")
