@@ -38,4 +38,9 @@ jobs:
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           OUTPUT_FOLDER_ID: ${{ secrets.OUTPUT_FOLDER_ID }}
-        run: python .github/scripts/reprocess_all.py
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python .github/scripts/reprocess_all.py --dry-run
+          else
+            python .github/scripts/reprocess_all.py
+          fi

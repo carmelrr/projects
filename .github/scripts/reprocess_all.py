@@ -133,8 +133,10 @@ def reencode(input_path: str, output_path: str):
         raise RuntimeError(f"FFmpeg failed: {result.stderr[-500:]}")
 
 
-def run_cloud():
+def run_cloud(dry_run=False):
     """Re-process all videos in the Drive output folder."""
+    if dry_run:
+        print("=== DRY RUN — checking only, no re-encoding or uploading ===")
     output_folder_id = os.environ["OUTPUT_FOLDER_ID"]
     creds_json = os.environ["GOOGLE_CREDENTIALS"]
     creds_info = json.loads(creds_json)
@@ -195,6 +197,10 @@ def run_cloud():
 
             print(f"  Needs re-processing: {', '.join(f'{k}: {v}' for k, v in reasons.items())}")
 
+            if dry_run:
+                processed += 1
+                continue
+
             # Re-encode
             output_path = os.path.join(tmpdir, f"output.mp4")
             print(f"  Re-encoding...")
@@ -222,7 +228,10 @@ def run_cloud():
             print(f"  Done!")
 
     print(f"\n{'='*50}")
-    print(f"Summary: {processed} re-processed, {skipped} already OK, {failed} failed")
+    if dry_run:
+        print(f"Summary (DRY RUN): {processed} need re-processing, {skipped} already OK")
+    else:
+        print(f"Summary: {processed} re-processed, {skipped} already OK, {failed} failed")
 
 
 def run_local(args):
@@ -256,6 +265,8 @@ def main():
     parser = argparse.ArgumentParser(description="TotemTV Batch Re-Processor")
     parser.add_argument("--local", action="store_true",
                         help="Re-process a local file (no cloud)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Only check which videos need re-processing (no actual encoding/upload)")
     parser.add_argument("--input", "-i", help="Input video path (local mode)")
     parser.add_argument("--output", "-o", help="Output video path (local mode)")
     args = parser.parse_args()
@@ -265,7 +276,7 @@ def main():
             parser.error("--input and --output are required in local mode")
         run_local(args)
     else:
-        run_cloud()
+        run_cloud(dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
