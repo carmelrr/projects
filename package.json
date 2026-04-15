@@ -1,0 +1,37 @@
+{
+  "name": "my-coaching-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:api": "turbo dev --filter=@coaching/api",
+    "dev:web": "turbo dev --filter=@coaching/web",
+    "dev:mobile": "turbo dev --filter=@coaching/mobile",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "pnpm --filter @coaching/database db:migrate",
+    "db:seed": "pnpm --filter @coaching/database db:seed",
+    "db:studio": "pnpm --filter @coaching/database db:studio",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "turbo": "^2",
+    "prettier": "^3"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "esbuild",
+      "prisma",
+      "sharp",
+      "msgpackr-extract"
+    ]
+  }
+}

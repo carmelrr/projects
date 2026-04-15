@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Coaching App",
+    "slug": "coaching-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "coaching-app",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.coaching.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.coaching.app"
+    },
+    "plugins": ["expo-router", "expo-secure-store"]
+  }
+}

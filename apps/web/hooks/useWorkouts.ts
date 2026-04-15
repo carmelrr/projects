@@ -1,0 +1,184 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface WorkoutItem {
+  id: string;
+  exerciseId: string;
+  orderIndex: number;
+  groupLabel?: string;
+  coachNotes?: string;
+  prescription: {
+    sets?: number;
+    reps?: string;
+    duration?: string;
+    distance?: string;
+    weight?: string;
+    rpe?: number;
+    rest?: string;
+    [key: string]: unknown;
+  };
+  exercise?: {
+    id: string;
+    name: string;
+    category?: string;
+    muscleGroups?: string[];
+    equipment?: string[];
+    videoUrl?: string;
+  };
+}
+
+export interface Workout {
+  id: string;
+  title: string;
+  description?: string;
+  type?: string;
+  estimatedDuration?: number;
+  instructions?: string;
+  tags?: string[];
+  items: WorkoutItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkoutInstance {
+  id: string;
+  workoutId: string;
+  clientId: string;
+  scheduledDate: string;
+  status: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED' | 'MISSED';
+  completedAt?: string;
+  workout?: Workout;
+  log?: WorkoutLog;
+}
+
+export interface WorkoutLog {
+  id: string;
+  instanceId: string;
+  clientId: string;
+  completedAt: string;
+  durationMinutes?: number;
+  overallRpe?: number;
+  notes?: string;
+  items: {
+    exerciseId: string;
+    sets: Array<{
+      setIndex: number;
+      reps?: number;
+      weight?: number;
+      duration?: number;
+      rpe?: number;
+      completed: boolean;
+    }>;
+  }[];
+}
+
+export interface CalendarDay {
+  date: string;
+  instances: WorkoutInstance[];
+}
+
+// ── Hooks ──────────────────────────────────────────────────────────────────
+
+export function useWorkouts(query?: { search?: string; type?: string }) {
+  return useQuery({
+    queryKey: ['workouts', query],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (query?.search) params.set('search', query.search);
+      if (query?.type) params.set('type', query.type);
+      const qs = params.toString();
+      return api.get<{ items: Workout[]; total: number }>(`/workouts${qs ? `?${qs}` : ''}`);
+    },
+  });
+}
+
+export function useWorkout(id: string) {
+  return useQuery({
+    queryKey: ['workout', id],
+    queryFn: () => api.get<Workout>(`/workouts/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useClientCalendar(clientId: string, startDate: string, endDate: string) {
+  return useQuery({
+    queryKey: ['calendar', clientId, startDate, endDate],
+    queryFn: () =>
+      api.get<WorkoutInstance[]>(
+        `/workouts/calendar/${clientId}?startDate=${startDate}&endDate=${endDate}`,
+      ),
+    enabled: !!clientId,
+  });
+}
+
+export function useScheduleWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      workoutId: string;
+      clientId: string;
+      scheduledDate: string;
+      note?: string;
+    }) => api.post<WorkoutInstance>('/workouts/schedule', body),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['calendar', vars.clientId] });
+    },
+  });
+}
+
+export function useMoveInstance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; scheduledDate: string }) =>
+      api.patch(`/workouts/instances/${id}/move`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
+export function useSkipInstance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; reason?: string }) =>
+      api.patch(`/workouts/instances/${id}/skip`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
+export function useCreateWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<Workout> & { title: string }) =>
+      api.post<Workout>('/workouts', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workouts'] });
+    },
+  });
+}
+
+export function useUpdateWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<Workout> & { id: string }) =>
+      api.patch<Workout>(`/workouts/${id}`, body),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['workouts'] });
+      qc.invalidateQueries({ queryKey: ['workout', vars.id] });
+    },
+  });
+}
+
+export function useDeleteWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/workouts/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workouts'] });
+    },
+  });
+}
