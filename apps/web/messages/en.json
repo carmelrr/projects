@@ -1,0 +1,194 @@
+{
+  "brand": {
+    "name": "Owl Performance",
+    "short": "OP",
+    "tagline": "Coaching that scales with you"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search…",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "viewAll": "View all",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signUp": "Create account",
+    "email": "Email",
+    "password": "Password",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "clients": "Clients",
+    "programs": "Programs",
+    "exercises": "Exercises",
+    "messages": "Messages",
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "assessments": "Assessments",
+    "nutrition": "Nutrition",
+    "admin": "Admin"
+  },
+  "dashboard": {
+    "greetingMorning": "Good morning, {name}",
+    "greetingDay": "Good afternoon, {name}",
+    "greetingEvening": "Good evening, {name}",
+    "subtitle": "Here's how your coaching practice is doing today.",
+    "stats": {
+      "activeClients": "Active clients",
+      "needsAttention": "Needs attention",
+      "needsAttentionSub": "Compliance dropped ≥20%",
+      "avgCompliance7": "Avg compliance · 7d",
+      "avgCompliance30": "Avg compliance · 30d"
+    },
+    "needsAttention": "Needs attention",
+    "noNeedsAttention": "Everyone is on track. Great work!",
+    "activeClients": "Active clients",
+    "noClients": "No clients yet",
+    "noClientsHint": "Invite your first client to get started.",
+    "complianceWeek": "{pct}% compliance this week",
+    "noRecentData": "No recent data",
+    "needsAttentionTag": "Needs attention"
+  },
+  "clients": {
+    "title": "Clients",
+    "totalCount": "{n} total",
+    "invite": "Invite client",
+    "filter": {
+      "all": "All",
+      "active": "Active",
+      "paused": "Paused",
+      "archived": "Archived"
+    },
+    "table": {
+      "client": "Client",
+      "status": "Status",
+      "sevenDay": "7-day",
+      "thirtyDay": "30-day",
+      "coach": "Coach",
+      "lastLogin": "Last login",
+      "never": "Never"
+    },
+    "empty": "No clients found",
+    "emptyHint": "Try a different search term.",
+    "emptyHintInvite": "Invite your first client to get started."
+  },
+  "auth": {
+    "signInTitle": "Sign in to your account",
+    "signInSubtitle": "Welcome back. Continue coaching your clients.",
+    "signUpTitle": "Create your account",
+    "signUpSubtitle": "Start coaching with Owl Performance.",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "invalidCredentials": "Invalid email or password.",
+    "genericError": "Something went wrong. Please try again.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "orgName": "Studio / gym name",
+    "orgPlaceholder": "Dana Fitness Studio",
+    "firstNamePlaceholder": "Dana",
+    "lastNamePlaceholder": "Cohen",
+    "emailPlaceholder": "coach@example.com",
+    "passwordHint": "At least 8 characters",
+    "signUpCta": "Create account",
+    "signUpLoading": "Creating account\u2026",
+    "signInCta": "Sign in",
+    "signInLoading": "Signing in\u2026",
+    "emailExists": "An account with this email already exists."
+  },
+  "marketing": {
+    "navFeatures": "Features",
+    "navPricing": "Pricing",
+    "navAbout": "About",
+    "ctaStart": "Start free",
+    "ctaLogin": "Sign in",
+    "hero": {
+      "eyebrow": "For online coaches",
+      "title": "The coaching platform that watches over every client.",
+      "subtitle": "Programs, check-ins, metrics and messaging — in one calm, focused workspace built for coaches who care.",
+      "ctaPrimary": "Start free trial",
+      "ctaSecondary": "See how it works"
+    },
+    "features": {
+      "title": "Everything you need to coach with confidence",
+      "subtitle": "From programming to compliance — Owl Performance gives you a wide-eyed view of every client.",
+      "items": {
+        "programs": {
+          "title": "Programs & workouts",
+          "desc": "Build periodised programs once, assign and adapt per client in seconds."
+        },
+        "compliance": {
+          "title": "Compliance you can see",
+          "desc": "7- and 30-day compliance scores surface clients who need a check-in."
+        },
+        "messaging": {
+          "title": "Real-time messaging",
+          "desc": "Talk to clients without juggling WhatsApp threads and screenshots."
+        },
+        "metrics": {
+          "title": "Body metrics & habits",
+          "desc": "Weight, photos, sleep, mood — tracked and trended automatically."
+        },
+        "library": {
+          "title": "Smart exercise library",
+          "desc": "Reuse exercises with video, cues and load history per athlete."
+        },
+        "mobile": {
+          "title": "Client mobile app",
+          "desc": "Your clients log workouts and check-ins from a polished mobile experience."
+        }
+      }
+    },
+    "how": {
+      "title": "How it works",
+      "steps": {
+        "one": { "title": "Invite your client", "desc": "Send a single link — they sign up in under a minute." },
+        "two": { "title": "Build their program", "desc": "Drag, drop, duplicate. Reuse blocks across clients." },
+        "three": { "title": "Coach with clarity", "desc": "Compliance, messages and metrics in one calm dashboard." }
+      }
+    },
+    "pricing": {
+      "title": "Simple pricing that scales with you",
+      "perMonth": "/month",
+      "ctaStart": "Start free",
+      "tiers": {
+        "starter": { "name": "Starter", "price": "$0", "desc": "Up to 3 clients. Forever free.", "features": ["Up to 3 active clients", "Programs & messaging", "Mobile app for clients"] },
+        "pro": { "name": "Pro", "price": "$29", "desc": "For full-time coaches.", "features": ["Unlimited clients", "Compliance analytics", "Custom branding", "Priority support"], "popular": "Most popular" },
+        "team": { "name": "Team", "price": "$79", "desc": "For coaching teams & studios.", "features": ["Everything in Pro", "Multiple coaches", "Roles & permissions", "Dedicated onboarding"] }
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        { "q": "Can I import my existing clients?", "a": "Yes — invite them by email or share a single sign-up link. Their existing programs can be uploaded in bulk." },
+        { "q": "Is there a free trial?", "a": "The Starter tier is free forever for up to 3 clients. Pro and Team include a 14-day trial." },
+        { "q": "Do my clients need an app?", "a": "Yes — they get a polished mobile app on iOS and Android, free of charge." },
+        { "q": "Can I cancel anytime?", "a": "Absolutely. No contracts, no cancellation fees." }
+      ]
+    },
+    "cta": {
+      "title": "Ready to coach with clarity?",
+      "subtitle": "Join coaches using Owl Performance to keep every client on track.",
+      "button": "Start free trial"
+    },
+    "footer": {
+      "rights": "© {year} Owl Performance. All rights reserved.",
+      "product": "Product",
+      "company": "Company",
+      "legal": "Legal",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "contact": "Contact"
+    }
+  }
+}

@@ -1,0 +1,86 @@
+$ErrorActionPreference = 'Stop'
+Set-Location "C:\Users\Carmel Raz Romeo\Documents\Claude\Projects\OP\my-coaching-app\apps\web"
+$files = @(
+  "app/(coach)/clients/[clientId]/page.tsx",
+  "app/(coach)/exercises/page.tsx",
+  "app/(coach)/messages/page.tsx",
+  "app/(coach)/programs/page.tsx",
+  "app/(coach)/programs/[programId]/page.tsx"
+)
+$pairs = @(
+  @('focus:border-blue-500','focus:border-ring'),
+  @('focus:ring-blue-100','focus:ring-ring/30'),
+  @('focus:ring-blue-500','focus:ring-ring'),
+  @('focus:ring-blue-400','focus:ring-ring'),
+  @('focus:border-blue-400','focus:border-ring'),
+  @('hover:bg-blue-700','hover:bg-primary/90'),
+  @('hover:text-blue-700','hover:text-primary'),
+  @('hover:text-blue-600','hover:text-primary'),
+  @('hover:bg-gray-50','hover:bg-accent'),
+  @('hover:bg-gray-100','hover:bg-accent'),
+  @('hover:text-gray-900','hover:text-foreground'),
+  @('hover:border-blue-200','hover:border-primary/30'),
+  @('hover:text-red-500','hover:text-destructive'),
+  @('hover:text-blue-500','hover:text-primary'),
+  @('bg-blue-600','bg-primary'),
+  @('bg-blue-700','bg-primary/90'),
+  @('bg-blue-50','bg-primary/10'),
+  @('bg-blue-100','bg-primary/15'),
+  @('text-blue-700','text-primary'),
+  @('text-blue-600','text-primary'),
+  @('text-blue-500','text-primary'),
+  @('text-blue-400','text-primary/70'),
+  @('text-blue-200','text-primary/60'),
+  @('ring-blue-500','ring-ring'),
+  @('border-blue-500','border-primary'),
+  @('bg-green-500','bg-success'),
+  @('bg-green-100','bg-success/15'),
+  @('bg-green-50','bg-success/10'),
+  @('text-green-700','text-success'),
+  @('text-green-600','text-success'),
+  @('text-green-500','text-success'),
+  @('bg-amber-400','bg-warning'),
+  @('bg-amber-100','bg-warning/15'),
+  @('bg-amber-50','bg-warning/10'),
+  @('text-amber-700','text-warning'),
+  @('text-amber-600','text-warning'),
+  @('text-amber-500','text-warning'),
+  @('bg-orange-100','bg-warning/15'),
+  @('bg-orange-50','bg-warning/10'),
+  @('text-orange-700','text-warning'),
+  @('text-orange-500','text-warning'),
+  @('bg-red-500','bg-destructive'),
+  @('bg-red-400','bg-destructive/80'),
+  @('bg-red-100','bg-destructive/15'),
+  @('bg-red-50','bg-destructive/10'),
+  @('text-red-700','text-destructive'),
+  @('text-red-600','text-destructive'),
+  @('text-red-500','text-destructive'),
+  @('ring-red-200','ring-destructive/30'),
+  @('bg-gray-50','bg-muted/40'),
+  @('bg-gray-100','bg-muted'),
+  @('bg-gray-200','bg-muted/60'),
+  @('text-gray-900','text-foreground'),
+  @('text-gray-800','text-foreground'),
+  @('text-gray-700','text-foreground'),
+  @('text-gray-600','text-muted-foreground'),
+  @('text-gray-500','text-muted-foreground'),
+  @('text-gray-400','text-muted-foreground/70'),
+  @('text-gray-300','text-muted-foreground/50'),
+  @('border-gray-100','border-border/60'),
+  @('border-gray-200','border-border'),
+  @('border-gray-300','border-border'),
+  @('divide-gray-50','divide-border/60'),
+  @('divide-gray-100','divide-border/60'),
+  @('divide-gray-200','divide-border'),
+  @('ring-gray-100','ring-border/60'),
+  @('ring-gray-200','ring-border')
+)
+foreach ($f in $files) {
+  if (-not (Test-Path -LiteralPath $f)) { Write-Host "SKIP $f"; continue }
+  $c = Get-Content -LiteralPath $f -Raw -Encoding UTF8
+  foreach ($p in $pairs) { $c = $c.Replace($p[0], $p[1]) }
+  $c = [regex]::Replace($c, 'bg-white(?![/\w-])', 'bg-card')
+  Set-Content -LiteralPath $f -Value $c -Encoding UTF8 -NoNewline
+  Write-Host "OK $f"
+}
