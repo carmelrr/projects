@@ -4,7 +4,7 @@
     "dockerfilePath": "infrastructure/docker/Dockerfile.api"
   },
   "deploy": {
-    "startCommand": "NODE_PATH=/app/apps/api/node_modules node dist/main.js",
+    "startCommand": "node dist/main.js",
     "healthcheckPath": "/api/v1/health",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
