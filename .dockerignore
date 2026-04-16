@@ -1,0 +1,37 @@
+# Dependencies — never copy host node_modules into the image
+node_modules
+**/node_modules
+
+# Build outputs — let Docker build them fresh
+dist
+**/dist
+**/.turbo
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment & secrets — inject at runtime via Railway env vars
+.env
+.env.*
+**/.env
+**/.env.*
+firebase-service-account.json
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Logs
+**/*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test outputs
+coverage
+**/coverage

@@ -1,28 +1,36 @@
-# ── Stage 1: install all workspace deps ──
+# ── Stage 1: base with pinned pnpm version ──────────────────────────────────
 FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
+# ── Stage 2: install workspace deps ─────────────────────────────────────────
 FROM base AS deps
 WORKDIR /app
+# Copy only manifests — source files are NOT needed here
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/database/package.json ./packages/database/
 COPY packages/shared/package.json ./packages/shared/
+# Install all deps required by @coaching/api (and its workspace dependencies)
 RUN pnpm install --frozen-lockfile --filter @coaching/api...
 
-# ── Stage 2: build everything, then pnpm deploy ──
+# ── Stage 3: build ───────────────────────────────────────────────────────────
 FROM base AS builder
 WORKDIR /app
+# Bring the pnpm virtual store + node_modules from deps stage first.
+# IMPORTANT: the .dockerignore at the repo root excludes node_modules and dist,
+# so the subsequent COPY . . will NOT overwrite these with host symlinks.
 COPY --from=deps /app ./
+# Now copy source code (node_modules is excluded via .dockerignore)
 COPY . .
+# Build in dependency order
 RUN pnpm --filter @coaching/shared build
 RUN pnpm --filter @coaching/database db:generate
 RUN pnpm --filter @coaching/database build
 RUN pnpm --filter @coaching/api build
-# pnpm deploy creates flat node_modules without symlinks
+# pnpm deploy creates a self-contained folder with flat node_modules (no symlinks)
 RUN pnpm --filter @coaching/api deploy --legacy --prod /app/deployed
 
-# ── Stage 3: minimal production image ──
+# ── Stage 4: minimal production image ───────────────────────────────────────
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
