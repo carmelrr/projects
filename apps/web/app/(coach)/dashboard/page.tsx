@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const { data: activeData } = useClients({ status: 'ACTIVE', limit: 100 });
   const { data: attentionData } = useClients({ needsAttention: true, limit: 50 });
 
+  const activeItems = activeData?.items ?? [];
   const totalActive = activeData?.total ?? 0;
   const needsAttention = attentionData?.items ?? [];
 
@@ -43,14 +44,14 @@ export default function DashboardPage() {
         <StatCard
           label="Avg. compliance"
           value={
-            activeData?.items?.length
+            activeItems.length
               ? Math.round(
-                  (activeData.items
-                    .flatMap((c) => c.complianceSummaries.filter((s) => s.period === 'SEVEN_DAY'))
+                  (activeItems
+                    .flatMap((c) => (c.complianceSummaries ?? []).filter((s) => s.period === 'SEVEN_DAY'))
                     .reduce((sum, s) => sum + s.complianceRate, 0) /
                     Math.max(
-                      activeData.items.filter((c) =>
-                        c.complianceSummaries.some((s) => s.period === 'SEVEN_DAY'),
+                      activeItems.filter((c) =>
+                        (c.complianceSummaries ?? []).some((s) => s.period === 'SEVEN_DAY'),
                       ).length,
                       1,
                     )) *
@@ -69,7 +70,7 @@ export default function DashboardPage() {
           <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-100">
             <ul className="divide-y divide-gray-50">
               {needsAttention.map((client) => {
-                const sevenDay = client.complianceSummaries.find(
+                const sevenDay = (client.complianceSummaries ?? []).find(
                   (s) => s.period === 'SEVEN_DAY',
                 );
                 return (
@@ -117,15 +118,15 @@ export default function DashboardPage() {
             <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
               Loading…
             </div>
-          ) : activeData.items.length === 0 ? (
+          ) : activeItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <p className="text-gray-500 font-medium">No clients yet</p>
               <p className="mt-1 text-sm text-gray-400">Invite your first client to get started.</p>
             </div>
           ) : (
             <ul className="divide-y divide-gray-50">
-              {activeData.items.slice(0, 8).map((client) => {
-                const sevenDay = client.complianceSummaries.find(
+              {activeItems.slice(0, 8).map((client) => {
+                const sevenDay = (client.complianceSummaries ?? []).find(
                   (s) => s.period === 'SEVEN_DAY',
                 );
                 const rate = sevenDay ? Math.round(sevenDay.complianceRate * 100) : null;

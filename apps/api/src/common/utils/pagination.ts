@@ -13,12 +13,10 @@ export function parsePagination(query: { page?: string; limit?: string }): Pagin
 
 export function paginatedResponse<T>(data: T[], total: number, params: PaginationParams) {
   return {
-    data,
-    meta: {
-      total,
-      page: params.page,
-      limit: params.limit,
-      totalPages: Math.ceil(total / params.limit),
-    },
+    items: data,
+    total,
+    page: params.page,
+    limit: params.limit,
+    totalPages: Math.ceil(total / params.limit),
   };
 }
