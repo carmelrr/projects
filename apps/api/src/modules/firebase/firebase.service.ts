@@ -13,7 +13,7 @@ export class FirebaseService implements OnModuleInit {
   constructor(private config: ConfigService) {}
 
   onModuleInit() {
-    const serviceAccountJson = this.config.get<string>('FIREBASE_SERVICE_ACCOUNT');
+    const serviceAccountJson = this.config.get<string>('FIREBASE_SERVICE_ACCOUNT') || process.env['FIREBASE_SERVICE_ACCOUNT'];
     const serviceAccountPath = this.config.get<string>('FIREBASE_SERVICE_ACCOUNT_PATH');
     const projectId = this.config.get<string>('FIREBASE_PROJECT_ID');
 
