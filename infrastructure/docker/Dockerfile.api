@@ -17,6 +17,7 @@ COPY --from=deps /app/packages ./packages
 COPY . .
 RUN pnpm --filter @coaching/shared build
 RUN pnpm --filter @coaching/database db:generate
+RUN pnpm --filter @coaching/database build
 RUN pnpm --filter @coaching/api build
 
 FROM base AS runner
