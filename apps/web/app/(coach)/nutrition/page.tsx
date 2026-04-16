@@ -39,7 +39,8 @@ export default function NutritionPage() {
         }
       />
 
-      <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card">
+      <Card className="relative overflow-hidden border-primary/30">
+        <div className="aurora absolute inset-0 -z-10 opacity-40" aria-hidden="true" />
         <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -60,12 +61,17 @@ export default function NutritionPage() {
       </Card>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map((f) => {
+        {FEATURES.map((f, i) => {
           const Icon = f.icon;
           return (
-            <Card key={f.title}>
+            <Card
+              key={f.title}
+              className={`card-interactive anim-fade-up ${
+                i === 1 ? 'anim-fade-up-delay-1' : i === 2 ? 'anim-fade-up-delay-2' : ''
+              }`}
+            >
               <CardContent className="p-5">
-                <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
                   <Icon className="size-5" />
                 </div>
                 <h3 className="font-semibold text-foreground">{f.title}</h3>

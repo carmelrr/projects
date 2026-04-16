@@ -1,20 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { Menu } from 'lucide-react';
+import Link from 'next/link';
+import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { OwlLogo } from '@/components/brand/OwlLogo';
+import { useThreads } from '@/hooks/useMessaging';
+import { useT } from '@/lib/i18n/client';
 import { Sidebar } from './Sidebar';
 
 export function MobileTopBar() {
   const [open, setOpen] = useState(false);
+  const t = useT();
+  const { data: threads } = useThreads();
+  const unread = threads?.reduce((s, th) => s + (th.unreadCount ?? 0), 0) ?? 0;
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 lg:hidden">
+    <header className="glass sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border px-4 lg:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Open menu">
+          <Button variant="ghost" size="icon" aria-label={t('common.openMenu')}>
             <Menu className="size-5" />
           </Button>
         </SheetTrigger>
@@ -23,7 +30,25 @@ export function MobileTopBar() {
         </SheetContent>
       </Sheet>
       <OwlLogo variant="lockup" />
-      <div className="w-9" />
+      <Button
+        asChild
+        variant="ghost"
+        size="icon"
+        aria-label={t('nav.notifications')}
+        className="relative"
+      >
+        <Link href="/notifications">
+          <Bell className="size-5" />
+          {unread > 0 && (
+            <Badge
+              variant="default"
+              className="absolute -top-0.5 -end-0.5 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] tabular-nums"
+            >
+              {unread > 9 ? '9+' : unread}
+            </Badge>
+          )}
+        </Link>
+      </Button>
     </header>
   );
 }

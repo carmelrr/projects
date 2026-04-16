@@ -56,6 +56,23 @@ export default function DashboardPage() {
     ? Math.round((thirtyDayValues.reduce((a, b) => a + b, 0) / thirtyDayValues.length) * 100)
     : null;
 
+  // Compliance distribution (buckets of 20%)
+  const distribution = [0, 0, 0, 0, 0];
+  for (const v of sevenDayValues) {
+    const pct = v * 100;
+    const idx = Math.min(4, Math.floor(pct / 20));
+    distribution[idx]++;
+  }
+  const maxBucket = Math.max(...distribution, 1);
+  const bucketLabels = ['0–20', '20–40', '40–60', '60–80', '80–100'];
+  const bucketColors = [
+    'bg-destructive',
+    'bg-destructive/70',
+    'bg-warning',
+    'bg-success/70',
+    'bg-success',
+  ];
+
   return (
     <div className="mx-auto w-full max-w-7xl p-6 lg:p-8">
       <PageHeader
@@ -69,6 +86,7 @@ export default function DashboardPage() {
           value={totalActive}
           icon={Users}
           accent="brand"
+          className="anim-fade-up"
         />
         <StatCard
           label={t('dashboard.stats.needsAttention')}
@@ -76,20 +94,55 @@ export default function DashboardPage() {
           sub={t('dashboard.stats.needsAttentionSub')}
           icon={AlertTriangle}
           accent="warning"
+          className="anim-fade-up anim-fade-up-delay-1"
         />
         <StatCard
           label={t('dashboard.stats.avgCompliance7')}
           value={avg7 !== null ? `${avg7}%` : '—'}
           icon={Activity}
           accent="success"
+          className="anim-fade-up anim-fade-up-delay-2"
         />
         <StatCard
           label={t('dashboard.stats.avgCompliance30')}
           value={avg30 !== null ? `${avg30}%` : '—'}
           icon={TrendingUp}
           accent="info"
+          className="anim-fade-up anim-fade-up-delay-3"
         />
       </div>
+
+      {sevenDayValues.length > 0 && (
+        <Card className="anim-fade-up anim-fade-up-delay-4 mt-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t('dashboard.distribution.title')}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex items-end gap-2 sm:gap-3">
+              {distribution.map((count, i) => (
+                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+                  <span className="text-xs font-semibold tabular-nums text-foreground">
+                    {count}
+                  </span>
+                  <div
+                    className="w-full overflow-hidden rounded-t-md bg-muted/40"
+                    style={{ height: 72 }}
+                  >
+                    <div
+                      className={cn('w-full rounded-t-md transition-[height]', bucketColors[i])}
+                      style={{
+                        height: `${(count / maxBucket) * 100}%`,
+                        marginTop: `${100 - (count / maxBucket) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{bucketLabels[i]}%</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-1">

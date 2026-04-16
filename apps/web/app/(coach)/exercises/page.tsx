@@ -380,7 +380,7 @@ export default function ExercisesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {exercises.map((ex) => (
-            <Card key={ex.id} className="group transition-shadow hover:shadow-md">
+            <Card key={ex.id} className="card-interactive group">
               <CardContent className="flex h-full flex-col p-4">
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div className="min-w-0">

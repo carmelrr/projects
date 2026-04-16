@@ -23,8 +23,21 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+  ),
   title: 'Owl Performance — Coaching that scales with you',
   description: 'The coaching platform that watches over every client.',
+  openGraph: {
+    title: 'Owl Performance — Coaching that scales with you',
+    description: 'The coaching platform that watches over every client.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Owl Performance',
+    description: 'The coaching platform that watches over every client.',
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

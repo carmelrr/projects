@@ -49,12 +49,17 @@ export default function AssessmentsPage() {
       <section>
         <h2 className="mb-3 text-sm font-semibold text-foreground">Templates</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {TEMPLATES.map((t) => {
+          {TEMPLATES.map((t, i) => {
             const Icon = t.icon;
             return (
-              <Card key={t.id} className="group transition-shadow hover:shadow-md">
+              <Card
+                key={t.id}
+                className={`card-interactive anim-fade-up ${
+                  i === 1 ? 'anim-fade-up-delay-1' : i === 2 ? 'anim-fade-up-delay-2' : ''
+                }`}
+              >
                 <CardContent className="p-5">
-                  <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
                     <Icon className="size-5" />
                   </div>
                   <h3 className="font-semibold text-foreground">{t.title}</h3>

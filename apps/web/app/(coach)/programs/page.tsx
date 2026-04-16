@@ -313,7 +313,7 @@ export default function ProgramsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {programs.map((p) => (
-            <Card key={p.id} className="group transition-shadow hover:shadow-md">
+            <Card key={p.id} className="card-interactive group">
               <CardContent className="flex h-full flex-col p-5">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <Link

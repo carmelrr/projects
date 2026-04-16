@@ -111,12 +111,13 @@ export function useMessagingSocket(
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const socketRef = useRef<any>(null);
-  const prevThreadRef = useRef<string | undefined>();
+  const prevThreadRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!userId) return;
 
-    let socket: Socket;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let socket: any;
 
     // Lazy-load socket.io-client to avoid SSR issues
     import('socket.io-client').then(({ io }) => {

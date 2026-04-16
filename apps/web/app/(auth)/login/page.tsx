@@ -41,6 +41,7 @@ export default function LoginPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
+        <p className="text-eyebrow">{t('brand.short')}</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {t('auth.signInTitle')}
         </h1>
@@ -75,13 +76,16 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+          >
             {error}
           </div>
         )}
 
         <Button type="submit" disabled={loading} variant="gradient" size="lg" className="w-full">
-          {loading ? t('common.loading') : t('common.signIn')}
+          {loading ? t('auth.signInLoading') : t('auth.signInCta')}
         </Button>
       </form>
 

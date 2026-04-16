@@ -25,7 +25,8 @@
     "theme": "Theme",
     "themeLight": "Light",
     "themeDark": "Dark",
-    "themeSystem": "System"
+    "themeSystem": "System",
+    "openMenu": "Open menu"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -37,7 +38,12 @@
     "settings": "Settings",
     "assessments": "Assessments",
     "nutrition": "Nutrition",
-    "admin": "Admin"
+    "admin": "Admin",
+    "sections": {
+      "workspace": "Workspace",
+      "engage": "Engage",
+      "system": "System"
+    }
   },
   "dashboard": {
     "greetingMorning": "Good morning, {name}",
@@ -58,7 +64,10 @@
     "noClientsHint": "Invite your first client to get started.",
     "complianceWeek": "{pct}% compliance this week",
     "noRecentData": "No recent data",
-    "needsAttentionTag": "Needs attention"
+    "needsAttentionTag": "Needs attention",
+    "distribution": {
+      "title": "7-day compliance distribution"
+    }
   },
   "clients": {
     "title": "Clients",

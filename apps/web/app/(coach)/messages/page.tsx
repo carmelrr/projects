@@ -215,8 +215,13 @@ function MessageArea({
       </div>
 
       {typingUsers.length > 0 && (
-        <div className="bg-muted/20 px-5 py-1.5 text-xs text-muted-foreground">
-          {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…
+        <div className="flex items-center gap-2 bg-muted/20 px-5 py-1.5 text-xs text-muted-foreground">
+          <span className="typing-dots text-primary" aria-hidden="true">
+            <span /><span /><span />
+          </span>
+          <span>
+            {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…
+          </span>
         </div>
       )}
 

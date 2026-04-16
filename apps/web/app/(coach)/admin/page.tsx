@@ -36,7 +36,7 @@ export default function AdminPage() {
   const router = useRouter();
   const { user } = useAuthStore();
 
-  const isAdmin = user?.role === 'OWNER' || user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'OWNER' || user?.role === 'ADMIN_COACH';
 
   useEffect(() => {
     // Redirect non-admins after a short delay so they see the gate
@@ -91,12 +91,14 @@ export default function AdminPage() {
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {SECTIONS.map((s) => {
+        {SECTIONS.map((s, i) => {
           const Icon = s.icon;
           return (
             <Card
               key={s.title}
-              className="group cursor-pointer transition-shadow hover:shadow-md"
+              className={`card-interactive anim-fade-up group cursor-pointer ${
+                i === 1 ? 'anim-fade-up-delay-1' : i === 2 ? 'anim-fade-up-delay-2' : ''
+              }`}
               onClick={() => router.push(s.href)}
               role="button"
               tabIndex={0}
@@ -109,7 +111,7 @@ export default function AdminPage() {
             >
               <CardContent className="p-5">
                 <div className="mb-3 flex items-center justify-between">
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
                     <Icon className="size-5" />
                   </div>
                   <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />

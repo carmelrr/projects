@@ -25,7 +25,8 @@
     "theme": "ערכת נושא",
     "themeLight": "בהיר",
     "themeDark": "כהה",
-    "themeSystem": "לפי מערכת"
+    "themeSystem": "לפי מערכת",
+    "openMenu": "פתיחת תפריט"
   },
   "nav": {
     "dashboard": "סקירה",
@@ -37,7 +38,12 @@
     "settings": "הגדרות",
     "assessments": "אבחונים",
     "nutrition": "תזונה",
-    "admin": "אדמין"
+    "admin": "אדמין",
+    "sections": {
+      "workspace": "סביבת עבודה",
+      "engage": "תקשורת",
+      "system": "מערכת"
+    }
   },
   "dashboard": {
     "greetingMorning": "בוקר טוב, {name}",
@@ -58,7 +64,10 @@
     "noClientsHint": "הזמן את המתאמן הראשון שלך כדי להתחיל.",
     "complianceWeek": "{pct}% עמידה השבוע",
     "noRecentData": "אין נתונים עדכניים",
-    "needsAttentionTag": "דורש תשומת לב"
+    "needsAttentionTag": "דורש תשומת לב",
+    "distribution": {
+      "title": "התפלגות עמידה ביעדים · 7 ימים"
+    }
   },
   "clients": {
     "title": "מתאמנים",
