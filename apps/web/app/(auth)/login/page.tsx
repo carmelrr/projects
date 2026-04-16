@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth.store';
 import { ApiError } from '@/lib/api';
 
@@ -83,6 +84,13 @@ export default function LoginPage() {
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+
+      <p className="mt-5 text-center text-sm text-gray-500">
+        Don&apos;t have an account?{' '}
+        <Link href="/register" className="font-medium text-blue-600 hover:text-blue-700">
+          Create account
+        </Link>
+      </p>
     </div>
   );
 }
