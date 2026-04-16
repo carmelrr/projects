@@ -1,5 +1,5 @@
+# ── Stage 1: install deps (cached via package.json layer) ──
 FROM node:22-alpine AS base
-# cache-bust: 20260416-1
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 FROM base AS deps
@@ -10,23 +10,24 @@ COPY packages/database/package.json ./packages/database/
 COPY packages/shared/package.json ./packages/shared/
 RUN pnpm install --frozen-lockfile --filter @coaching/api...
 
+# ── Stage 2: build everything ──
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=deps /app/packages ./packages
+COPY --from=deps /app ./
 COPY . .
 RUN pnpm --filter @coaching/shared build
 RUN pnpm --filter @coaching/database db:generate
 RUN pnpm --filter @coaching/database build
 RUN pnpm --filter @coaching/api build
+# pnpm deploy creates flat, symlink-free node_modules
+RUN pnpm --filter @coaching/api deploy --legacy --prod /app/deployed
 
+# ── Stage 3: minimal production image ──
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/deployed/node_modules ./node_modules
+COPY --from=builder /app/deployed/dist ./dist
 COPY --from=builder /app/packages/database/prisma ./prisma
 
 EXPOSE 3001
