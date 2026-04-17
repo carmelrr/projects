@@ -2,10 +2,11 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { FirebaseService } from './modules/firebase/firebase.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -22,7 +23,8 @@ async function bootstrap() {
 
   // Global guards, filters, interceptors
   const reflector = app.get(Reflector);
-  app.useGlobalGuards(new JwtAuthGuard(reflector), new RolesGuard(reflector));
+  const firebaseService = app.get(FirebaseService);
+  app.useGlobalGuards(new FirebaseAuthGuard(reflector, firebaseService), new RolesGuard(reflector));
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 

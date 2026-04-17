@@ -1,56 +1,20 @@
-/**
- * API client — wraps fetch with:
- *  • Base URL from env (defaults to localhost:3001)
- *  • Automatic Authorization header injection
- *  • Automatic token refresh on 401
- *  • Response unwrapping from { data: ... } envelope
+﻿/**
+ * API client - wraps fetch with:
+ *  - Base URL from env (defaults to localhost:3001)
+ *  - Automatic Firebase ID token injection
+ *  - Response unwrapping from { data: ... } envelope
  */
+
+import { getAuth } from 'firebase/auth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
-// ── Token storage ──────────────────────────────────────────
-const ACCESS_KEY = 'coaching_access_token';
-const REFRESH_KEY = 'coaching_refresh_token';
-
-export const tokenStore = {
-  getAccess: () => (typeof window !== 'undefined' ? localStorage.getItem(ACCESS_KEY) : null),
-  getRefresh: () => (typeof window !== 'undefined' ? localStorage.getItem(REFRESH_KEY) : null),
-  set: (access: string, refresh: string) => {
-    localStorage.setItem(ACCESS_KEY, access);
-    localStorage.setItem(REFRESH_KEY, refresh);
-  },
-  clear: () => {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-  },
-};
-
-// ── Core fetch wrapper ─────────────────────────────────────
-let isRefreshing = false;
-let refreshQueue: Array<() => void> = [];
-
-async function refreshTokens(): Promise<boolean> {
-  const refreshToken = tokenStore.getRefresh();
-  if (!refreshToken) return false;
-
-  try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-    if (!res.ok) {
-      tokenStore.clear();
-      return false;
-    }
-    const json = await res.json();
-    const { accessToken, refreshToken: newRefresh } = json.data;
-    tokenStore.set(accessToken, newRefresh);
-    return true;
-  } catch {
-    tokenStore.clear();
-    return false;
-  }
+async function getFirebaseToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) return null;
+  return user.getIdToken();
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -61,32 +25,14 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     ...(options.headers as Record<string, string>),
   };
 
-  const access = tokenStore.getAccess();
-  if (access) headers['Authorization'] = `Bearer ${access}`;
+  const token = await getFirebaseToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  let res = await fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...options, headers });
 
-  // Auto-refresh on 401
-  if (res.status === 401 && tokenStore.getRefresh()) {
-    if (isRefreshing) {
-      await new Promise<void>((resolve) => refreshQueue.push(resolve));
-    } else {
-      isRefreshing = true;
-      const ok = await refreshTokens();
-      isRefreshing = false;
-      refreshQueue.forEach((r) => r());
-      refreshQueue = [];
-
-      if (!ok) {
-        tokenStore.clear();
-        if (typeof window !== 'undefined') window.location.href = '/login';
-        throw new Error('Session expired');
-      }
-
-      // Retry with new token
-      headers['Authorization'] = `Bearer ${tokenStore.getAccess()}`;
-      res = await fetch(url, { ...options, headers });
-    }
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') window.location.href = '/login';
+    throw new ApiError('Unauthorized', 401);
   }
 
   if (!res.ok) {
@@ -113,7 +59,7 @@ export class ApiError extends Error {
   }
 }
 
-// ── Convenience methods ────────────────────────────────────
+// Convenience methods
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path, { method: 'GET' }),
   post: <T>(path: string, body?: unknown) =>

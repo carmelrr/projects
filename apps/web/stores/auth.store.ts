@@ -1,5 +1,15 @@
-import { create } from 'zustand';
-import { tokenStore, api } from '@/lib/api';
+﻿import { create } from 'zustand';
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  OAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { api, ApiError } from '@/lib/api';
 
 export interface AuthUser {
   id: string;
@@ -13,30 +23,56 @@ export interface AuthUser {
 
 interface AuthState {
   user: AuthUser | null;
+  firebaseUser: FirebaseUser | null;
   isLoading: boolean;
   isHydrated: boolean;
 
-  login: (email: string, password: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginWithApple: () => Promise<void>;
   logout: () => Promise<void>;
-  hydrate: () => Promise<void>;
+  hydrate: () => void;
+  syncProfile: (firebaseUser: FirebaseUser) => Promise<void>;
 }
+
+const googleProvider = new GoogleAuthProvider();
+const appleProvider = new OAuthProvider('apple.com');
+appleProvider.addScope('email');
+appleProvider.addScope('name');
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  firebaseUser: null,
   isLoading: false,
   isHydrated: false,
 
-  login: async (email, password) => {
+  loginWithEmail: async (email, password) => {
     set({ isLoading: true });
     try {
-      const res = await api.post<{
-        accessToken: string;
-        refreshToken: string;
-        user: AuthUser;
-      }>('/auth/login', { email, password });
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      await get().syncProfile(credential.user);
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
+    }
+  },
 
-      tokenStore.set(res.accessToken, res.refreshToken);
-      set({ user: res.user, isLoading: false });
+  loginWithGoogle: async () => {
+    set({ isLoading: true });
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+      await get().syncProfile(credential.user);
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
+    }
+  },
+
+  loginWithApple: async () => {
+    set({ isLoading: true });
+    try {
+      const credential = await signInWithPopup(auth, appleProvider);
+      await get().syncProfile(credential.user);
     } catch (err) {
       set({ isLoading: false });
       throw err;
@@ -44,35 +80,52 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    try {
-      await api.post('/auth/logout', { refreshToken: tokenStore.getRefresh() });
-    } catch {}
-    tokenStore.clear();
-    set({ user: null });
+    await signOut(auth);
+    set({ user: null, firebaseUser: null });
   },
 
-  hydrate: async () => {
-    const token = tokenStore.getAccess();
-    if (!token) {
-      set({ isHydrated: true });
+  syncProfile: async (firebaseUser: FirebaseUser) => {
+    const res = await api.post<{
+      user: AuthUser | null;
+      isNewUser: boolean;
+    }>('/auth/sync', {
+      firebaseUid: firebaseUser.uid,
+      email: firebaseUser.email,
+    });
+
+    if (res.isNewUser || !res.user) {
+      // User needs to complete registration
+      set({ firebaseUser, user: null, isLoading: false });
       return;
     }
-    try {
-      const raw = await api.get<
-        AuthUser & { orgs?: Array<{ orgId: string; role: AuthUser['role'] }> }
-      >('/users/me');
 
-      // Flatten org info to top-level if not already there
-      const firstOrg = raw.orgs?.[0];
-      const user: AuthUser = {
-        ...raw,
-        orgId: raw.orgId ?? firstOrg?.orgId ?? '',
-        role: raw.role ?? firstOrg?.role ?? 'COACH',
-      };
-      set({ user, isHydrated: true });
-    } catch {
-      tokenStore.clear();
-      set({ user: null, isHydrated: true });
-    }
+    set({ user: res.user, firebaseUser, isLoading: false });
+  },
+
+  hydrate: () => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        set({ user: null, firebaseUser: null, isHydrated: true });
+        return;
+      }
+
+      try {
+        // Try to get profile from API
+        const raw = await api.get<
+          AuthUser & { orgs?: Array<{ orgId: string; role: AuthUser['role'] }> }
+        >('/users/me');
+
+        const firstOrg = raw.orgs?.[0];
+        const user: AuthUser = {
+          ...raw,
+          orgId: raw.orgId ?? firstOrg?.orgId ?? '',
+          role: raw.role ?? firstOrg?.role ?? 'COACH',
+        };
+        set({ user, firebaseUser, isHydrated: true });
+      } catch {
+        // Profile doesn't exist yet â€” could be new social login
+        set({ user: null, firebaseUser, isHydrated: true });
+      }
+    });
   },
 }));

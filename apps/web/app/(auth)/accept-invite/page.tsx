@@ -3,12 +3,15 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { useAuthStore, type AuthUser } from '@/stores/auth.store';
-import { api, ApiError, tokenStore } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { useT } from '@/lib/i18n/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FirebaseError } from 'firebase/app';
 
 function postLoginPath(role: AuthUser['role']) {
   return role === 'CLIENT' ? '/client' : '/dashboard';
@@ -60,21 +63,38 @@ function AcceptInviteInner() {
     setError('');
     setLoading(true);
     try {
-      const res = await api.post<{
-        accessToken: string;
-        refreshToken: string;
-        user: AuthUser;
-      }>('/auth/accept-invite', {
+      const email = decoded?.email ?? '';
+
+      // Create Firebase Auth account
+      const credential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        form.password,
+      );
+
+      // Accept invite via API — creates Firestore profile
+      const res = await api.post<{ user: AuthUser }>('/auth/accept-invite', {
         token,
-        password: form.password,
+        firebaseUid: credential.user.uid,
+        email,
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
       });
-      tokenStore.set(res.accessToken, res.refreshToken);
-      useAuthStore.setState({ user: res.user, isHydrated: true });
+
+      useAuthStore.setState({
+        user: res.user,
+        firebaseUser: credential.user,
+        isHydrated: true,
+      });
       router.push(postLoginPath(res.user.role));
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (err instanceof FirebaseError) {
+        if (err.code === 'auth/email-already-in-use') {
+          setError(t('auth.emailExists'));
+        } else {
+          setError(t('auth.genericError'));
+        }
+      } else if (err instanceof ApiError) {
         setError(err.message || t('auth.genericError'));
       } else {
         setError(t('auth.genericError'));

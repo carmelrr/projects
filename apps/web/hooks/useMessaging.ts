@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, tokenStore } from '@/lib/api';
+import { api } from '@/lib/api';
+import { getAuth } from 'firebase/auth';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -120,10 +121,11 @@ export function useMessagingSocket(
     let socket: any;
 
     // Lazy-load socket.io-client to avoid SSR issues
-    import('socket.io-client').then(({ io }) => {
+    import('socket.io-client').then(async ({ io }) => {
       const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3001';
+      const firebaseToken = await getAuth().currentUser?.getIdToken();
       socket = io(`${apiBase}/messaging`, {
-        auth: { userId, token: tokenStore.getAccess() },
+        auth: { userId, token: firebaseToken },
         transports: ['websocket', 'polling'],
         reconnectionAttempts: 5,
       });

@@ -168,7 +168,12 @@
     "inviteInvalidDesc": "קישור ההזמנה חסר או פג תוקף. בקש מהאדמין קישור חדש.",
     "roleCoach": "מאמן",
     "roleAdminCoach": "מאמן אדמין",
-    "roleClient": "מתאמן"
+    "roleClient": "מתאמן",
+    "continueWithGoogle": "המשך עם Google",
+    "continueWithApple": "המשך עם Apple",
+    "orWithEmail": "או המשך עם אימייל",
+    "tooManyAttempts": "יותר מדי ניסיונות. נסה שוב מאוחר יותר.",
+    "signedInAs": "מחובר/ת בתור"
   },
   "marketing": {
     "navFeatures": "תכונות",

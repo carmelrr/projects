@@ -3,26 +3,33 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { useAuthStore, type AuthUser } from '@/stores/auth.store';
-import { api, ApiError, tokenStore } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { useT } from '@/lib/i18n/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FirebaseError } from 'firebase/app';
 
 export default function RegisterPage() {
   const router = useRouter();
   const t = useT();
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
 
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
-    email: '',
+    email: firebaseUser?.email ?? '',
     password: '',
     orgName: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // If user came from social login, they already have a Firebase account
+  const hasSocialAccount = !!firebaseUser;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -33,22 +40,39 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await api.post<{
-        accessToken: string;
-        refreshToken: string;
-        user: AuthUser;
-      }>('/auth/register', {
-        email: form.email.trim(),
-        password: form.password,
+      let uid = firebaseUser?.uid;
+      let email = firebaseUser?.email ?? form.email.trim();
+
+      // If no Firebase account yet, create one with email/password
+      if (!uid) {
+        const credential = await createUserWithEmailAndPassword(
+          auth,
+          form.email.trim(),
+          form.password,
+        );
+        uid = credential.user.uid;
+        email = credential.user.email ?? form.email.trim();
+      }
+
+      // Create Firestore profile via API
+      const res = await api.post<{ user: AuthUser }>('/auth/register', {
+        firebaseUid: uid,
+        email,
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         orgName: form.orgName.trim(),
       });
-      tokenStore.set(res.accessToken, res.refreshToken);
-      useAuthStore.setState({ user: res.user });
+
+      useAuthStore.setState({ user: res.user, firebaseUser: auth.currentUser });
       router.push(res.user.role === 'CLIENT' ? '/client' : '/dashboard');
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (err instanceof FirebaseError) {
+        if (err.code === 'auth/email-already-in-use') {
+          setError(t('auth.emailExists'));
+        } else {
+          setError(t('auth.genericError'));
+        }
+      } else if (err instanceof ApiError) {
         if (err.status === 409) setError(t('auth.emailExists'));
         else setError(err.message || t('auth.genericError'));
       } else {
@@ -109,34 +133,45 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="email">{t('common.email')}</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={form.email}
-            onChange={handleChange}
-            placeholder={t('auth.emailPlaceholder')}
-          />
-        </div>
+        {/* Only show email/password fields if no social account */}
+        {!hasSocialAccount && (
+          <>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">{t('common.email')}</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={form.email}
+                onChange={handleChange}
+                placeholder={t('auth.emailPlaceholder')}
+              />
+            </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="password">{t('common.password')}</Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            value={form.password}
-            onChange={handleChange}
-            placeholder={t('auth.passwordHint')}
-          />
-        </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">{t('common.password')}</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={form.password}
+                onChange={handleChange}
+                placeholder={t('auth.passwordHint')}
+              />
+            </div>
+          </>
+        )}
+
+        {hasSocialAccount && (
+          <p className="text-sm text-muted-foreground">
+            {t('auth.signedInAs')} <strong>{firebaseUser?.email}</strong>
+          </p>
+        )}
 
         {error && (
           <div
@@ -161,4 +196,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

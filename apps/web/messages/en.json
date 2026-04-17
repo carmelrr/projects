@@ -168,7 +168,12 @@
     "inviteInvalidDesc": "This invite link is missing or has expired. Please ask your admin for a new one.",
     "roleCoach": "Coach",
     "roleAdminCoach": "Admin coach",
-    "roleClient": "Client"
+    "roleClient": "Client",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithApple": "Continue with Apple",
+    "orWithEmail": "or continue with email",
+    "tooManyAttempts": "Too many attempts. Please try again later.",
+    "signedInAs": "Signed in as"
   },
   "marketing": {
     "navFeatures": "Features",

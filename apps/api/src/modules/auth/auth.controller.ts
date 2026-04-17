@@ -1,32 +1,23 @@
-import {
+﻿import {
   Controller,
   Post,
   Body,
   HttpCode,
   HttpStatus,
   UsePipes,
-  UseGuards,
-  Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { Throttle } from '@nestjs/throttler';
 import {
+  syncUserSchema,
   registerSchema,
-  loginSchema,
-  refreshTokenSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
   acceptInviteSchema,
   inviteCoachSchema,
+  type SyncUserInput,
   type RegisterInput,
-  type LoginInput,
-  type RefreshTokenInput,
-  type ForgotPasswordInput,
-  type ResetPasswordInput,
   type AcceptInviteInput,
   type InviteCoachInput,
 } from '@coaching/shared';
@@ -35,71 +26,48 @@ import {
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  /**
+   * Called after any Firebase sign-in (email/password, Google, Apple).
+   * Returns existing Firestore profile or { isNewUser: true }.
+   */
+  @Public()
+  @Post('sync')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(syncUserSchema))
+  async sync(@Body() body: SyncUserInput) {
+    return this.authService.syncUser(body.firebaseUid, body.email);
+  }
+
+  /**
+   * Called after Firebase createUser â€” creates org + Firestore user profile.
+   */
   @Public()
   @Post('register')
-  @Throttle({ default: { limit: 5, ttl: 3600000 } }) // 5 per hour
   @UsePipes(new ZodValidationPipe(registerSchema))
   async register(@Body() body: RegisterInput) {
     return this.authService.register(body);
   }
 
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 900000 } }) // 10 per 15 min
-  @UsePipes(new ZodValidationPipe(loginSchema))
-  async login(@Body() body: LoginInput) {
-    return this.authService.login(body);
-  }
-
-  @Public()
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(refreshTokenSchema))
-  async refresh(@Body() body: RefreshTokenInput) {
-    return this.authService.refresh(body.refreshToken);
-  }
-
-  @Post('logout')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(
-    @CurrentUser() user: CurrentUserPayload,
-    @Body('refreshToken') refreshToken?: string,
-  ) {
-    await this.authService.logout(user.sub, refreshToken);
-  }
-
-  @Public()
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 3, ttl: 3600000 } }) // 3 per hour
-  @UsePipes(new ZodValidationPipe(forgotPasswordSchema))
-  async forgotPassword(@Body() body: ForgotPasswordInput) {
-    await this.authService.forgotPassword(body.email);
-    return { message: 'If the email exists, a reset link has been sent' };
-  }
-
-  @Public()
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(resetPasswordSchema))
-  async resetPassword(@Body() body: ResetPasswordInput) {
-    await this.authService.resetPassword(body.token, body.password);
-    return { message: 'Password has been reset' };
-  }
-
+  /**
+   * Accept a client or coach invite.
+   * Firebase Auth account is created client-side first.
+   */
   @Public()
   @Post('accept-invite')
   @UsePipes(new ZodValidationPipe(acceptInviteSchema))
   async acceptInvite(@Body() body: AcceptInviteInput) {
     return this.authService.acceptInvite(
       body.token,
-      body.password,
+      body.firebaseUid,
+      body.email,
       body.firstName,
       body.lastName,
     );
   }
 
+  /**
+   * Invite a coach (admin only).
+   */
   @Post('invite-coach')
   @Roles('ADMIN_COACH')
   @HttpCode(HttpStatus.OK)
