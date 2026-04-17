@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -6,11 +7,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
-import { useThreads, type Thread } from '@/hooks/useMessaging';
+import { useThreads, useCreateDirectThread, type Thread } from '@/hooks/useMessaging';
+import { useCoaches } from '@/hooks/useCoaches';
 
 function relativeTime(iso?: string) {
   if (!iso) return '';
@@ -84,11 +87,30 @@ function ThreadRow({
 export default function MessagesScreen() {
   const { user } = useAuthStore();
   const { data: threads, isLoading, refetch, isRefetching } = useThreads();
+  const { data: coaches } = useCoaches();
+  const createDirect = useCreateDirectThread();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const startConversation = async (coachId: string) => {
+    setPickerOpen(false);
+    try {
+      const thread = await createDirect.mutateAsync(coachId);
+      router.push(`/(client)/messages/${thread.id}`);
+    } catch {
+      // Thread may already exist, threads will refetch
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Messages</Text>
+        <Pressable
+          onPress={() => setPickerOpen(true)}
+          style={styles.newBtn}
+        >
+          <Text style={styles.newBtnText}>＋ New</Text>
+        </Pressable>
       </View>
 
       {isLoading ? (
@@ -121,6 +143,52 @@ export default function MessagesScreen() {
           }
         />
       )}
+
+      {/* Contact picker modal */}
+      <Modal visible={pickerOpen} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>New conversation</Text>
+              <Pressable onPress={() => setPickerOpen(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </Pressable>
+            </View>
+            {!coaches?.length ? (
+              <View style={styles.modalEmpty}>
+                <Text style={styles.modalEmptyText}>No coaches available</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={coaches}
+                keyExtractor={(c) => c.id}
+                renderItem={({ item: c }) => (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.contactRow,
+                      pressed && styles.rowPressed,
+                    ]}
+                    onPress={() => startConversation(c.id)}
+                  >
+                    <View style={styles.contactAvatar}>
+                      <Text style={styles.contactAvatarText}>
+                        {`${c.firstName?.[0] ?? ''}${c.lastName?.[0] ?? ''}`.toUpperCase()}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.contactName}>
+                        {c.firstName} {c.lastName}
+                      </Text>
+                      <Text style={styles.contactEmail}>{c.email}</Text>
+                    </View>
+                  </Pressable>
+                )}
+                ItemSeparatorComponent={() => <View style={styles.divider} />}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -134,8 +202,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: { fontSize: 24, fontWeight: '700', color: '#111827' },
+  newBtn: {
+    backgroundColor: '#2563eb',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  newBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   row: {
@@ -187,4 +265,49 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   emptySub: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginTop: 6 },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '60%',
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  modalClose: { fontSize: 15, fontWeight: '600', color: '#2563eb' },
+  modalEmpty: { padding: 40, alignItems: 'center' },
+  modalEmptyText: { fontSize: 14, color: '#6b7280' },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  contactAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#dbeafe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactAvatarText: { color: '#2563eb', fontWeight: '700', fontSize: 14 },
+  contactName: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  contactEmail: { fontSize: 13, color: '#6b7280', marginTop: 1 },
 });

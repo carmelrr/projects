@@ -1,32 +1,55 @@
+import { useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   StyleSheet,
   Alert,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
-
-// ── Stat card ──────────────────────────────────────────────────────────────
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
+import { api } from '@/lib/api';
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
 
+  const [editing, setEditing] = useState(false);
+  const [firstName, setFirstName] = useState(user?.firstName ?? '');
+  const [lastName, setLastName] = useState(user?.lastName ?? '');
+  const [saving, setSaving] = useState(false);
+
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updated = await api.patch<{ firstName: string; lastName: string }>('/users/me', {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+      });
+      // Update store in-place
+      useAuthStore.setState((s) => ({
+        user: s.user ? { ...s.user, firstName: updated.firstName, lastName: updated.lastName } : null,
+      }));
+      setEditing(false);
+    } catch {
+      Alert.alert('Error', 'Could not save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setFirstName(user?.firstName ?? '');
+    setLastName(user?.lastName ?? '');
+    setEditing(false);
+  };
 
   const handleLogout = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -59,19 +82,67 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Menu items */}
+        {/* Account section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            {!editing && (
+              <Pressable onPress={() => setEditing(true)}>
+                <Text style={styles.editLink}>Edit</Text>
+              </Pressable>
+            )}
+          </View>
 
-          {[
-            { label: 'Email', value: user?.email ?? '' },
-            { label: 'Name', value: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() },
-          ].map(({ label, value }) => (
-            <View key={label} style={styles.menuItem}>
-              <Text style={styles.menuLabel}>{label}</Text>
-              <Text style={styles.menuValue} numberOfLines={1}>{value}</Text>
+          <View style={styles.menuItem}>
+            <Text style={styles.menuLabel}>Email</Text>
+            <Text style={styles.menuValue} numberOfLines={1}>{user?.email ?? ''}</Text>
+          </View>
+
+          {editing ? (
+            <>
+              <View style={styles.menuItem}>
+                <Text style={styles.menuLabel}>First name</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  placeholder="First name"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="words"
+                />
+              </View>
+              <View style={styles.menuItem}>
+                <Text style={styles.menuLabel}>Last name</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  placeholder="Last name"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="words"
+                />
+              </View>
+              <View style={styles.editActions}>
+                <Pressable style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+                  {saving ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Save</Text>
+                  )}
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <View style={styles.menuItem}>
+              <Text style={styles.menuLabel}>Name</Text>
+              <Text style={styles.menuValue} numberOfLines={1}>
+                {`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
+              </Text>
             </View>
-          ))}
+          )}
         </View>
 
         <View style={styles.section}>
@@ -121,6 +192,12 @@ const styles = StyleSheet.create({
   roleText: { fontSize: 12, fontWeight: '600', color: '#2563eb' },
 
   section: { marginBottom: 20 },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
@@ -129,6 +206,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 8,
     marginLeft: 4,
+  },
+  editLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
+    marginBottom: 8,
+    marginRight: 4,
   },
   menuItem: {
     backgroundColor: '#fff',
@@ -147,21 +231,36 @@ const styles = StyleSheet.create({
   },
   menuLabel: { fontSize: 15, color: '#374151', fontWeight: '500' },
   menuValue: { fontSize: 14, color: '#9ca3af', maxWidth: '55%', textAlign: 'right' },
-
-  statCard: {
+  editInput: {
+    fontSize: 14,
+    color: '#111827',
+    textAlign: 'right',
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    marginLeft: 12,
+    paddingVertical: 0,
   },
-  statValue: { fontSize: 24, fontWeight: '700', color: '#111827' },
-  statLabel: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  editActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  cancelBtn: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelBtnText: { color: '#374151', fontWeight: '600', fontSize: 15 },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   signOutBtn: {
     marginTop: 16,

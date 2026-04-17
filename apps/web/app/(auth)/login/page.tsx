@@ -201,6 +201,12 @@ export default function LoginPage() {
         <Button type="submit" disabled={loading} variant="gradient" size="lg" className="w-full">
           {loading ? t('auth.signInLoading') : t('auth.signInCta')}
         </Button>
+
+        <div className="text-end">
+          <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
+            Forgot password?
+          </Link>
+        </div>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">

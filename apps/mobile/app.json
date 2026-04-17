@@ -29,6 +29,13 @@
         }
       ],
       "expo-video"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "616c7a17-6eea-4c79-8969-60793060b86b"
+      }
+    },
+    "owner": "carmelrr"
   }
 }

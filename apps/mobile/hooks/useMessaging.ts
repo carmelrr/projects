@@ -85,3 +85,14 @@ export function useMarkRead(threadId: string) {
     },
   });
 }
+
+export function useCreateDirectThread() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api.post<Thread>('/messaging/threads/direct', { userId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['threads'] });
+    },
+  });
+}
