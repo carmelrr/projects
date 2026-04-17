@@ -103,10 +103,9 @@ export class AuthController {
   @Post('invite-coach')
   @Roles('ADMIN_COACH')
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(inviteCoachSchema))
   async inviteCoach(
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: InviteCoachInput,
+    @Body(new ZodValidationPipe(inviteCoachSchema)) body: InviteCoachInput,
   ) {
     return this.authService.createCoachInvite(
       user.sub,

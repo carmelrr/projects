@@ -178,15 +178,15 @@ export function InviteCoachDialog({ trigger }: { trigger?: React.ReactNode }) {
           </form>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-foreground">
+            <div className="rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-foreground break-words">
               {t('admin.inviteCoach.success', { email: result.email })}
             </div>
             <div className="space-y-1.5">
               <Label>{t('admin.inviteCoach.shareLink')}</Label>
-              <div className="flex gap-2">
-                <div className="flex flex-1 items-center gap-2 rounded-md border border-input bg-muted/30 px-3 py-2 text-xs">
+              <div className="flex items-stretch gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-muted/30 px-3 py-2 text-xs">
                   <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate font-mono">{result.inviteUrl}</span>
+                  <span className="min-w-0 flex-1 truncate font-mono" dir="ltr">{result.inviteUrl}</span>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={copyLink}>
                   {copied ? <Check className="size-4 text-success" /> : <Copy className="size-4" />}
