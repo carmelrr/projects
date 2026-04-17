@@ -1,7 +1,8 @@
 ﻿import { create } from 'zustand';
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   OAuthProvider,
   signOut,
@@ -60,8 +61,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginWithGoogle: async () => {
     set({ isLoading: true });
     try {
-      const credential = await signInWithPopup(auth, googleProvider);
-      await get().syncProfile(credential.user);
+      // Use redirect flow instead of popup â€” avoids popup-blocker issues in
+      // production (Safari ITP, embedded browsers, Vercel preview domains).
+      // Result is picked up on next load via getRedirectResult() in hydrate().
+      await signInWithRedirect(auth, googleProvider);
     } catch (err) {
       set({ isLoading: false });
       throw err;
@@ -71,8 +74,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginWithApple: async () => {
     set({ isLoading: true });
     try {
-      const credential = await signInWithPopup(auth, appleProvider);
-      await get().syncProfile(credential.user);
+      await signInWithRedirect(auth, appleProvider);
     } catch (err) {
       set({ isLoading: false });
       throw err;
@@ -103,6 +105,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   hydrate: () => {
+    // Surface any pending redirect result (Google/Apple sign-in via
+    // signInWithRedirect). Errors are logged but non-fatal â€” onAuthStateChanged
+    // will still fire with the authenticated user if redirect succeeded.
+    getRedirectResult(auth).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn('[auth] getRedirectResult failed:', err);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         set({ user: null, firebaseUser: null, isHydrated: true });

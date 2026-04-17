@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth.store';
@@ -16,11 +16,25 @@ export default function LoginPage() {
   const loginWithEmail = useAuthStore((s) => s.loginWithEmail);
   const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
   const loginWithApple = useAuthStore((s) => s.loginWithApple);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+  const user = useAuthStore((s) => s.user);
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // After signInWithRedirect returns, the user lands back here.
+  // Once the store is hydrated, route them based on profile state.
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (user) {
+      router.replace(user.role === 'CLIENT' ? '/client' : '/dashboard');
+    } else if (firebaseUser) {
+      router.replace('/register');
+    }
+  }, [isHydrated, user, firebaseUser, router]);
 
   function handleFirebaseError(err: unknown) {
     if (err instanceof FirebaseError) {
@@ -67,22 +81,17 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
+      // signInWithRedirect navigates the browser away. Code after the await
+      // will NOT run on success â€” the page reloads after the provider flow and
+      // the useEffect above handles post-login routing.
       if (provider === 'google') {
         await loginWithGoogle();
       } else {
         await loginWithApple();
       }
-      const state = useAuthStore.getState();
-      if (state.firebaseUser && !state.user) {
-        router.push('/register');
-      } else {
-        const role = state.user?.role;
-        router.push(role === 'CLIENT' ? '/client' : '/dashboard');
-      }
     } catch (err) {
       const msg = handleFirebaseError(err);
       if (msg) setError(msg);
-    } finally {
       setLoading(false);
     }
   }
