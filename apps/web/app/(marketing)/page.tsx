@@ -11,7 +11,6 @@ import {
   LineChart,
   Dumbbell,
   Smartphone,
-  Check,
 } from 'lucide-react';
 import { useT, useI18n } from '@/lib/i18n/client';
 import { useAuthStore } from '@/stores/auth.store';
@@ -23,7 +22,7 @@ import { cn } from '@/lib/utils';
 
 export default function MarketingHomePage() {
   const t = useT();
-  const { dir, tRaw } = useI18n();
+  const { dir } = useI18n();
   const router = useRouter();
   const { user, isHydrated } = useAuthStore();
 
@@ -43,8 +42,7 @@ export default function MarketingHomePage() {
     { key: 'mobile', icon: Smartphone },
   ] as const;
 
-  const tiers = ['starter', 'pro', 'team'] as const;
-  const faqItems = [0, 1, 2, 3] as const;
+  const faqItems = [0, 1, 2] as const;
 
   return (
     <>
@@ -182,7 +180,7 @@ export default function MarketingHomePage() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="py-20">
+      <section id="how" className="py-20">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <h2 className="text-center text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {t('marketing.how.title')}
@@ -201,68 +199,6 @@ export default function MarketingHomePage() {
                 </p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PRICING */}
-      <section id="pricing" className="border-t border-border bg-card/20 py-20">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <h2 className="text-center text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {t('marketing.pricing.title')}
-          </h2>
-
-          <div className="mx-auto mt-12 grid max-w-5xl gap-6 md:grid-cols-3">
-            {tiers.map((tier) => {
-              const isPopular = tier === 'pro';
-              const featuresArr = tRaw<string[]>(`marketing.pricing.tiers.${tier}.features`) ?? [];
-
-              return (
-                <div
-                  key={tier}
-                  className={cn(
-                    'relative flex flex-col rounded-2xl border bg-card p-6',
-                    isPopular ? 'border-brand-500 shadow-lg ring-2 ring-brand-500/30' : 'border-border',
-                  )}
-                >
-                  {isPopular && (
-                    <Badge className="absolute -top-3 start-1/2 -translate-x-1/2" variant="default">
-                      {t('marketing.pricing.tiers.pro.popular')}
-                    </Badge>
-                  )}
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {t(`marketing.pricing.tiers.${tier}.name`)}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t(`marketing.pricing.tiers.${tier}.desc`)}
-                  </p>
-                  <p className="mt-4 flex items-baseline gap-1">
-                    <span className="text-4xl font-semibold tracking-tight text-foreground">
-                      {t(`marketing.pricing.tiers.${tier}.price`)}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {t('marketing.pricing.perMonth')}
-                    </span>
-                  </p>
-                  <ul className="mt-6 flex-1 space-y-3">
-                    {featuresArr.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm">
-                        <Check className="mt-0.5 size-4 shrink-0 text-success" />
-                        <span className="text-foreground">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    asChild
-                    variant={isPopular ? 'gradient' : 'outline'}
-                    size="lg"
-                    className="mt-6 w-full"
-                  >
-                    <Link href="/register">{t('marketing.pricing.ctaStart')}</Link>
-                  </Button>
-                </div>
-              );
-            })}
           </div>
         </div>
       </section>

@@ -11,6 +11,7 @@ import {
 import { AuthService } from './auth.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -20,12 +21,14 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   acceptInviteSchema,
+  inviteCoachSchema,
   type RegisterInput,
   type LoginInput,
   type RefreshTokenInput,
   type ForgotPasswordInput,
   type ResetPasswordInput,
   type AcceptInviteInput,
+  type InviteCoachInput,
 } from '@coaching/shared';
 
 @Controller('auth')
@@ -94,6 +97,24 @@ export class AuthController {
       body.password,
       body.firstName,
       body.lastName,
+    );
+  }
+
+  @Post('invite-coach')
+  @Roles('ADMIN_COACH')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(inviteCoachSchema))
+  async inviteCoach(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: InviteCoachInput,
+  ) {
+    return this.authService.createCoachInvite(
+      user.sub,
+      user.orgId,
+      body.email,
+      body.firstName,
+      body.lastName,
+      body.role,
     );
   }
 }

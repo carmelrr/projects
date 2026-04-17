@@ -46,7 +46,7 @@ export default function RegisterPage() {
       });
       tokenStore.set(res.accessToken, res.refreshToken);
       useAuthStore.setState({ user: res.user });
-      router.push('/dashboard');
+      router.push(res.user.role === 'CLIENT' ? '/client' : '/dashboard');
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) setError(t('auth.emailExists'));

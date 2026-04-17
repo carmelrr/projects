@@ -16,7 +16,7 @@ export function MarketingNav() {
 
   const links = [
     { href: '#features', label: t('marketing.navFeatures') },
-    { href: '#pricing', label: t('marketing.navPricing') },
+    { href: '#how', label: t('marketing.navHow') },
     { href: '#faq', label: 'FAQ' },
   ];
 

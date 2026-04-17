@@ -289,12 +289,68 @@ export class AuthService {
     return { inviteToken: token, inviteUrl: `${this.config.get('WEB_URL')}/accept-invite?token=${token}` };
   }
 
+  async createCoachInvite(
+    actorUserId: string,
+    orgId: string,
+    email: string,
+    firstName: string,
+    lastName: string,
+    role: 'COACH' | 'ADMIN_COACH' = 'COACH',
+  ) {
+    const existingSnap = await this.firebase.users()
+      .where('email', '==', email.toLowerCase())
+      .limit(1)
+      .get();
+    if (!existingSnap.empty) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const payload = {
+      type: 'coach-invite',
+      email: email.toLowerCase(),
+      orgId,
+      role,
+      firstName,
+      lastName,
+    };
+
+    const token = this.jwt.sign(payload, { expiresIn: '7d' });
+
+    await this.firebase.auditLogs(orgId).add({
+      actorId: actorUserId,
+      action: 'auth.invite_coach',
+      targetType: 'User',
+      targetId: email.toLowerCase(),
+      metadata: { role, firstName, lastName },
+      createdAt: new Date().toISOString(),
+    });
+
+    return {
+      inviteToken: token,
+      inviteUrl: `${this.config.get('WEB_URL') || ''}/accept-invite?token=${token}`,
+      email: email.toLowerCase(),
+      role,
+    };
+  }
+
   async acceptInvite(token: string, password: string, firstName: string, lastName: string) {
-    let payload: { type: string; email: string; orgId: string; coachProfileId: string };
+    let payload: {
+      type: string;
+      email: string;
+      orgId: string;
+      coachProfileId?: string;
+      role?: 'COACH' | 'ADMIN_COACH';
+      firstName?: string;
+      lastName?: string;
+    };
     try {
       payload = this.jwt.verify(token);
     } catch {
       throw new BadRequestException('Invalid or expired invite token');
+    }
+
+    if (payload.type === 'coach-invite') {
+      return this.acceptCoachInvite(payload, password, firstName, lastName);
     }
 
     if (payload.type !== 'client-invite') {
@@ -363,6 +419,63 @@ export class AuthService {
     await batch.commit();
 
     return this.issueTokens(userId, payload.email, payload.orgId, 'CLIENT', undefined, clientProfileId);
+  }
+
+  private async acceptCoachInvite(
+    payload: { email: string; orgId: string; role?: 'COACH' | 'ADMIN_COACH' },
+    password: string,
+    firstName: string,
+    lastName: string,
+  ) {
+    const existingSnap = await this.firebase.users()
+      .where('email', '==', payload.email)
+      .limit(1)
+      .get();
+    if (!existingSnap.empty) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const role = payload.role ?? 'COACH';
+    const passwordHash = await bcrypt.hash(password, this.BCRYPT_ROUNDS);
+    const userId = this.firebase.generateId();
+    const coachProfileId = this.firebase.generateId();
+    const now = new Date().toISOString();
+
+    const batch = this.firebase.batch();
+
+    batch.set(this.firebase.users().doc(userId), {
+      email: payload.email,
+      passwordHash,
+      firstName,
+      lastName,
+      phone: null,
+      avatarUrl: null,
+      status: 'ACTIVE',
+      lastLoginAt: null,
+      createdAt: now,
+      updatedAt: now,
+      orgs: [{ orgId: payload.orgId, role, joinedAt: now }],
+      coachProfile: {
+        id: coachProfileId,
+        orgId: payload.orgId,
+        bio: null,
+        specialties: [],
+        capacity: null,
+      },
+      clientProfile: null,
+    });
+
+    batch.set(this.firebase.auditLogs(payload.orgId).doc(), {
+      actorId: userId,
+      action: 'auth.accept_coach_invite',
+      targetType: 'User',
+      targetId: userId,
+      createdAt: now,
+    });
+
+    await batch.commit();
+
+    return this.issueTokens(userId, payload.email, payload.orgId, role, coachProfileId);
   }
 
   // ────── Private helpers ──────

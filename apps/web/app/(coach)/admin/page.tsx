@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/layout/StatCard';
+import { InviteCoachDialog } from './InviteCoachDialog';
 
 const SECTIONS = [
   {
@@ -80,6 +81,7 @@ export default function AdminPage() {
     <div className="p-6 lg:p-8 space-y-6">
       <PageHeader
         title="Admin"
+        actions={<InviteCoachDialog />}
         description="Organization-wide controls and observability."
       />
 

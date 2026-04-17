@@ -13,7 +13,7 @@ export function MarketingFooter() {
       title: t('marketing.footer.product'),
       links: [
         { href: '#features', label: t('marketing.navFeatures') },
-        { href: '#pricing', label: t('marketing.navPricing') },
+        { href: '#how', label: t('marketing.navHow') },
       ],
     },
     {

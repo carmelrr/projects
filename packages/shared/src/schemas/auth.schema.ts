@@ -33,9 +33,17 @@ export const acceptInviteSchema = z.object({
   lastName: z.string().min(1).max(100),
 });
 
+export const inviteCoachSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  role: z.enum(['COACH', 'ADMIN_COACH']).default('COACH'),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
+export type InviteCoachInput = z.infer<typeof inviteCoachSchema>;

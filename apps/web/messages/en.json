@@ -26,7 +26,10 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "themeSystem": "System",
-    "openMenu": "Open menu"
+    "openMenu": "Open menu",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "Done"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -69,6 +72,46 @@
       "title": "7-day compliance distribution"
     }
   },
+  "admin": {
+    "inviteCoach": {
+      "cta": "Invite coach",
+      "title": "Invite a coach",
+      "description": "Send an invite link to a new coach. They set their own password.",
+      "role": "Role",
+      "send": "Create invite",
+      "sending": "Creating\u2026",
+      "success": "Invite created for {email}. Share the link below.",
+      "shareLink": "Invite link",
+      "another": "Invite another"
+    }
+  },
+  "client": {
+    "welcomeEyebrow": "Your coaching space",
+    "hello": "Hello, {name}",
+    "helloNoName": "Hello",
+    "heroDesc": "Workouts, messages and progress — the full experience is in the mobile app. This web view is here for quick check-ins.",
+    "downloadIOS": "App Store",
+    "downloadAndroid": "Google Play",
+    "tiles": {
+      "workouts": {
+        "title": "Today's workout",
+        "desc": "Open the mobile app to log your session."
+      },
+      "metrics": {
+        "title": "Your metrics",
+        "desc": "Weight, sleep and mood trends at a glance."
+      },
+      "messages": {
+        "title": "Talk to your coach",
+        "desc": "Chat in real time and share check-ins."
+      }
+    },
+    "mobileHint": {
+      "title": "Get the mobile app",
+      "desc": "The best experience is on iOS and Android."
+    },
+    "openMessages": "Open messages"
+  },
   "clients": {
     "title": "Clients",
     "totalCount": "{n} total",
@@ -95,6 +138,7 @@
   "auth": {
     "signInTitle": "Sign in to your account",
     "signInSubtitle": "Welcome back. Continue coaching your clients.",
+    "signInSubtitleUnified": "Welcome back. Coaches and clients, sign in here.",
     "signUpTitle": "Create your account",
     "signUpSubtitle": "Start coaching with Owl Performance.",
     "noAccount": "Don't have an account?",
@@ -113,19 +157,30 @@
     "signUpLoading": "Creating account\u2026",
     "signInCta": "Sign in",
     "signInLoading": "Signing in\u2026",
-    "emailExists": "An account with this email already exists."
+    "emailExists": "An account with this email already exists.",
+    "inviteHint": "Received an invite link? Open it to set up your account.",
+    "acceptInviteTitle": "Set up your account",
+    "acceptInviteDesc": "Create a password to activate your account.",
+    "acceptInviteDescEmail": "Create a password for {email} to activate your account.",
+    "acceptInviteCta": "Activate account",
+    "acceptingInvite": "Activating\u2026",
+    "inviteInvalidTitle": "Invite link invalid",
+    "inviteInvalidDesc": "This invite link is missing or has expired. Please ask your admin for a new one.",
+    "roleCoach": "Coach",
+    "roleAdminCoach": "Admin coach",
+    "roleClient": "Client"
   },
   "marketing": {
     "navFeatures": "Features",
-    "navPricing": "Pricing",
+    "navHow": "How it works",
     "navAbout": "About",
-    "ctaStart": "Start free",
+    "ctaStart": "Get started",
     "ctaLogin": "Sign in",
     "hero": {
       "eyebrow": "For online coaches",
       "title": "The coaching platform that watches over every client.",
-      "subtitle": "Programs, check-ins, metrics and messaging — in one calm, focused workspace built for coaches who care.",
-      "ctaPrimary": "Start free trial",
+      "subtitle": "Programs, check-ins, metrics and messaging — in one calm, focused workspace built for coaches who care. Free for everyone.",
+      "ctaPrimary": "Get started",
       "ctaSecondary": "See how it works"
     },
     "features": {
@@ -166,29 +221,18 @@
         "three": { "title": "Coach with clarity", "desc": "Compliance, messages and metrics in one calm dashboard." }
       }
     },
-    "pricing": {
-      "title": "Simple pricing that scales with you",
-      "perMonth": "/month",
-      "ctaStart": "Start free",
-      "tiers": {
-        "starter": { "name": "Starter", "price": "$0", "desc": "Up to 3 clients. Forever free.", "features": ["Up to 3 active clients", "Programs & messaging", "Mobile app for clients"] },
-        "pro": { "name": "Pro", "price": "$29", "desc": "For full-time coaches.", "features": ["Unlimited clients", "Compliance analytics", "Custom branding", "Priority support"], "popular": "Most popular" },
-        "team": { "name": "Team", "price": "$79", "desc": "For coaching teams & studios.", "features": ["Everything in Pro", "Multiple coaches", "Roles & permissions", "Dedicated onboarding"] }
-      }
-    },
     "faq": {
       "title": "Frequently asked questions",
       "items": [
         { "q": "Can I import my existing clients?", "a": "Yes — invite them by email or share a single sign-up link. Their existing programs can be uploaded in bulk." },
-        { "q": "Is there a free trial?", "a": "The Starter tier is free forever for up to 3 clients. Pro and Team include a 14-day trial." },
         { "q": "Do my clients need an app?", "a": "Yes — they get a polished mobile app on iOS and Android, free of charge." },
-        { "q": "Can I cancel anytime?", "a": "Absolutely. No contracts, no cancellation fees." }
+        { "q": "How much does it cost?", "a": "Owl Performance is completely free. No tiers, no upsells — just coaching software." }
       ]
     },
     "cta": {
       "title": "Ready to coach with clarity?",
       "subtitle": "Join coaches using Owl Performance to keep every client on track.",
-      "button": "Start free trial"
+      "button": "Get started"
     },
     "footer": {
       "rights": "© {year} Owl Performance. All rights reserved.",

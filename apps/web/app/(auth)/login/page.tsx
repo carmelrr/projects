@@ -26,7 +26,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      router.push('/dashboard');
+      const role = useAuthStore.getState().user?.role;
+      router.push(role === 'CLIENT' ? '/client' : '/dashboard');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.status === 401 ? t('auth.invalidCredentials') : err.message);
@@ -45,7 +46,7 @@ export default function LoginPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {t('auth.signInTitle')}
         </h1>
-        <p className="text-sm text-muted-foreground">{t('auth.signInSubtitle')}</p>
+        <p className="text-sm text-muted-foreground">{t('auth.signInSubtitleUnified')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,6 +96,7 @@ export default function LoginPage() {
           {t('common.signUp')}
         </Link>
       </p>
+      <p className="text-center text-xs text-muted-foreground">{t('auth.inviteHint')}</p>
     </div>
   );
 }
