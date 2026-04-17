@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuthStore, type AuthUser } from '@/stores/auth.store';
 import { api, ApiError } from '@/lib/api';
@@ -39,6 +39,10 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    // Track whether we created a fresh Firebase account in this attempt.
+    // If the API call fails we roll it back, otherwise we'd leave a ghost
+    // Firebase user with no backing profile (causes "stuck on register" loop).
+    let createdFreshAccount = false;
     try {
       let uid = firebaseUser?.uid;
       let email = firebaseUser?.email ?? form.email.trim();
@@ -52,6 +56,7 @@ export default function RegisterPage() {
         );
         uid = credential.user.uid;
         email = credential.user.email ?? form.email.trim();
+        createdFreshAccount = true;
       }
 
       // Create Firestore profile via API
@@ -66,6 +71,21 @@ export default function RegisterPage() {
       useAuthStore.setState({ user: res.user, firebaseUser: auth.currentUser });
       router.push(res.user.role === 'CLIENT' ? '/client' : '/dashboard');
     } catch (err) {
+      // Roll back the freshly-created Firebase account so the user can retry.
+      // Only do this when we created it in *this* submission â€” never for a
+      // user who arrived here via social login (they had the account already).
+      if (createdFreshAccount && auth.currentUser) {
+        try {
+          await deleteUser(auth.currentUser);
+        } catch {
+          // If rollback fails (e.g. needs recent login), fall back to signOut
+          // so the next attempt starts clean instead of getting stuck.
+          try {
+            await auth.signOut();
+          } catch {}
+        }
+      }
+
       if (err instanceof FirebaseError) {
         if (err.code === 'auth/email-already-in-use') {
           setError(t('auth.emailExists'));

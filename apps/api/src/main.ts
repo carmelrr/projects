@@ -13,8 +13,30 @@ async function bootstrap() {
 
   // Security
   app.use(helmet());
+
+  // CORS â€” accept the primary WEB_URL, plus any comma-separated extras
+  // (e.g. WEB_URL_EXTRA="https://*.vercel.app"), plus localhost in dev.
+  const primary = process.env.WEB_URL || 'http://localhost:3000';
+  const extras = (process.env.WEB_URL_EXTRA || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const allowVercelPreviews = process.env.ALLOW_VERCEL_PREVIEWS === 'true';
+
   app.enableCors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: (origin, cb) => {
+      // Same-origin / curl / server-to-server
+      if (!origin) return cb(null, true);
+      if (origin === primary) return cb(null, true);
+      if (extras.includes(origin)) return cb(null, true);
+      if (allowVercelPreviews && /\.vercel\.app$/i.test(new URL(origin).hostname)) {
+        return cb(null, true);
+      }
+      if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin)) {
+        return cb(null, true);
+      }
+      return cb(new Error(`CORS: origin not allowed: ${origin}`));
+    },
     credentials: true,
   });
 
