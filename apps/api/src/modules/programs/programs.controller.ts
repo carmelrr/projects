@@ -51,6 +51,16 @@ export class ProgramsController {
     return this.programsService.updateProgram(id, user.orgId, body);
   }
 
+  @Patch(':id/weeks/reorder')
+  @Roles('OWNER', 'ADMIN_COACH', 'COACH')
+  async reorderWeeks(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { weekIds: string[] },
+  ) {
+    return this.programsService.reorderWeeks(id, user.orgId, body.weekIds);
+  }
+
   @Post(':id/weeks')
   @Roles('OWNER', 'ADMIN_COACH', 'COACH')
   async addWeek(
@@ -59,6 +69,28 @@ export class ProgramsController {
     @Body() body: { title?: string; notes?: string },
   ) {
     return this.programsService.addWeek(id, user.orgId, body);
+  }
+
+  @Patch(':id/weeks/:weekId')
+  @Roles('OWNER', 'ADMIN_COACH', 'COACH')
+  async updateWeek(
+    @Param('id') id: string,
+    @Param('weekId') weekId: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { title?: string; notes?: string; workoutIds?: string[] },
+  ) {
+    return this.programsService.updateWeek(id, weekId, user.orgId, body);
+  }
+
+  @Delete(':id/weeks/:weekId')
+  @Roles('OWNER', 'ADMIN_COACH', 'COACH')
+  async deleteWeek(
+    @Param('id') id: string,
+    @Param('weekId') weekId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    await this.programsService.deleteWeek(id, weekId, user.orgId);
+    return { success: true };
   }
 
   @Post(':id/assign')

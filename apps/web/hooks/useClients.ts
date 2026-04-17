@@ -110,3 +110,99 @@ export function useUpdateClient() {
     },
   });
 }
+
+export interface InviteClientResponse {
+  inviteToken: string;
+  inviteUrl: string;
+}
+
+export function useInviteClient() {
+  const qc = useQueryClient();
+  return useMutation<InviteClientResponse, Error, { email: string }>({
+    mutationFn: ({ email }) => api.post('/clients/invite', { email }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+}
+
+// ── Coach assignments ───────────────────────────────────────────────────────
+
+export interface ClientAssignment {
+  id: string;
+  coachId: string;
+  status: 'ACTIVE' | 'ENDED';
+  startAt: string;
+  endAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  coach: {
+    id: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      avatarUrl: string | null;
+    };
+  } | null;
+}
+
+export function useClientAssignments(clientUserId: string) {
+  return useQuery<ClientAssignment[]>({
+    queryKey: ['client-assignments', clientUserId],
+    queryFn: () => api.get(`/clients/${clientUserId}/assignments`),
+    enabled: !!clientUserId,
+  });
+}
+
+export function useAddClientAssignment() {
+  const qc = useQueryClient();
+  return useMutation<
+    { id: string; coachId: string; status: string; startAt: string },
+    Error,
+    { clientUserId: string; coachId: string; notes?: string }
+  >({
+    mutationFn: ({ clientUserId, coachId, notes }) =>
+      api.post(`/clients/${clientUserId}/assignments`, { coachId, notes }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['client-assignments', vars.clientUserId] });
+      qc.invalidateQueries({ queryKey: ['client', vars.clientUserId] });
+      qc.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+}
+
+export function useEndClientAssignment() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { clientUserId: string; assignmentId: string }>({
+    mutationFn: ({ clientUserId, assignmentId }) =>
+      api.delete(`/clients/${clientUserId}/assignments/${assignmentId}`),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['client-assignments', vars.clientUserId] });
+      qc.invalidateQueries({ queryKey: ['client', vars.clientUserId] });
+      qc.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+}
+
+// ── Program assignments (for client detail) ─────────────────────────────────
+
+export interface ClientProgramAssignment {
+  id: string;
+  programId: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: string;
+  assignedBy: string | null;
+  createdAt: string | null;
+  program: { title: string; description?: string; weekCount: number } | null;
+}
+
+export function useClientPrograms(clientUserId: string) {
+  return useQuery<ClientProgramAssignment[]>({
+    queryKey: ['client-programs', clientUserId],
+    queryFn: () => api.get(`/clients/${clientUserId}/program-assignments`),
+    enabled: !!clientUserId,
+  });
+}

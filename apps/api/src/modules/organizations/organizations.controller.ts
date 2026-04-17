@@ -7,6 +7,12 @@ import { Roles } from '../../common/decorators/roles.decorator';
 export class OrganizationsController {
   constructor(private orgsService: OrganizationsService) {}
 
+  @Get('coaches')
+  @Roles('COACH')
+  async listCoaches(@CurrentUser() user: CurrentUserPayload) {
+    return this.orgsService.listCoaches(user.orgId);
+  }
+
   @Get(':id')
   async getOrg(
     @Param('id') id: string,
@@ -24,7 +30,14 @@ export class OrganizationsController {
   async updateOrg(
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: { name?: string; timezone?: string; logoUrl?: string },
+    @Body() body: {
+      name?: string;
+      timezone?: string;
+      logoUrl?: string | null;
+      website?: string | null;
+      address?: string | null;
+      primaryColor?: string | null;
+    },
   ): Promise<Record<string, unknown>> {
     return this.orgsService.updateOrg(user.orgId, body);
   }

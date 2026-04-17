@@ -13,8 +13,6 @@ import {
   Bell,
   LogOut,
   ChevronsUpDown,
-  ClipboardList,
-  Apple,
   Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
@@ -33,6 +31,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
 import { useT } from '@/lib/i18n/client';
 import { useThreads } from '@/hooks/useMessaging';
+import { useUnreadCount } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 
 type NavItem = {
@@ -57,6 +56,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { data: threads } = useThreads();
   const unreadMessages =
     threads?.reduce((sum, th) => sum + (th.unreadCount ?? 0), 0) ?? 0;
+  const { data: unreadNotif } = useUnreadCount();
+  const unreadNotifications = unreadNotif?.count ?? 0;
+
+  const isAdmin = user?.role === 'OWNER' || user?.role === 'ADMIN_COACH';
 
   const sections: NavSection[] = [
     {
@@ -79,15 +82,23 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           icon: MessageSquare,
           badge: unreadMessages,
         },
-        { href: '/assessments', label: t('nav.assessments'), icon: ClipboardList },
-        { href: '/nutrition', label: t('nav.nutrition'), icon: Apple },
+        {
+          href: '/notifications',
+          label: t('nav.notifications'),
+          icon: Bell,
+          badge: unreadNotifications,
+        },
       ],
     },
-    {
-      key: 'system',
-      label: t('nav.sections.system'),
-      items: [{ href: '/admin', label: t('nav.admin'), icon: Shield }],
-    },
+    ...(isAdmin
+      ? [
+          {
+            key: 'system',
+            label: t('nav.sections.system'),
+            items: [{ href: '/admin', label: t('nav.admin'), icon: Shield }],
+          },
+        ]
+      : []),
   ];
 
   async function handleLogout() {

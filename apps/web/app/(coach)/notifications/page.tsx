@@ -1,25 +1,32 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Check, MessageSquare, Activity, AlertCircle, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Bell,
+  Check,
+  MessageSquare,
+  Activity,
+  AlertCircle,
+  Calendar,
+  Loader2,
+} from 'lucide-react';
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+  type Notification,
+} from '@/hooks/useNotifications';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 type NotifKind = 'message' | 'workout' | 'alert' | 'system';
-
-interface Notif {
-  id: string;
-  kind: NotifKind;
-  title: string;
-  body: string;
-  createdAt: string;
-  read: boolean;
-}
 
 const ICONS: Record<NotifKind, typeof Bell> = {
   message: MessageSquare,
@@ -35,33 +42,20 @@ const COLORS: Record<NotifKind, string> = {
   system: 'bg-muted text-muted-foreground',
 };
 
-// Placeholder data — to be wired to /notifications endpoint
-const SAMPLE: Notif[] = [
-  {
-    id: '1',
-    kind: 'message',
-    title: 'New message from Sarah Cohen',
-    body: '"Hey coach, finished today\'s session. Felt strong on squats!"',
-    createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-    read: false,
-  },
-  {
-    id: '2',
-    kind: 'workout',
-    title: 'David Levi completed Workout B',
-    body: 'Logged 4 sets, RPE 8.5',
-    createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
-    read: false,
-  },
-  {
-    id: '3',
-    kind: 'alert',
-    title: 'Maya Goldberg missed 3 workouts this week',
-    body: 'Compliance dropped to 45%',
-    createdAt: new Date(Date.now() - 4 * 60 * 60_000).toISOString(),
-    read: true,
-  },
-];
+function kindFromType(type: string): NotifKind {
+  const t = type.toUpperCase();
+  if (t.includes('MESSAGE')) return 'message';
+  if (t.includes('LOG') || t.includes('WORKOUT')) return 'workout';
+  if (t.includes('ALERT') || t.includes('COMPLIANCE') || t.includes('DROP')) return 'alert';
+  return 'system';
+}
+
+function linkFromData(n: Notification): string | null {
+  const d = (n.data as Record<string, string> | undefined) ?? {};
+  if (d.clientUserId) return `/clients/${d.clientUserId}`;
+  if (d.threadId) return `/messages?threadId=${d.threadId}`;
+  return null;
+}
 
 function timeAgo(iso: string) {
   const ms = Date.now() - new Date(iso).getTime();
@@ -75,14 +69,19 @@ function timeAgo(iso: string) {
 
 export default function NotificationsPage() {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
-  const [items, setItems] = useState<Notif[]>(SAMPLE);
+  const { data, isLoading } = useNotifications({
+    unreadOnly: filter === 'unread',
+    limit: 50,
+  });
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
 
-  const filtered = filter === 'unread' ? items.filter((n) => !n.read) : items;
-  const unreadCount = items.filter((n) => !n.read).length;
+  const items = data?.items ?? [];
+  const unreadCount = items.filter((n) => !n.readAt).length;
 
-  const markAllRead = () => setItems(items.map((n) => ({ ...n, read: true })));
-  const markRead = (id: string) =>
-    setItems(items.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const onClick = (n: Notification) => {
+    if (!n.readAt) markRead.mutate(n.id);
+  };
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -91,8 +90,16 @@ export default function NotificationsPage() {
         description="Stay on top of client activity and platform updates."
         actions={
           unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllRead}>
-              <Check className="size-4" />
+            <Button
+              variant="outline"
+              onClick={() => markAllRead.mutate()}
+              disabled={markAllRead.isPending}
+            >
+              {markAllRead.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Check className="size-4" />
+              )}
               Mark all read
             </Button>
           )
@@ -101,42 +108,58 @@ export default function NotificationsPage() {
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'unread')}>
         <TabsList>
-          <TabsTrigger value="all">All ({items.length})</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="unread">
             Unread {unreadCount > 0 && <Badge variant="default" className="ms-1">{unreadCount}</Badge>}
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <Card>
+          <CardContent className="divide-y divide-border p-0">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 px-5 py-4">
+                <Skeleton className="size-9 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : items.length === 0 ? (
         <Card>
           <CardContent className="p-8">
             <EmptyState
               icon={Bell}
               title="You're all caught up"
-              description={filter === 'unread' ? 'No unread notifications.' : 'No notifications yet.'}
+              description={
+                filter === 'unread' ? 'No unread notifications.' : 'No notifications yet.'
+              }
             />
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardContent className="divide-y divide-border p-0">
-            {filtered.map((n) => {
-              const Icon = ICONS[n.kind];
-              return (
-                <button
-                  key={n.id}
-                  type="button"
-                  onClick={() => markRead(n.id)}
+            {items.map((n) => {
+              const kind = kindFromType(n.type);
+              const Icon = ICONS[kind];
+              const href = linkFromData(n);
+              const read = !!n.readAt;
+              const row = (
+                <div
                   className={cn(
                     'flex w-full items-start gap-3 px-5 py-4 text-start transition-colors hover:bg-accent/40',
-                    !n.read && 'bg-primary/[0.03]',
+                    !read && 'bg-primary/[0.03]',
                   )}
                 >
                   <div
                     className={cn(
                       'flex size-9 shrink-0 items-center justify-center rounded-full',
-                      COLORS[n.kind],
+                      COLORS[kind],
                     )}
                   >
                     <Icon className="size-4" />
@@ -146,7 +169,7 @@ export default function NotificationsPage() {
                       <p
                         className={cn(
                           'text-sm',
-                          !n.read ? 'font-semibold text-foreground' : 'font-medium text-foreground',
+                          !read ? 'font-semibold text-foreground' : 'font-medium text-foreground',
                         )}
                       >
                         {n.title}
@@ -155,9 +178,25 @@ export default function NotificationsPage() {
                         {timeAgo(n.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{n.body}</p>
+                    {n.body && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{n.body}</p>
+                    )}
                   </div>
-                  {!n.read && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
+                  {!read && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
+                </div>
+              );
+              return href ? (
+                <Link key={n.id} href={href} onClick={() => onClick(n)} className="block">
+                  {row}
+                </Link>
+              ) : (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => onClick(n)}
+                  className="block w-full text-start"
+                >
+                  {row}
                 </button>
               );
             })}

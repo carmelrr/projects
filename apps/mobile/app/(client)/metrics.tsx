@@ -13,6 +13,8 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { Sparkline } from '@/components/Sparkline';
 import {
   useMetricDefinitions,
   useLatestMetrics,
@@ -116,7 +118,10 @@ function MetricRow({
   onLog: () => void;
 }) {
   return (
-    <View style={styles.metricRow}>
+    <Pressable
+      style={({ pressed }) => [styles.metricRow, pressed && styles.metricRowPressed]}
+      onPress={() => router.push(`/(client)/metric/${definition.id}`)}
+    >
       <View style={styles.metricInfo}>
         <Text style={styles.metricName}>{definition.name}</Text>
         {latest ? (
@@ -132,10 +137,19 @@ function MetricRow({
         )}
       </View>
 
-      <Pressable onPress={onLog} style={styles.logBtn}>
-        <Text style={styles.logBtnText}>Log</Text>
-      </Pressable>
-    </View>
+      <View style={styles.metricRight}>
+        <Sparkline metricId={definition.id} />
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onLog();
+          }}
+          style={styles.logBtn}
+        >
+          <Text style={styles.logBtnText}>Log</Text>
+        </Pressable>
+      </View>
+    </Pressable>
   );
 }
 
@@ -218,6 +232,8 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
+  metricRowPressed: { backgroundColor: '#f9fafb' },
+  metricRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   metricInfo: { flex: 1 },
   metricName: { fontSize: 15, fontWeight: '600', color: '#111827' },
   metricLatest: { flexDirection: 'row', alignItems: 'baseline', gap: 3, marginTop: 2 },

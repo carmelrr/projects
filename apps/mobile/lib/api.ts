@@ -1,11 +1,36 @@
-import * as SecureStore from 'expo-secure-store';
+﻿import * as SecureStore from 'expo-secure-store';
+import { auth } from './firebase';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+
+// â”€â”€ Error class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+// â”€â”€ Firebase ID token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+async function getIdToken(forceRefresh = false): Promise<string | null> {
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    return await user.getIdToken(forceRefresh);
+  } catch {
+    return null;
+  }
+}
+
+// â”€â”€ Legacy token store (kept to avoid breaking imports) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 const ACCESS_KEY = 'coaching_access_token';
 const REFRESH_KEY = 'coaching_refresh_token';
-
-// ── Token store ────────────────────────────────────────────────────────────
-
 export const tokenStore = {
   async getAccess(): Promise<string | null> {
     return SecureStore.getItemAsync(ACCESS_KEY);
@@ -21,63 +46,25 @@ export const tokenStore = {
   },
   async clear(): Promise<void> {
     await Promise.all([
-      SecureStore.deleteItemAsync(ACCESS_KEY),
-      SecureStore.deleteItemAsync(REFRESH_KEY),
+      SecureStore.deleteItemAsync(ACCESS_KEY).catch(() => {}),
+      SecureStore.deleteItemAsync(REFRESH_KEY).catch(() => {}),
     ]);
   },
 };
 
-// ── Error class ────────────────────────────────────────────────────────────
-
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
-// ── Refresh lock ───────────────────────────────────────────────────────────
-
-let isRefreshing = false;
-let refreshQueue: Array<(token: string | null) => void> = [];
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = await tokenStore.getRefresh();
-  if (!refreshToken) return null;
-
-  const res = await fetch(`${BASE_URL}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-  });
-
-  if (!res.ok) {
-    await tokenStore.clear();
-    return null;
-  }
-
-  const json = await res.json();
-  const data = json.data ?? json;
-  await tokenStore.set(data.accessToken, data.refreshToken);
-  return data.accessToken;
-}
-
-// ── Core fetch ─────────────────────────────────────────────────────────────
+// â”€â”€ Core fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
+  retried = false,
 ): Promise<T> {
-  const accessToken = await tokenStore.getAccess();
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  const token = await getIdToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
@@ -85,37 +72,10 @@ async function request<T>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  // Handle 401 with token refresh
-  if (res.status === 401 && accessToken) {
-    if (isRefreshing) {
-      // Queue this request until refresh completes
-      return new Promise((resolve, reject) => {
-        refreshQueue.push(async (newToken) => {
-          if (!newToken) {
-            reject(new ApiError('Session expired', 401));
-            return;
-          }
-          try {
-            resolve(await request<T>(method, path, body));
-          } catch (e) {
-            reject(e);
-          }
-        });
-      });
-    }
-
-    isRefreshing = true;
-    const newToken = await refreshAccessToken();
-    isRefreshing = false;
-
-    const queue = refreshQueue;
-    refreshQueue = [];
-    queue.forEach((cb) => cb(newToken));
-
-    if (!newToken) throw new ApiError('Session expired', 401);
-
-    // Retry original request
-    return request<T>(method, path, body);
+  // On 401, refresh the Firebase token once and retry
+  if (res.status === 401 && !retried && auth.currentUser) {
+    const refreshed = await getIdToken(true);
+    if (refreshed) return request<T>(method, path, body, true);
   }
 
   if (!res.ok) {
@@ -127,15 +87,13 @@ async function request<T>(
     throw new ApiError(message, res.status);
   }
 
-  // Handle 204 no content
   if (res.status === 204) return undefined as T;
 
   const json = await res.json();
-  // Unwrap { data: ... } envelope
   return (json.data !== undefined ? json.data : json) as T;
 }
 
-// ── Public API ─────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),

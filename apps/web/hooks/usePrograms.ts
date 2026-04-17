@@ -106,3 +106,66 @@ export function useAddProgramWeek() {
     },
   });
 }
+
+export function useUpdateProgramWeek() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      programId,
+      weekId,
+      ...body
+    }: {
+      programId: string;
+      weekId: string;
+      title?: string;
+      notes?: string;
+      workoutIds?: string[];
+    }) => api.patch(`/programs/${programId}/weeks/${weekId}`, body),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['program', vars.programId] });
+    },
+  });
+}
+
+export function useDeleteProgramWeek() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ programId, weekId }: { programId: string; weekId: string }) =>
+      api.delete(`/programs/${programId}/weeks/${weekId}`),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['program', vars.programId] });
+    },
+  });
+}
+
+export function useReorderProgramWeeks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ programId, weekIds }: { programId: string; weekIds: string[] }) =>
+      api.patch(`/programs/${programId}/weeks/reorder`, { weekIds }),
+    onMutate: async ({ programId, weekIds }) => {
+      await qc.cancelQueries({ queryKey: ['program', programId] });
+      const prev = qc.getQueryData<Program>(['program', programId]);
+      if (prev) {
+        const byId = new Map(prev.weeks.map((w) => [w.id, w]));
+        const next: Program = {
+          ...prev,
+          weeks: weekIds
+            .map((id, i) => {
+              const w = byId.get(id);
+              return w ? { ...w, weekIndex: i } : null;
+            })
+            .filter((w): w is ProgramWeek => w !== null),
+        };
+        qc.setQueryData(['program', programId], next);
+      }
+      return { prev };
+    },
+    onError: (_err, vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['program', vars.programId], ctx.prev);
+    },
+    onSettled: (_, __, vars) => {
+      qc.invalidateQueries({ queryKey: ['program', vars.programId] });
+    },
+  });
+}

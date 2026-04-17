@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useWorkoutInstance, useSubmitLog, type LogItem, type LogSet } from '@/hooks/useWorkouts';
+import { ExerciseVideoModal } from '@/components/ExerciseVideoModal';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ interface SetState {
 interface ExerciseState {
   exerciseId: string;
   name: string;
+  videoUrl?: string | null;
   sets: SetState[];
   prescription: Record<string, unknown>;
   coachNotes?: string;
@@ -48,6 +50,7 @@ function buildInitialState(items: ReturnType<typeof useWorkoutInstance>['data'] 
     return {
       exerciseId: item.exerciseId,
       name: item.exercise?.name ?? 'Exercise',
+      videoUrl: item.exercise?.videoUrl ?? null,
       sets,
       prescription: item.prescription ?? {},
       coachNotes: item.coachNotes,
@@ -165,11 +168,13 @@ function ExerciseBlock({
   index,
   onUpdateSet,
   onAddSet,
+  onWatchVideo,
 }: {
   exercise: ExerciseState;
   index: number;
   onUpdateSet: (exIndex: number, setIndex: number, updated: Partial<SetState>) => void;
   onAddSet: (exIndex: number) => void;
+  onWatchVideo: (exIndex: number) => void;
 }) {
   const completedSets = exercise.sets.filter((s) => s.completed).length;
 
@@ -185,6 +190,11 @@ function ExerciseBlock({
             {completedSets}/{exercise.sets.length} sets complete
           </Text>
         </View>
+        {exercise.videoUrl ? (
+          <Pressable onPress={() => onWatchVideo(index)} style={styles.videoBtn} hitSlop={8}>
+            <Text style={styles.videoBtnText}>▶ Demo</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {exercise.coachNotes ? (
@@ -327,6 +337,7 @@ export default function WorkoutLogScreen() {
   const [initialized, setInitialized] = useState(false);
   const [timerRunning, setTimerRunning] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
+  const [videoForIndex, setVideoForIndex] = useState<number | null>(null);
   const { seconds, formatted } = useTimer(timerRunning);
 
   // Initialize exercise state when instance loads
@@ -391,13 +402,21 @@ export default function WorkoutLogScreen() {
     }));
 
     try {
-      await submitLog.mutateAsync({
+      const result = await submitLog.mutateAsync({
         durationMinutes: Math.round(seconds / 60),
         overallRpe: overallRpe ?? undefined,
         notes: notes || undefined,
         items,
       });
-      router.replace('/(client)/today');
+      if (result.queued) {
+        Alert.alert(
+          'Saved offline',
+          'No internet connection. Your workout will sync when you\u2019re back online.',
+          [{ text: 'OK', onPress: () => router.replace('/(client)/today') }],
+        );
+      } else {
+        router.replace('/(client)/today');
+      }
     } catch {
       Alert.alert('Error', 'Could not save your workout. Please try again.');
     }
@@ -471,6 +490,7 @@ export default function WorkoutLogScreen() {
               index={i}
               onUpdateSet={updateSet}
               onAddSet={addSet}
+              onWatchVideo={(idx) => setVideoForIndex(idx)}
             />
           ))
         )}
@@ -484,6 +504,14 @@ export default function WorkoutLogScreen() {
         durationSeconds={seconds}
         onSubmit={handleSubmit}
         onClose={() => setShowFinish(false)}
+      />
+
+      {/* Exercise demo video */}
+      <ExerciseVideoModal
+        visible={videoForIndex !== null}
+        videoUrl={videoForIndex !== null ? exercises[videoForIndex]?.videoUrl : null}
+        title={videoForIndex !== null ? exercises[videoForIndex]?.name : undefined}
+        onClose={() => setVideoForIndex(null)}
       />
 
       {/* Submitting overlay */}
@@ -630,6 +658,16 @@ const styles = StyleSheet.create({
 
   addSetBtn: { marginTop: 10, alignItems: 'center', paddingVertical: 8 },
   addSetText: { color: '#2563eb', fontSize: 13, fontWeight: '600' },
+
+  videoBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  videoBtnText: { color: '#1d4ed8', fontSize: 12, fontWeight: '600' },
 
   bottomSpacer: { height: 40 },
   emptyCenter: { padding: 40, alignItems: 'center' },

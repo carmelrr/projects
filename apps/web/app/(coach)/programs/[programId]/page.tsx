@@ -1,15 +1,53 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Lock, CalendarDays, Pencil } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  Lock,
+  CalendarDays,
+  Pencil,
+  Trash2,
+  MoreVertical,
+  UserPlus,
+  Loader2,
+  GripVertical,
+  X,
+} from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   useProgram,
   useUpdateProgram,
   useAddProgramWeek,
+  useUpdateProgramWeek,
+  useDeleteProgramWeek,
+  useReorderProgramWeeks,
+  useAssignProgram,
 } from '@/hooks/usePrograms';
+import { useWorkouts, useWorkout, type Workout } from '@/hooks/useWorkouts';
+import { useClients } from '@/hooks/useClients';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { PickWorkoutDialog } from '@/components/programs/PickWorkoutDialog';
+import { WorkoutEditorSheet } from '@/components/programs/WorkoutEditorSheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,23 +64,123 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
-function EditDialog({
+// ─── Workout chip (sortable) ──────────────────────────────────────────────
+function WorkoutChip({
+  sortId,
+  workoutId,
+  onEdit,
+  onRemove,
+}: {
+  sortId: string;
+  workoutId: string;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const { data: w } = useWorkout(workoutId);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: sortId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group flex items-center gap-1.5 rounded-md border border-border bg-card/50 px-2 py-2 text-xs"
+    >
+      <button
+        type="button"
+        className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-3.5 shrink-0" />
+      </button>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="min-w-0 flex-1 truncate text-start font-medium text-foreground hover:underline"
+        title={w?.title ?? 'Workout'}
+      >
+        {w?.title ?? <span className="text-muted-foreground">Workout…</span>}
+        {w?.items && w.items.length > 0 && (
+          <span className="ms-1 font-normal text-muted-foreground">
+            · {w.items.length}
+          </span>
+        )}
+      </button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="size-6 shrink-0 text-destructive opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+        onClick={onRemove}
+        aria-label="Remove"
+      >
+        <X className="size-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+// ─── Program meta edit dialog ─────────────────────────────────────────────
+function EditProgramDialog({
   programId,
   initial,
   open,
   onOpenChange,
 }: {
   programId: string;
-  initial: { title: string; description?: string; isPrivate: boolean };
+  initial: { title: string; description?: string; isPrivate: boolean; tags?: string[] };
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
   const update = useUpdateProgram();
-  const [form, setForm] = useState(initial);
+  const [form, setForm] = useState({
+    title: initial.title,
+    description: initial.description ?? '',
+    isPrivate: initial.isPrivate,
+    tagsRaw: (initial.tags ?? []).join(', '),
+  });
 
   const save = async () => {
-    await update.mutateAsync({ id: programId, ...form });
+    await update.mutateAsync({
+      id: programId,
+      title: form.title,
+      description: form.description,
+      isPrivate: form.isPrivate,
+      tags: form.tagsRaw
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+    });
     onOpenChange(false);
   };
 
@@ -67,8 +205,17 @@ function EditDialog({
             <Textarea
               id="desc"
               rows={3}
-              value={form.description ?? ''}
+              value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="tags">Tags</Label>
+            <Input
+              id="tags"
+              value={form.tagsRaw}
+              onChange={(e) => setForm({ ...form, tagsRaw: e.target.value })}
+              placeholder="strength, hypertrophy"
             />
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -83,7 +230,11 @@ function EditDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={update.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={update.isPending}
+          >
             Cancel
           </Button>
           <Button variant="gradient" onClick={save} disabled={update.isPending}>
@@ -95,6 +246,203 @@ function EditDialog({
   );
 }
 
+// ─── Edit week dialog ─────────────────────────────────────────────────────
+function EditWeekDialog({
+  programId,
+  week,
+  open,
+  onOpenChange,
+}: {
+  programId: string;
+  week: { id: string; title?: string; notes?: string } | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const update = useUpdateProgramWeek();
+  const [form, setForm] = useState({ title: '', notes: '' });
+
+  useEffect(() => {
+    if (week) setForm({ title: week.title ?? '', notes: week.notes ?? '' });
+  }, [week]);
+
+  if (!week) return null;
+
+  const save = async () => {
+    await update.mutateAsync({
+      programId,
+      weekId: week.id,
+      title: form.title,
+      notes: form.notes,
+    });
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit week</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="wk-title">Title</Label>
+            <Input
+              id="wk-title"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="wk-notes">Notes</Label>
+            <Textarea
+              id="wk-notes"
+              rows={3}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              placeholder="Deload week, focus on form…"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={update.isPending}
+          >
+            Cancel
+          </Button>
+          <Button variant="gradient" onClick={save} disabled={update.isPending}>
+            {update.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Assign to client dialog ──────────────────────────────────────────────
+function AssignProgramDialog({
+  programId,
+  open,
+  onOpenChange,
+}: {
+  programId: string;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const { data: clients } = useClients({ status: 'ACTIVE', limit: 200 });
+  const assign = useAssignProgram();
+  const [clientId, setClientId] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>(
+    new Date().toISOString().split('T')[0],
+  );
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setErr(null);
+    try {
+      await assign.mutateAsync({ id: programId, clientId, startDate });
+      setDone(true);
+      setTimeout(() => {
+        setDone(false);
+        onOpenChange(false);
+      }, 1200);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not assign');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Assign program</DialogTitle>
+          <DialogDescription>
+            Schedule all workouts starting from the selected date.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Client</Label>
+            <Select value={clientId} onValueChange={setClientId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a client…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(clients?.items ?? []).map((c) => (
+                  <SelectItem key={c.user.id} value={c.user.id}>
+                    {c.user.firstName} {c.user.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="start">Start date</Label>
+            <Input
+              id="start"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          {err && <p className="text-xs text-destructive">{err}</p>}
+          {done && <p className="text-xs text-success">Program assigned!</p>}
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={assign.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="gradient"
+            onClick={submit}
+            disabled={!clientId || assign.isPending}
+          >
+            {assign.isPending ? 'Assigning…' : 'Assign'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Sortable week card wrapper ───────────────────────────────────────────
+function SortableWeek({
+  weekId,
+  children,
+}: {
+  weekId: string;
+  children: (props: {
+    dragAttributes: ReturnType<typeof useSortable>['attributes'];
+    dragListeners: ReturnType<typeof useSortable>['listeners'];
+  }) => React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: weekId });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="w-80 shrink-0">
+      {children({ dragAttributes: attributes, dragListeners: listeners })}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────
 export default function ProgramDetailPage({
   params,
 }: {
@@ -103,7 +451,22 @@ export default function ProgramDetailPage({
   const { programId } = use(params);
   const { data: program, isLoading } = useProgram(programId);
   const addWeek = useAddProgramWeek();
+  const updateWeek = useUpdateProgramWeek();
+  const deleteWeek = useDeleteProgramWeek();
+  const reorderWeeks = useReorderProgramWeeks();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   const [editOpen, setEditOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [pickFor, setPickFor] = useState<string | null>(null); // weekId
+  const [editingWeek, setEditingWeek] =
+    useState<{ id: string; title?: string; notes?: string } | null>(null);
+  const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(null);
+  const [workoutSheetOpen, setWorkoutSheetOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -128,7 +491,7 @@ export default function ProgramDetailPage({
           action={
             <Button asChild variant="outline">
               <Link href="/programs">
-                <ArrowLeft className="size-4" />
+                <ArrowLeft className="size-4 rtl:rotate-180" />
                 Back to programs
               </Link>
             </Button>
@@ -139,6 +502,52 @@ export default function ProgramDetailPage({
   }
 
   const weeks = [...(program.weeks ?? [])].sort((a, b) => a.weekIndex - b.weekIndex);
+  const totalWorkouts = weeks.reduce((n, w) => n + (w.workoutIds?.length ?? 0), 0);
+
+  const setWeekWorkouts = (weekId: string, workoutIds: string[]) =>
+    updateWeek.mutate({ programId, weekId, workoutIds });
+
+  const onPickWorkout = (w: Workout) => {
+    if (!pickFor) return;
+    const wk = weeks.find((x) => x.id === pickFor);
+    if (!wk) return;
+    setWeekWorkouts(pickFor, [...(wk.workoutIds ?? []), w.id]);
+    setPickFor(null);
+  };
+
+  const openWorkout = (id: string) => {
+    setOpenWorkoutId(id);
+    setWorkoutSheetOpen(true);
+  };
+
+  const excludeForPicker = useMemo(() => {
+    const wk = weeks.find((w) => w.id === pickFor);
+    return wk?.workoutIds ?? [];
+  }, [weeks, pickFor]);
+
+  const handleWeeksDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ids = weeks.map((w) => w.id);
+    const oldIndex = ids.indexOf(active.id as string);
+    const newIndex = ids.indexOf(over.id as string);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(ids, oldIndex, newIndex);
+    reorderWeeks.mutate({ programId, weekIds: next });
+  };
+
+  const handleWorkoutsDragEnd = (weekId: string) => (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const wk = weeks.find((w) => w.id === weekId);
+    if (!wk) return;
+    const ids = (wk.workoutIds ?? []).map((id, i) => `${id}__${i}`);
+    const oldIndex = ids.indexOf(active.id as string);
+    const newIndex = ids.indexOf(over.id as string);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove([...(wk.workoutIds ?? [])], oldIndex, newIndex);
+    setWeekWorkouts(weekId, next);
+  };
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -165,12 +574,16 @@ export default function ProgramDetailPage({
               <Pencil className="size-4" />
               Edit
             </Button>
+            <Button variant="outline" onClick={() => setAssignOpen(true)}>
+              <UserPlus className="size-4" />
+              Assign
+            </Button>
             <Button
               variant="gradient"
               onClick={() =>
                 addWeek.mutate({
                   programId,
-                  title: `Week ${(weeks.at(-1)?.weekIndex ?? 0) + 1}`,
+                  title: `Week ${(weeks.at(-1)?.weekIndex ?? -1) + 2}`,
                 })
               }
               disabled={addWeek.isPending}
@@ -182,13 +595,17 @@ export default function ProgramDetailPage({
         }
       />
 
-      {/* Meta */}
-      <div className="flex flex-wrap gap-2">
+      {/* Meta row */}
+      <div className="flex flex-wrap items-center gap-3">
         {(program.tags ?? []).map((t) => (
           <Badge key={t} variant="muted">
             {t}
           </Badge>
         ))}
+        <span className="text-xs text-muted-foreground">
+          {weeks.length} week{weeks.length === 1 ? '' : 's'} · {totalWorkouts} workout
+          {totalWorkouts === 1 ? '' : 's'}
+        </span>
       </div>
 
       {/* Weeks */}
@@ -203,70 +620,189 @@ export default function ProgramDetailPage({
               onClick={() => addWeek.mutate({ programId, title: 'Week 1' })}
               disabled={addWeek.isPending}
             >
-              <Plus className="size-4" />
+              {addWeek.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               Add first week
             </Button>
           }
         />
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {weeks.map((w) => (
-            <Card key={w.id} className="w-72 shrink-0">
-              <CardContent className="p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Week {w.weekIndex + 1}
-                    </p>
-                    <h3 className="mt-0.5 text-base font-semibold text-foreground">
-                      {w.title ?? `Week ${w.weekIndex + 1}`}
-                    </h3>
-                  </div>
-                </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleWeeksDragEnd}
+        >
+          <SortableContext
+            items={weeks.map((w) => w.id)}
+            strategy={horizontalListSortingStrategy}
+          >
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {weeks.map((w) => (
+                <SortableWeek key={w.id} weekId={w.id}>
+                  {({ dragAttributes, dragListeners }) => (
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="mb-3 flex items-start justify-between gap-2">
+                          <button
+                            type="button"
+                            className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+                            aria-label="Drag week to reorder"
+                            {...dragAttributes}
+                            {...dragListeners}
+                          >
+                            <GripVertical className="size-4" />
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              Week {w.weekIndex + 1}
+                            </p>
+                            <h3 className="mt-0.5 truncate text-base font-semibold text-foreground">
+                              {w.title ?? `Week ${w.weekIndex + 1}`}
+                            </h3>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="size-7 shrink-0"
+                                aria-label="Week actions"
+                              >
+                                <MoreVertical className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setEditingWeek({
+                                    id: w.id,
+                                    title: w.title,
+                                    notes: w.notes,
+                                  })
+                                }
+                              >
+                                <Pencil className="size-4" />
+                                Edit week
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (confirm(`Delete Week ${w.weekIndex + 1}?`)) {
+                                    deleteWeek.mutate({ programId, weekId: w.id });
+                                  }
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="size-4" />
+                                Delete week
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
 
-                {w.notes && (
-                  <p className="mb-3 text-xs text-muted-foreground">{w.notes}</p>
-                )}
+                        {w.notes && (
+                          <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">
+                            {w.notes}
+                          </p>
+                        )}
 
-                <div className="space-y-1.5">
-                  {(w.workoutIds ?? []).length === 0 ? (
-                    <p className="py-4 text-center text-xs text-muted-foreground">
-                      No workouts yet
-                    </p>
-                  ) : (
-                    (w.workoutIds ?? []).map((id, i) => (
-                      <div
-                        key={id}
-                        className="flex items-center gap-2 rounded-md border border-border bg-card/50 px-2.5 py-2 text-xs"
-                      >
-                        <span className="text-muted-foreground">Day {i + 1}</span>
-                        <span className="truncate font-medium text-foreground">Workout</span>
-                      </div>
-                    ))
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleWorkoutsDragEnd(w.id)}
+                        >
+                          <SortableContext
+                            items={(w.workoutIds ?? []).map((id, i) => `${id}__${i}`)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="space-y-1.5">
+                              {(w.workoutIds ?? []).length === 0 ? (
+                                <p className="py-4 text-center text-xs text-muted-foreground">
+                                  No workouts yet
+                                </p>
+                              ) : (
+                                (w.workoutIds ?? []).map((id, i) => (
+                                  <WorkoutChip
+                                    key={`${id}-${i}`}
+                                    sortId={`${id}__${i}`}
+                                    workoutId={id}
+                                    onEdit={() => openWorkout(id)}
+                                    onRemove={() => {
+                                      const next = (w.workoutIds ?? []).filter(
+                                        (_, j) => j !== i,
+                                      );
+                                      setWeekWorkouts(w.id, next);
+                                    }}
+                                  />
+                                ))
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => setPickFor(w.id)}
+                              >
+                                <Plus className="size-3.5" />
+                                Add workout
+                              </Button>
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+                      </CardContent>
+                    </Card>
                   )}
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Plus className="size-3.5" />
-                    Add workout
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </SortableWeek>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {editOpen && (
-        <EditDialog
+        <EditProgramDialog
           programId={programId}
           initial={{
             title: program.title,
             description: program.description ?? '',
             isPrivate: program.isPrivate,
+            tags: program.tags,
           }}
           open={editOpen}
           onOpenChange={setEditOpen}
         />
       )}
+
+      <EditWeekDialog
+        programId={programId}
+        week={editingWeek}
+        open={!!editingWeek}
+        onOpenChange={(o) => !o && setEditingWeek(null)}
+      />
+
+      <PickWorkoutDialog
+        open={!!pickFor}
+        onOpenChange={(o) => !o && setPickFor(null)}
+        excludeIds={excludeForPicker}
+        onPick={onPickWorkout}
+      />
+
+      <AssignProgramDialog
+        programId={programId}
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+      />
+
+      <WorkoutEditorSheet
+        workoutId={openWorkoutId}
+        open={workoutSheetOpen}
+        onOpenChange={(o) => {
+          setWorkoutSheetOpen(o);
+          if (!o) setOpenWorkoutId(null);
+        }}
+      />
     </div>
   );
 }

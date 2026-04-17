@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useTodayWorkouts, type WorkoutInstance } from '@/hooks/useWorkouts';
+import { useUnreadCount } from '@/hooks/useNotifications';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,24 @@ function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
+function BellButton() {
+  const { data } = useUnreadCount();
+  const count = data?.count ?? 0;
+  return (
+    <Pressable
+      onPress={() => router.push('/(client)/notifications')}
+      style={({ pressed }) => [styles.bell, pressed && styles.bellPressed]}
+    >
+      <Text style={styles.bellIcon}>🔔</Text>
+      {count > 0 && (
+        <View style={styles.bellBadge}>
+          <Text style={styles.bellBadgeText}>{count > 9 ? '9+' : count}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 export default function TodayScreen() {
   const { user } = useAuthStore();
   const { data: instances, isLoading, refetch, isRefetching } = useTodayWorkouts();
@@ -136,8 +155,13 @@ export default function TodayScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.greeting}>{greeting(user?.firstName ?? '')}</Text>
-            <Text style={styles.dateText}>{today}</Text>
+            <View style={styles.headerTopRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.greeting}>{greeting(user?.firstName ?? '')}</Text>
+                <Text style={styles.dateText}>{today}</Text>
+              </View>
+              <BellButton />
+            </View>
 
             {!isLoading && total > 0 && (
               <View style={styles.progressRow}>
@@ -181,8 +205,40 @@ const styles = StyleSheet.create({
   list: { padding: 20, paddingBottom: 40 },
 
   header: { marginBottom: 24 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   greeting: { fontSize: 22, fontWeight: '700', color: '#111827' },
   dateText: { fontSize: 14, color: '#6b7280', marginTop: 2 },
+
+  bell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  bellPressed: { opacity: 0.7 },
+  bellIcon: { fontSize: 18 },
+  bellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',

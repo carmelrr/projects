@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import NetInfo from '@react-native-community/netinfo';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { enqueueWorkoutLog } from '@/lib/offline-queue';
 
 export interface ExerciseRef {
   id: string;
@@ -107,14 +109,39 @@ export interface SubmitLogPayload {
   items: LogItem[];
 }
 
+export interface SubmitLogResult {
+  queued: boolean;
+  log?: WorkoutLog;
+}
+
 export function useSubmitLog(instanceId: string) {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const today = new Date().toISOString().split('T')[0];
 
-  return useMutation({
-    mutationFn: (payload: SubmitLogPayload) =>
-      api.post<WorkoutLog>(`/workouts/instances/${instanceId}/log`, payload),
+  return useMutation<SubmitLogResult, Error, SubmitLogPayload>({
+    mutationFn: async (payload: SubmitLogPayload) => {
+      const net = await NetInfo.fetch();
+      if (net.isConnected === false) {
+        await enqueueWorkoutLog(instanceId, payload);
+        return { queued: true };
+      }
+      try {
+        const log = await api.post<WorkoutLog>(
+          `/workouts/instances/${instanceId}/log`,
+          payload,
+        );
+        return { queued: false, log };
+      } catch (err) {
+        // If it was a network error, fall back to the queue
+        const msg = (err as Error).message || '';
+        if (/network|timeout|failed to fetch/i.test(msg)) {
+          await enqueueWorkoutLog(instanceId, payload);
+          return { queued: true };
+        }
+        throw err;
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['today-workouts', user?.id, today] });
       qc.invalidateQueries({ queryKey: ['workout-instance', instanceId] });

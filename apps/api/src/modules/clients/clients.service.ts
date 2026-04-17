@@ -13,9 +13,86 @@ interface ListClientsQuery {
   order?: string;
 }
 
+interface WorkoutInstanceDoc {
+  clientUserId: string;
+  scheduledDate: string;
+  status: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED' | 'MISSED';
+}
+
+type CompliancePeriod = 'SEVEN_DAY' | 'THIRTY_DAY' | 'NINETY_DAY';
+
+interface ComplianceSummary {
+  period: CompliancePeriod;
+  complianceRate: number;
+  totalScheduled: number;
+  totalCompleted: number;
+  needsAttention: boolean;
+}
+
+const PERIOD_DAYS: Record<CompliancePeriod, number> = {
+  SEVEN_DAY: 7,
+  THIRTY_DAY: 30,
+  NINETY_DAY: 90,
+};
+
+function computeCompliance(
+  instances: WorkoutInstanceDoc[],
+  now = new Date(),
+): ComplianceSummary[] {
+  const nowIso = now.toISOString();
+  return (Object.keys(PERIOD_DAYS) as CompliancePeriod[]).map((period) => {
+    const cutoff = new Date(now.getTime() - PERIOD_DAYS[period] * 86400000).toISOString();
+    // Only count instances scheduled in [cutoff, now] — i.e., past-due instances.
+    const inWindow = instances.filter(
+      (i) => i.scheduledDate >= cutoff && i.scheduledDate <= nowIso,
+    );
+    const totalScheduled = inWindow.length;
+    const totalCompleted = inWindow.filter((i) => i.status === 'COMPLETED').length;
+    const complianceRate = totalScheduled === 0 ? 0 : totalCompleted / totalScheduled;
+    const needsAttention =
+      totalScheduled > 0 &&
+      ((period === 'SEVEN_DAY' && complianceRate < 0.5) ||
+        (period === 'THIRTY_DAY' && complianceRate < 0.6));
+    return { period, complianceRate, totalScheduled, totalCompleted, needsAttention };
+  });
+}
+
 @Injectable()
 export class ClientsService {
   constructor(private firebase: FirebaseService) {}
+
+  private async fetchComplianceByClient(
+    orgId: string,
+    clientUserIds: string[],
+    now = new Date(),
+  ): Promise<Map<string, ComplianceSummary[]>> {
+    if (clientUserIds.length === 0) return new Map();
+    const cutoff = new Date(now.getTime() - PERIOD_DAYS.NINETY_DAY * 86400000).toISOString();
+
+    // Firestore `in` supports max 30 values; chunk clientUserIds.
+    const instancesByClient = new Map<string, WorkoutInstanceDoc[]>();
+    for (let i = 0; i < clientUserIds.length; i += 30) {
+      const chunk = clientUserIds.slice(i, i + 30);
+      const snap = await this.firebase
+        .workoutInstances(orgId)
+        .where('clientUserId', 'in', chunk)
+        .where('scheduledDate', '>=', cutoff)
+        .get();
+      for (const doc of snap.docs) {
+        const data = doc.data() as WorkoutInstanceDoc;
+        if (!data.clientUserId) continue;
+        const list = instancesByClient.get(data.clientUserId) ?? [];
+        list.push(data);
+        instancesByClient.set(data.clientUserId, list);
+      }
+    }
+
+    const result = new Map<string, ComplianceSummary[]>();
+    for (const userId of clientUserIds) {
+      result.set(userId, computeCompliance(instancesByClient.get(userId) ?? [], now));
+    }
+    return result;
+  }
 
   async listClients(orgId: string, query: ListClientsQuery, requestingCoachId?: string) {
     const { page, limit, skip } = parsePagination(query);
@@ -106,7 +183,24 @@ export class ClientsService {
     const total = allClients.length;
     const paged = allClients.slice(skip, skip + limit);
 
-    return paginatedResponse(paged, total, { page, limit, skip });
+    // Compute compliance only for the paged clients (limits reads)
+    const pagedUserIds = paged.map((c) => (c.user as Record<string, unknown>).id as string);
+    const complianceMap = await this.fetchComplianceByClient(orgId, pagedUserIds);
+    for (const client of paged) {
+      const uid = (client.user as Record<string, unknown>).id as string;
+      client.complianceSummaries = complianceMap.get(uid) ?? [];
+    }
+
+    // Optional filter: needsAttention — applied after compliance is computed.
+    // Note: this runs after slicing, so needsAttention filtering is best-effort per page.
+    let finalItems = paged;
+    if (query.needsAttention === 'true') {
+      finalItems = paged.filter((c) =>
+        ((c.complianceSummaries as ComplianceSummary[]) || []).some((s) => s.needsAttention),
+      );
+    }
+
+    return paginatedResponse(finalItems, total, { page, limit, skip });
   }
 
   async getClient(clientId: string, orgId: string) {
@@ -137,6 +231,9 @@ export class ClientsService {
       };
     });
 
+    const complianceMap = await this.fetchComplianceByClient(orgId, [clientId]);
+    const complianceSummaries = complianceMap.get(clientId) ?? [];
+
     return {
       id: cp.id || clientId,
       status: cp.status,
@@ -155,7 +252,7 @@ export class ClientsService {
         lastLoginAt: u.lastLoginAt,
       },
       assignments,
-      complianceSummaries: [],
+      complianceSummaries,
     };
   }
 
@@ -250,5 +347,261 @@ export class ClientsService {
     }
 
     await batch.commit();
+  }
+
+  // ─────────── Coach assignments ───────────
+
+  async listAssignments(clientUserId: string, orgId: string) {
+    // Verify client belongs to this org
+    const clientDoc = await this.firebase.users().doc(clientUserId).get();
+    if (!clientDoc.exists) throw new NotFoundException('Client not found');
+    const u = clientDoc.data()!;
+    if (!u.clientProfile) throw new NotFoundException('Client not found');
+    const inOrg = (u.orgs || []).some((o: { orgId: string }) => o.orgId === orgId);
+    if (!inOrg) throw new NotFoundException('Client not found');
+
+    const snap = await this.firebase
+      .clientAssignments(orgId)
+      .where('clientUserId', '==', clientUserId)
+      .get();
+
+    // Filter out non-coach assignments (e.g. type: 'PROGRAM')
+    const coachAssignDocs = snap.docs.filter((d) => {
+      const data = d.data();
+      return !data.type || data.type === 'COACH';
+    });
+
+    const coachProfileIds = [
+      ...new Set(coachAssignDocs.map((d) => d.data().coachId as string).filter(Boolean)),
+    ];
+
+    // Resolve coach user info
+    const coachMap = new Map<string, { id: string; userId: string; firstName: string; lastName: string; email: string; avatarUrl: string | null }>();
+    if (coachProfileIds.length > 0) {
+      const coachSnap = await this.firebase
+        .users()
+        .where('coachProfile.orgId', '==', orgId)
+        .get();
+      for (const cDoc of coachSnap.docs) {
+        const cu = cDoc.data();
+        const cp = cu.coachProfile;
+        if (!cp) continue;
+        const cpId = cp.id || cDoc.id;
+        if (coachProfileIds.includes(cpId)) {
+          coachMap.set(cpId, {
+            id: cpId,
+            userId: cDoc.id,
+            firstName: cu.firstName ?? '',
+            lastName: cu.lastName ?? '',
+            email: cu.email ?? '',
+            avatarUrl: cu.avatarUrl ?? null,
+          });
+        }
+      }
+    }
+
+    return coachAssignDocs
+      .map((d) => {
+        const data = d.data();
+        const coach = coachMap.get(data.coachId);
+        return {
+          id: d.id,
+          coachId: data.coachId,
+          status: data.status,
+          startAt: data.startAt,
+          endAt: data.endAt ?? null,
+          notes: data.notes ?? null,
+          createdAt: data.createdAt,
+          coach: coach
+            ? {
+                id: coach.id,
+                user: {
+                  id: coach.userId,
+                  firstName: coach.firstName,
+                  lastName: coach.lastName,
+                  email: coach.email,
+                  avatarUrl: coach.avatarUrl,
+                },
+              }
+            : null,
+        };
+      })
+      .sort((a, b) => {
+        // Active first, then by startAt desc
+        if (a.status !== b.status) {
+          return a.status === 'ACTIVE' ? -1 : 1;
+        }
+        return (b.startAt || '').localeCompare(a.startAt || '');
+      });
+  }
+
+  // ─────────── Program assignments ───────────
+
+  async listProgramAssignments(clientUserId: string, orgId: string) {
+    // Verify client belongs to this org
+    const clientDoc = await this.firebase.users().doc(clientUserId).get();
+    if (!clientDoc.exists) throw new NotFoundException('Client not found');
+    const u = clientDoc.data()!;
+    if (!u.clientProfile) throw new NotFoundException('Client not found');
+    const inOrg = (u.orgs || []).some((o: { orgId: string }) => o.orgId === orgId);
+    if (!inOrg) throw new NotFoundException('Client not found');
+
+    const snap = await this.firebase
+      .clientAssignments(orgId)
+      .where('clientUserId', '==', clientUserId)
+      .where('type', '==', 'PROGRAM')
+      .get();
+
+    const rows = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        programId: data.programId as string,
+        startDate: (data.startDate ?? data.startAt ?? null) as string | null,
+        endDate: (data.endDate ?? data.endAt ?? null) as string | null,
+        status: (data.status ?? 'ACTIVE') as string,
+        assignedBy: (data.assignedBy ?? null) as string | null,
+        createdAt: (data.createdAt ?? null) as string | null,
+      };
+    });
+
+    // Enrich with program meta
+    const programIds = [...new Set(rows.map((r) => r.programId).filter(Boolean))];
+    const programMap = new Map<string, { title: string; description?: string; weekCount: number }>();
+    await Promise.all(
+      programIds.map(async (pid) => {
+        try {
+          const pd = await this.firebase.programs(orgId).doc(pid).get();
+          if (pd.exists) {
+            const p = pd.data()!;
+            programMap.set(pid, {
+              title: p.title ?? 'Untitled program',
+              description: p.description,
+              weekCount: (p.weeks ?? []).length,
+            });
+          }
+        } catch {
+          /* ignore */
+        }
+      }),
+    );
+
+    return rows
+      .map((r) => ({
+        ...r,
+        program: programMap.get(r.programId) ?? null,
+      }))
+      .sort((a, b) => {
+        if (a.status !== b.status) return a.status === 'ACTIVE' ? -1 : 1;
+        return (b.startDate ?? '').localeCompare(a.startDate ?? '');
+      });
+  }
+
+  async addAssignment(
+    clientUserId: string,
+    orgId: string,
+    actorUserId: string,
+    input: { coachId: string; notes?: string },
+  ) {
+    // Verify client
+    const clientDoc = await this.firebase.users().doc(clientUserId).get();
+    if (!clientDoc.exists) throw new NotFoundException('Client not found');
+    const u = clientDoc.data()!;
+    const cp = u.clientProfile;
+    if (!cp) throw new NotFoundException('Client not found');
+    const inOrg = (u.orgs || []).some((o: { orgId: string }) => o.orgId === orgId);
+    if (!inOrg) throw new NotFoundException('Client not found');
+
+    // Verify coach belongs to this org
+    const coachSnap = await this.firebase
+      .users()
+      .where('coachProfile.orgId', '==', orgId)
+      .get();
+    const coachDoc = coachSnap.docs.find((d) => {
+      const cp2 = d.data().coachProfile;
+      return cp2 && (cp2.id === input.coachId || d.id === input.coachId);
+    });
+    if (!coachDoc) throw new BadRequestException('Coach not found in organization');
+    const coachData = coachDoc.data();
+    const coachProfileId = coachData.coachProfile.id || coachDoc.id;
+
+    // Check for existing active assignment with same coach
+    const existingSnap = await this.firebase
+      .clientAssignments(orgId)
+      .where('clientUserId', '==', clientUserId)
+      .where('coachId', '==', coachProfileId)
+      .where('status', '==', 'ACTIVE')
+      .get();
+    if (!existingSnap.empty) {
+      throw new BadRequestException('Coach is already assigned to this client');
+    }
+
+    const now = new Date().toISOString();
+    const ref = this.firebase.clientAssignments(orgId).doc();
+    await ref.set({
+      type: 'COACH',
+      clientId: cp.id || clientUserId,
+      clientUserId,
+      coachId: coachProfileId,
+      coachName: `${coachData.firstName ?? ''} ${coachData.lastName ?? ''}`.trim(),
+      status: 'ACTIVE',
+      startAt: now,
+      endAt: null,
+      notes: input.notes ?? null,
+      createdAt: now,
+      createdBy: actorUserId,
+    });
+
+    await this.firebase.auditLogs(orgId).add({
+      actorId: actorUserId,
+      action: 'client.assignment.add',
+      targetType: 'ClientAssignment',
+      targetId: ref.id,
+      metadata: { clientUserId, coachId: coachProfileId },
+      createdAt: now,
+    });
+
+    return {
+      id: ref.id,
+      coachId: coachProfileId,
+      status: 'ACTIVE',
+      startAt: now,
+      endAt: null,
+      notes: input.notes ?? null,
+    };
+  }
+
+  async endAssignment(
+    clientUserId: string,
+    orgId: string,
+    assignmentId: string,
+    actorUserId: string,
+  ) {
+    const ref = this.firebase.clientAssignments(orgId).doc(assignmentId);
+    const doc = await ref.get();
+    if (!doc.exists) throw new NotFoundException('Assignment not found');
+    const data = doc.data()!;
+    if (data.clientUserId !== clientUserId) {
+      throw new NotFoundException('Assignment not found');
+    }
+    if (data.status === 'ENDED') {
+      throw new BadRequestException('Assignment already ended');
+    }
+
+    const now = new Date().toISOString();
+    await ref.update({
+      status: 'ENDED',
+      endAt: now,
+      endedBy: actorUserId,
+    });
+
+    await this.firebase.auditLogs(orgId).add({
+      actorId: actorUserId,
+      action: 'client.assignment.end',
+      targetType: 'ClientAssignment',
+      targetId: assignmentId,
+      metadata: { clientUserId, coachId: data.coachId },
+      createdAt: now,
+    });
   }
 }

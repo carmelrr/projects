@@ -127,6 +127,14 @@ export class FirebaseService implements OnModuleInit {
     return this._db.collection('organizations').doc(orgId).collection('complianceSummaries');
   }
 
+  habitDefinitions(orgId: string) {
+    return this._db.collection('organizations').doc(orgId).collection('habitDefinitions');
+  }
+
+  habitLogs(orgId: string) {
+    return this._db.collection('organizations').doc(orgId).collection('habitLogs');
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────────
 
   batch() {

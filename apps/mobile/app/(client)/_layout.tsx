@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import { Redirect } from 'expo-router';
 import {
@@ -6,6 +7,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
+import { registerForPushNotifications } from '@/lib/push';
 
 // ── Tab icon helper ────────────────────────────────────────────────────────
 
@@ -28,6 +30,12 @@ function TabIcon({
 
 export default function ClientLayout() {
   const { user, isHydrated } = useAuthStore();
+
+  useEffect(() => {
+    if (user) {
+      registerForPushNotifications().catch(() => {});
+    }
+  }, [user]);
 
   if (!isHydrated) return null;
   if (!user) return <Redirect href="/(auth)/login" />;
@@ -59,6 +67,34 @@ export default function ClientLayout() {
             <TabIcon focused={focused} label="Metrics" emoji="📊" />
           ),
         }}
+      />
+      <Tabs.Screen
+        name="habits"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} label="Habits" emoji="🌱" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="messages/index"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} label="Messages" emoji="💬" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="messages/[threadId]"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="metric/[metricId]"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="profile"

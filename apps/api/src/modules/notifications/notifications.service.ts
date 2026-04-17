@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
+import { PushService } from './push.service';
 import { parsePagination, paginatedResponse } from '../../common/utils/pagination';
 
 interface CreateNotificationInput {
@@ -14,7 +15,12 @@ interface CreateNotificationInput {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private firebase: FirebaseService) {}
+  private readonly logger = new Logger(NotificationsService.name);
+
+  constructor(
+    private firebase: FirebaseService,
+    private push: PushService,
+  ) {}
 
   async listNotifications(userId: string, query: { page?: string; limit?: string; unreadOnly?: string }) {
     const pagination = parsePagination(query);
@@ -84,10 +90,28 @@ export class NotificationsService {
 
     await this.firebase.notifications(input.userId).doc(id).set(data);
 
-    // TODO: Push notification via Expo Push API
-    // TODO: Email notification via Resend
+    // Respect user notification preferences (opt-out keys by type)
+    const shouldPush = await this.shouldSendPush(input.userId, input.type);
+    if (shouldPush) {
+      this.push
+        .sendToUser(input.userId, {
+          title: input.title,
+          body: input.body,
+          data: { notificationId: id, type: input.type, ...(input.data ?? {}) },
+        })
+        .catch((err) => this.logger.error(`Push dispatch failed for ${input.userId}: ${(err as Error).message}`));
+    }
 
     return { id, ...data };
+  }
+
+  private async shouldSendPush(userId: string, type: string): Promise<boolean> {
+    const doc = await this.firebase.users().doc(userId).get();
+    if (!doc.exists) return false;
+    const prefs = (doc.data()?.notificationPrefs as Record<string, boolean>) || {};
+    if (type === 'NEW_MESSAGE') return prefs.pushMessages !== false;
+    if (type === 'WORKOUT_ASSIGNED' || type === 'WORKOUT_REMINDER') return prefs.pushReminders !== false;
+    return true;
   }
 
   // Convenience methods for common notification types

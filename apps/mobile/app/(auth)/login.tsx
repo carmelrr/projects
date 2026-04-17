@@ -16,7 +16,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { ApiError } from '@/lib/api';
 
 export default function LoginScreen() {
-  const { login } = useAuthStore();
+  const { loginWithEmail } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,11 +31,19 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      await login(email.trim().toLowerCase(), password);
+      await loginWithEmail(email.trim().toLowerCase(), password);
       router.replace('/(client)/today');
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (
+        code === 'auth/invalid-credential' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/user-not-found' ||
+        (err instanceof ApiError && err.status === 401)
+      ) {
         setError('Incorrect email or password.');
+      } else if (code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please try again later.');
       } else {
         setError('Something went wrong. Please try again.');
       }
@@ -110,6 +118,13 @@ export default function LoginScreen() {
               ) : (
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/(auth)/forgot-password')}
+              style={styles.linkBtn}
+            >
+              <Text style={styles.linkText}>Forgot password?</Text>
             </Pressable>
           </View>
         </View>
@@ -209,5 +224,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
+  },
+  linkBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  linkText: {
+    color: '#2563eb',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

@@ -110,6 +110,80 @@ export class ProgramsService {
     return newWeek;
   }
 
+  async updateWeek(
+    programId: string,
+    weekId: string,
+    orgId: string,
+    input: { title?: string; notes?: string; workoutIds?: string[] },
+  ) {
+    const doc = await this.firebase.programs(orgId).doc(programId).get();
+    if (!doc.exists) throw new NotFoundException('Program not found');
+
+    const program = doc.data()!;
+    const weeks = ((program.weeks as Array<Record<string, unknown>>) || []).map((w) => {
+      if (w.id !== weekId) return w;
+      return {
+        ...w,
+        ...(input.title !== undefined ? { title: input.title || null } : {}),
+        ...(input.notes !== undefined ? { notes: input.notes || null } : {}),
+        ...(input.workoutIds !== undefined ? { workoutIds: input.workoutIds } : {}),
+      };
+    });
+
+    const found = weeks.some((w) => w.id === weekId);
+    if (!found) throw new NotFoundException('Week not found');
+
+    await this.firebase.programs(orgId).doc(programId).update({
+      weeks,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return weeks.find((w) => w.id === weekId);
+  }
+
+  async reorderWeeks(programId: string, orgId: string, weekIds: string[]) {
+    const doc = await this.firebase.programs(orgId).doc(programId).get();
+    if (!doc.exists) throw new NotFoundException('Program not found');
+
+    const program = doc.data()!;
+    const weeks = ((program.weeks as Array<Record<string, unknown>>) || []);
+
+    const byId = new Map(weeks.map((w) => [w.id as string, w]));
+    const unknown = weekIds.find((id) => !byId.has(id));
+    if (unknown) throw new BadRequestException(`Unknown week id: ${unknown}`);
+    if (weekIds.length !== weeks.length) {
+      throw new BadRequestException('weekIds must include all existing weeks');
+    }
+
+    const reordered = weekIds.map((id, i) => ({ ...byId.get(id)!, weekIndex: i }));
+
+    await this.firebase.programs(orgId).doc(programId).update({
+      weeks: reordered,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return reordered;
+  }
+
+  async deleteWeek(programId: string, weekId: string, orgId: string): Promise<void> {
+    const doc = await this.firebase.programs(orgId).doc(programId).get();
+    if (!doc.exists) throw new NotFoundException('Program not found');
+
+    const program = doc.data()!;
+    const weeks = ((program.weeks as Array<Record<string, unknown>>) || []).filter(
+      (w) => w.id !== weekId,
+    );
+    // Re-index
+    const reindexed = weeks
+      .sort((a, b) => ((a.weekIndex as number) || 0) - ((b.weekIndex as number) || 0))
+      .map((w, i) => ({ ...w, weekIndex: i }));
+
+    await this.firebase.programs(orgId).doc(programId).update({
+      weeks: reindexed,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
   async assignProgram(programId: string, orgId: string, assignedBy: string, input: AssignProgramInput) {
     const doc = await this.firebase.programs(orgId).doc(programId).get();
     if (!doc.exists) throw new NotFoundException('Program not found');

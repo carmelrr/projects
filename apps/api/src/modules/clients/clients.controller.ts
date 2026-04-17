@@ -73,4 +73,45 @@ export class ClientsController {
   ) {
     await this.clientsService.deleteClient(id, user.orgId);
   }
+
+  // ── Coach assignments ───────────────────────────────
+
+  @Get(':id/assignments')
+  @Roles('COACH')
+  async listAssignments(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.clientsService.listAssignments(id, user.orgId);
+  }
+
+  @Get(':id/program-assignments')
+  @Roles('COACH')
+  async listProgramAssignments(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.clientsService.listProgramAssignments(id, user.orgId);
+  }
+
+  @Post(':id/assignments')
+  @Roles('ADMIN_COACH')
+  async addAssignment(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { coachId: string; notes?: string },
+  ) {
+    return this.clientsService.addAssignment(id, user.orgId, user.sub, body);
+  }
+
+  @Delete(':id/assignments/:assignmentId')
+  @Roles('ADMIN_COACH')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async endAssignment(
+    @Param('id') id: string,
+    @Param('assignmentId') assignmentId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    await this.clientsService.endAssignment(id, user.orgId, assignmentId, user.sub);
+  }
 }

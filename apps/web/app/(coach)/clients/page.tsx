@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { InviteClientDialog } from '@/components/clients/InviteClientDialog';
 
 function ComplianceCell({ rate }: { rate: number | null }) {
   if (rate === null) return <span className="text-xs text-muted-foreground">—</span>;
@@ -36,6 +37,7 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState('ACTIVE');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const LIMIT = 20;
 
   const { data, isLoading } = useClients({
@@ -55,7 +57,7 @@ export default function ClientsPage() {
         title={t('clients.title')}
         description={t('clients.totalCount', { n: total })}
         actions={
-          <Button>
+          <Button onClick={() => setInviteOpen(true)}>
             <Plus className="size-4" /> {t('clients.invite')}
           </Button>
         }
@@ -242,6 +244,8 @@ export default function ClientsPage() {
           </>
         )}
       </Card>
+
+      <InviteClientDialog open={inviteOpen} onOpenChange={setInviteOpen} />
     </div>
   );
 }

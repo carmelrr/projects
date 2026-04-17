@@ -1,6 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 
+const DEFAULT_NOTIFICATION_PREFS: Record<string, boolean> = {
+  emailMessages: true,
+  emailAssignments: true,
+  emailWeekly: false,
+  pushMessages: true,
+  pushReminders: true,
+};
+
 @Injectable()
 export class UsersService {
   constructor(private firebase: FirebaseService) {}
@@ -25,29 +33,103 @@ export class UsersService {
         orgId: o.orgId,
       })),
       coachProfile: user.coachProfile
-        ? { id: user.coachProfile.id, bio: user.coachProfile.bio, specialties: user.coachProfile.specialties }
+        ? {
+            id: user.coachProfile.id,
+            bio: user.coachProfile.bio,
+            specialties: user.coachProfile.specialties,
+          }
         : null,
       clientProfile: user.clientProfile
-        ? { id: user.clientProfile.id, status: user.clientProfile.status, goals: user.clientProfile.goals }
+        ? {
+            id: user.clientProfile.id,
+            status: user.clientProfile.status,
+            goals: user.clientProfile.goals,
+          }
         : null,
     };
   }
 
-  async updateMe(userId: string, data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) {
+  async updateMe(
+    userId: string,
+    data: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      avatarUrl?: string;
+      bio?: string;
+    },
+  ) {
+    const doc = await this.firebase.users().doc(userId).get();
+    if (!doc.exists) throw new NotFoundException('User not found');
+
+    const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    if (data.firstName !== undefined) update.firstName = data.firstName;
+    if (data.lastName !== undefined) update.lastName = data.lastName;
+    if (data.phone !== undefined) update.phone = data.phone || null;
+    if (data.avatarUrl !== undefined) update.avatarUrl = data.avatarUrl || null;
+
+    if (data.bio !== undefined) {
+      const current = doc.data()!;
+      const existingCoach = (current.coachProfile as Record<string, unknown>) || null;
+      if (existingCoach) {
+        update.coachProfile = { ...existingCoach, bio: data.bio || null };
+      }
+    }
+
+    await this.firebase.users().doc(userId).update(update);
+    return this.getMe(userId);
+  }
+
+  async getNotificationPrefs(userId: string) {
+    const doc = await this.firebase.users().doc(userId).get();
+    if (!doc.exists) throw new NotFoundException('User not found');
+    const prefs = (doc.data()?.notificationPrefs as Record<string, boolean>) || {};
+    return { ...DEFAULT_NOTIFICATION_PREFS, ...prefs };
+  }
+
+  async updateNotificationPrefs(userId: string, prefs: Record<string, boolean>) {
+    const doc = await this.firebase.users().doc(userId).get();
+    if (!doc.exists) throw new NotFoundException('User not found');
+    const current = (doc.data()?.notificationPrefs as Record<string, boolean>) || {};
+    const merged = { ...DEFAULT_NOTIFICATION_PREFS, ...current, ...prefs };
     await this.firebase.users().doc(userId).update({
-      ...data,
+      notificationPrefs: merged,
       updatedAt: new Date().toISOString(),
     });
+    return merged;
+  }
 
+  async updatePassword(userId: string, newPassword: string) {
+    if (!newPassword || newPassword.length < 8) {
+      throw new NotFoundException('Password must be at least 8 characters');
+    }
+    await this.firebase.auth.updateUser(userId, { password: newPassword });
+    return { success: true };
+  }
+
+  async registerPushToken(userId: string, token: string, platform?: string) {
+    if (!token) throw new NotFoundException('Token required');
     const doc = await this.firebase.users().doc(userId).get();
-    const user = doc.data()!;
-    return {
-      id: doc.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      phone: user.phone,
-      avatarUrl: user.avatarUrl,
-    };
+    if (!doc.exists) throw new NotFoundException('User not found');
+    const existing = (doc.data()?.pushTokens as Array<{ token: string; platform?: string; registeredAt: string }>) || [];
+    const filtered = existing.filter((t) => t.token !== token);
+    filtered.push({ token, platform: platform || 'unknown', registeredAt: new Date().toISOString() });
+    await this.firebase.users().doc(userId).update({
+      pushTokens: filtered,
+      updatedAt: new Date().toISOString(),
+    });
+    return { success: true, count: filtered.length };
+  }
+
+  async unregisterPushToken(userId: string, token: string) {
+    const doc = await this.firebase.users().doc(userId).get();
+    if (!doc.exists) throw new NotFoundException('User not found');
+    const existing = (doc.data()?.pushTokens as Array<{ token: string }>) || [];
+    const filtered = existing.filter((t) => t.token !== token);
+    await this.firebase.users().doc(userId).update({
+      pushTokens: filtered,
+      updatedAt: new Date().toISOString(),
+    });
+    return { success: true };
   }
 }

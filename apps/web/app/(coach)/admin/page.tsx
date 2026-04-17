@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/layout/StatCard';
 import { InviteCoachDialog } from './InviteCoachDialog';
+import { useAdminStats } from '@/hooks/useAdmin';
 
 const SECTIONS = [
   {
@@ -38,6 +39,7 @@ export default function AdminPage() {
   const { user } = useAuthStore();
 
   const isAdmin = user?.role === 'OWNER' || user?.role === 'ADMIN_COACH';
+  const { data: stats } = useAdminStats();
 
   useEffect(() => {
     // Redirect non-admins after a short delay so they see the gate
@@ -86,10 +88,16 @@ export default function AdminPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Active users" value="—" />
-        <StatCard label="Total clients" value="—" />
-        <StatCard label="Workouts logged (30d)" value="—" />
-        <StatCard label="Storage used" value="—" />
+        <StatCard label="Active users" value={stats ? String(stats.activeUsers) : '—'} />
+        <StatCard label="Total clients" value={stats ? String(stats.totalClients) : '—'} />
+        <StatCard
+          label="Workouts logged (30d)"
+          value={stats ? String(stats.workoutsLast30d) : '—'}
+        />
+        <StatCard
+          label="Storage used"
+          value={stats ? `${stats.storageUsedMB} MB` : '—'}
+        />
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
