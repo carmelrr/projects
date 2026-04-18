@@ -132,9 +132,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           role: raw.role ?? firstOrg?.role ?? 'COACH',
         };
         set({ user, firebaseUser, isHydrated: true });
-      } catch {
-        // Profile doesn't exist yet â€” could be new social login
-        set({ user: null, firebaseUser, isHydrated: true });
+      } catch (err) {
+        // Only treat 404 as "profile does not exist yet" (new social login
+        // flow — the UI will send them to /register). For any other status
+        // (500 server error, network failure, etc.) we must NOT drop
+        // firebaseUser, otherwise the login page redirects the user to
+        // /register on every transient backend hiccup.
+        const status = err instanceof ApiError ? err.status : 0;
+        if (status === 404) {
+          set({ user: null, firebaseUser, isHydrated: true });
+        } else {
+          // eslint-disable-next-line no-console
+          console.error('[auth] /users/me failed with non-404 status:', status, err);
+          // Preserve firebaseUser so the user stays signed-in at the Firebase
+          // layer (they can retry), but clear it from the store so the login
+          // page does not auto-redirect to /register. The user can re-attempt
+          // sign-in to refresh; a background refetch could be added later.
+          set({ user: null, firebaseUser: null, isHydrated: true });
+        }
       }
     });
   },
