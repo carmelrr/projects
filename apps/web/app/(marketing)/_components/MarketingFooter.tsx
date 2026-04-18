@@ -26,8 +26,8 @@ export function MarketingFooter() {
     {
       title: t('marketing.footer.legal'),
       links: [
-        { href: '#', label: t('marketing.footer.privacy') },
-        { href: '#', label: t('marketing.footer.terms') },
+        { href: '/privacy', label: t('marketing.footer.privacy') },
+        { href: '/terms', label: t('marketing.footer.terms') },
       ],
     },
   ];
