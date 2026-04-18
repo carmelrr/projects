@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Save, User, Building2, Bell, Lock, Palette, Loader2, Check } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import {
@@ -9,6 +10,7 @@ import {
   useNotificationPrefs,
   useUpdateNotificationPrefs,
   useUpdatePassword,
+  useDeleteAccount,
 } from '@/hooks/useUser';
 import { useOrganization, useUpdateOrganization } from '@/hooks/useOrganization';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -454,10 +456,15 @@ function BrandingSection() {
 
 // ─── Security ─────────────────────────────────────────────────────────────
 function SecuritySection() {
+  const router = useRouter();
+  const { logout } = useAuthStore();
   const update = useUpdatePassword();
+  const deleteAccount = useDeleteAccount();
   const [form, setForm] = useState({ current: '', next: '', confirm: '' });
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
 
   const save = async () => {
     setErr(null);
@@ -543,13 +550,33 @@ function SecuritySection() {
             This will permanently delete your account and all data. This action cannot be
             undone.
           </p>
-          <Button
-            variant="outline"
-            className="border-destructive/40 text-destructive hover:bg-destructive/10"
-            disabled
-          >
-            Delete account
-          </Button>
+          <div className="space-y-2">
+            <Input
+              placeholder='Type "DELETE" to confirm'
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+            />
+            {deleteErr && (
+              <p className="text-xs text-destructive">{deleteErr}</p>
+            )}
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10"
+              disabled={deleteConfirm !== 'DELETE' || deleteAccount.isPending}
+              onClick={async () => {
+                setDeleteErr(null);
+                try {
+                  await deleteAccount.mutateAsync();
+                  await logout();
+                  router.replace('/');
+                } catch (e) {
+                  setDeleteErr(e instanceof Error ? e.message : 'Could not delete account');
+                }
+              }}
+            >
+              {deleteAccount.isPending ? 'Deleting…' : 'Delete account'}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

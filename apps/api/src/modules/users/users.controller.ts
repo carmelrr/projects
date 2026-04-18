@@ -61,4 +61,9 @@ export class UsersController {
   ) {
     return this.usersService.unregisterPushToken(user.sub, token);
   }
+
+  @Delete('me')
+  async deleteMe(@CurrentUser() user: CurrentUserPayload) {
+    return this.usersService.deleteMe(user.sub);
+  }
 }

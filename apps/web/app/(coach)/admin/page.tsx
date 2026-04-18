@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Users, FileText, Activity, ChevronRight, Lock } from 'lucide-react';
+import { Users, ChevronRight, Lock, Building2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
@@ -19,18 +19,6 @@ const SECTIONS = [
     title: 'Users & roles',
     desc: 'Invite team members, assign roles, and manage permissions.',
     href: '/admin/users',
-  },
-  {
-    icon: FileText,
-    title: 'Audit log',
-    desc: 'Review every action taken on the platform.',
-    href: '/admin/audit',
-  },
-  {
-    icon: Activity,
-    title: 'System health',
-    desc: 'Monitor uptime, queue depth, and background jobs.',
-    href: '/admin/system',
   },
 ];
 
@@ -82,9 +70,9 @@ export default function AdminPage() {
   return (
     <div className="p-6 lg:p-8 space-y-6">
       <PageHeader
-        title="Admin"
+        title="Organization"
         actions={<InviteCoachDialog />}
-        description="Organization-wide controls and observability."
+        description="Manage your team and organization members."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -137,7 +125,7 @@ export default function AdminPage() {
       <Card>
         <CardContent className="p-8">
           <EmptyState
-            icon={Shield}
+            icon={Building2}
             title="More controls coming soon"
             description="Billing, SSO, and granular permissions are in development."
           />

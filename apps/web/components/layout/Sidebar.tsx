@@ -13,7 +13,7 @@ import {
   Bell,
   LogOut,
   ChevronsUpDown,
-  Shield,
+  Building2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { OwlLogo } from '@/components/brand/OwlLogo';
@@ -93,9 +93,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     ...(isAdmin
       ? [
           {
-            key: 'system',
-            label: t('nav.sections.system'),
-            items: [{ href: '/admin', label: t('nav.admin'), icon: Shield }],
+            key: 'organization',
+            label: t('nav.sections.organization'),
+            items: [{ href: '/admin', label: t('nav.organization'), icon: Building2 }],
           },
         ]
       : []),

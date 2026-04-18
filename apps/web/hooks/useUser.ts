@@ -66,3 +66,9 @@ export function useUpdatePassword() {
       api.patch<{ success: boolean }>('/users/me/password', body),
   });
 }
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: () => api.delete<{ success: boolean }>('/users/me'),
+  });
+}

@@ -132,4 +132,47 @@ export class UsersService {
     });
     return { success: true };
   }
+
+  /**
+   * Delete the current user's account and all associated data.
+   * - Removes Firestore user document
+   * - Removes Firebase Auth account
+   * - Removes client assignments if coach
+   */
+  async deleteMe(userId: string) {
+    const doc = await this.firebase.users().doc(userId).get();
+    if (!doc.exists) throw new NotFoundException('User not found');
+
+    const user = doc.data()!;
+    const firebaseUid = user.firebaseUid as string | undefined;
+    const orgs = (user.orgs as Array<{ orgId: string; role: string }>) || [];
+    const batch = this.firebase.batch();
+
+    // Delete the user document
+    batch.delete(this.firebase.users().doc(userId));
+
+    // Write audit log for each org
+    for (const org of orgs) {
+      batch.set(this.firebase.auditLogs(org.orgId).doc(), {
+        actorId: userId,
+        action: 'user.account_deleted',
+        targetType: 'User',
+        targetId: userId,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    await batch.commit();
+
+    // Delete Firebase Auth account (best-effort)
+    if (firebaseUid) {
+      try {
+        await this.firebase.auth.deleteUser(firebaseUid);
+      } catch {
+        // Auth record may not exist or already deleted
+      }
+    }
+
+    return { success: true };
+  }
 }

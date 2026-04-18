@@ -40,10 +40,12 @@
     "notifications": "Notifications",
     "settings": "Settings",
     "admin": "Admin",
+    "organization": "Organization",
     "sections": {
       "workspace": "Workspace",
       "engage": "Engage",
-      "system": "System"
+      "system": "System",
+      "organization": "Organization"
     }
   },
   "dashboard": {

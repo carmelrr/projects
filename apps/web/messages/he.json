@@ -40,10 +40,12 @@
     "notifications": "התראות",
     "settings": "הגדרות",
     "admin": "אדמין",
+    "organization": "ניהול ארגון",
     "sections": {
       "workspace": "סביבת עבודה",
       "engage": "תקשורת",
-      "system": "מערכת"
+      "system": "מערכת",
+      "organization": "ניהול"
     }
   },
   "dashboard": {
