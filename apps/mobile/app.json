@@ -11,13 +11,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.coaching.app"
+      "bundleIdentifier": "owl.performance.com",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "package": "com.coaching.app"
+      "package": "owl.performance.com"
     },
     "plugins": [
       "expo-router",
