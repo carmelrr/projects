@@ -18,7 +18,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           alt=""
           width={800}
           height={800}
-          className="size-[60vmin] max-w-[800px] opacity-[0.04] blur-[2px] dark:invert dark:opacity-[0.06]"
+          className="size-[70vmin] max-w-[900px] opacity-[0.06] blur-[2px] dark:invert dark:opacity-[0.08]"
           priority
         />
       </div>
