@@ -2,7 +2,7 @@
   "expo": {
     "name": "OWL Performance",
     "slug": "coaching-app",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "coaching-app",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "owl.performance.com",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "googleServicesFile": "./GoogleService-Info.plist",
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -38,6 +38,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "owl.performance.com",
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
