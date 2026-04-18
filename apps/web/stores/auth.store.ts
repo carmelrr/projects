@@ -1,14 +1,17 @@
 ﻿import { create } from 'zustand';
 import {
   signInWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
   OAuthProvider,
   signOut,
   onAuthStateChanged,
+  type AuthProvider,
   type User as FirebaseUser,
 } from 'firebase/auth';
+import { FirebaseError } from 'firebase/app';
 import { auth } from '@/lib/firebase';
 import { api, ApiError } from '@/lib/api';
 
@@ -41,6 +44,37 @@ const appleProvider = new OAuthProvider('apple.com');
 appleProvider.addScope('email');
 appleProvider.addScope('name');
 
+/**
+ * Try popup first (better UX, no page reload). On environments where popup is
+ * blocked or unsupported (Safari ITP, embedded browsers, some 3rd-party-cookie
+ * setups), fall back to signInWithRedirect — `getRedirectResult()` in
+ * `hydrate()` picks up the result on the next page load.
+ */
+async function signInWithProvider(provider: AuthProvider): Promise<void> {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    if (err instanceof FirebaseError) {
+      const fallbackCodes = new Set([
+        'auth/popup-blocked',
+        'auth/popup-closed-by-user',
+        'auth/cancelled-popup-request',
+        'auth/operation-not-supported-in-this-environment',
+        'auth/web-storage-unsupported',
+      ]);
+      if (fallbackCodes.has(err.code)) {
+        if (err.code === 'auth/popup-closed-by-user') {
+          // User explicitly cancelled — don't fall back to redirect.
+          throw err;
+        }
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+    }
+    throw err;
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   firebaseUser: null,
@@ -61,10 +95,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginWithGoogle: async () => {
     set({ isLoading: true });
     try {
-      // Use redirect flow instead of popup â€” avoids popup-blocker issues in
-      // production (Safari ITP, embedded browsers, Vercel preview domains).
-      // Result is picked up on next load via getRedirectResult() in hydrate().
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithProvider(googleProvider);
+      // If popup path completed, onAuthStateChanged in hydrate() will fire and
+      // populate the store; explicit syncProfile is also safe here.
+      if (auth.currentUser) {
+        await get().syncProfile(auth.currentUser);
+      }
     } catch (err) {
       set({ isLoading: false });
       throw err;
@@ -74,7 +110,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginWithApple: async () => {
     set({ isLoading: true });
     try {
-      await signInWithRedirect(auth, appleProvider);
+      await signInWithProvider(appleProvider);
+      if (auth.currentUser) {
+        await get().syncProfile(auth.currentUser);
+      }
     } catch (err) {
       set({ isLoading: false });
       throw err;
@@ -105,9 +144,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   hydrate: () => {
-    // Surface any pending redirect result (Google/Apple sign-in via
-    // signInWithRedirect). Errors are logged but non-fatal — onAuthStateChanged
-    // will still fire with the authenticated user if redirect succeeded.
+    // Pick up redirect-based sign-in (used as a fallback when popup is blocked).
     getRedirectResult(auth).catch((err) => {
       // eslint-disable-next-line no-console
       console.warn('[auth] getRedirectResult failed:', err);
@@ -127,7 +164,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
     };
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         set({ user: null, firebaseUser: null, isHydrated: true });
         return;
@@ -144,24 +181,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         console.warn('[auth] /users/me failed, falling back to /auth/sync:', status, err);
       }
 
-      // Fallback to the public /auth/sync, which:
-      //  • creates/links the Firestore profile for a fresh social login (401/404 case)
-      //  • is cheaper and more reliable than /users/me (no auth guard, no Firestore
-      //    composite queries), so it also recovers from transient 500s on /users/me.
+      // Fallback to public /auth/sync — handles fresh social logins where the
+      // Firestore profile doesn't exist yet (or only exists as a PENDING doc
+      // pre-created by a coach invite, in which case sync links by email).
       try {
         await get().syncProfile(firebaseUser);
-        // syncProfile already populated user + firebaseUser (or set user=null
-        // for brand-new social logins that need to finish /register).
         set({ isHydrated: true });
         return;
       } catch (syncErr) {
         // eslint-disable-next-line no-console
         console.error('[auth] /auth/sync fallback failed:', syncErr);
-        // Backend is truly down. Keep firebaseUser so a retry is possible,
-        // but leave user null. The login page won't auto-bounce to /register
-        // because we explicitly don't know the user's state.
         set({ user: null, firebaseUser, isHydrated: true });
       }
     });
   },
 }));
+

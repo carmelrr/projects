@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import {
   View,
   Text,
@@ -8,19 +8,47 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuthStore } from '@/stores/auth.store';
 import { ApiError } from '@/lib/api';
 
 export default function LoginScreen() {
-  const { loginWithEmail } = useAuthStore();
+  const { loginWithEmail, loginWithGoogle, loginWithApple } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [socialBusy, setSocialBusy] = useState<'google' | 'apple' | null>(null);
   const [error, setError] = useState('');
+
+  const routeAfterAuth = () => {
+    const state = useAuthStore.getState();
+    if (state.user) {
+      router.replace('/(client)/today');
+    } else if (state.firebaseUser) {
+      router.replace('/(auth)/needs-invite');
+    }
+  };
+
+  const handleAuthError = (err: unknown) => {
+    const code = (err as { code?: string } | undefined)?.code;
+    if (
+      code === 'auth/invalid-credential' ||
+      code === 'auth/wrong-password' ||
+      code === 'auth/user-not-found' ||
+      (err instanceof ApiError && err.status === 401)
+    ) {
+      setError('Incorrect email or password.');
+    } else if (code === 'auth/too-many-requests') {
+      setError('Too many attempts. Please try again later.');
+    } else if (code === '12501' || code === '-5' || code === 'ERR_REQUEST_CANCELED') {
+      // User cancelled â€” don't show an error.
+    } else {
+      setError('Something went wrong. Please try again.');
+    }
+  };
 
   const handleLogin = async () => {
     setError('');
@@ -32,25 +60,42 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await loginWithEmail(email.trim().toLowerCase(), password);
-      router.replace('/(client)/today');
+      routeAfterAuth();
     } catch (err) {
-      const code = (err as { code?: string } | undefined)?.code;
-      if (
-        code === 'auth/invalid-credential' ||
-        code === 'auth/wrong-password' ||
-        code === 'auth/user-not-found' ||
-        (err instanceof ApiError && err.status === 401)
-      ) {
-        setError('Incorrect email or password.');
-      } else if (code === 'auth/too-many-requests') {
-        setError('Too many attempts. Please try again later.');
-      } else {
-        setError('Something went wrong. Please try again.');
-      }
+      handleAuthError(err);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleGoogle = async () => {
+    setError('');
+    setSocialBusy('google');
+    try {
+      await loginWithGoogle();
+      routeAfterAuth();
+    } catch (err) {
+      handleAuthError(err);
+    } finally {
+      setSocialBusy(null);
+    }
+  };
+
+  const handleApple = async () => {
+    setError('');
+    setSocialBusy('apple');
+    try {
+      await loginWithApple();
+      routeAfterAuth();
+    } catch (err) {
+      handleAuthError(err);
+    } finally {
+      setSocialBusy(null);
+    }
+  };
+
+  const showApple = Platform.OS === 'ios';
+  const anyBusy = isLoading || socialBusy !== null;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -76,6 +121,39 @@ export default function LoginScreen() {
               </View>
             ) : null}
 
+            {/* Social login */}
+            <Pressable
+              style={[styles.socialBtn, anyBusy && styles.buttonDisabled]}
+              onPress={handleGoogle}
+              disabled={anyBusy}
+            >
+              {socialBusy === 'google' ? (
+                <ActivityIndicator color="#111827" size="small" />
+              ) : (
+                <Text style={styles.socialText}>Continue with Google</Text>
+              )}
+            </Pressable>
+
+            {showApple && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={
+                  AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                }
+                buttonStyle={
+                  AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={10}
+                style={styles.appleBtn}
+                onPress={handleApple}
+              />
+            )}
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
             <View style={styles.field}>
               <Text style={styles.label}>Email</Text>
               <TextInput
@@ -98,7 +176,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="••••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                 placeholderTextColor="#9ca3af"
                 secureTextEntry
                 textContentType="password"
@@ -109,9 +187,9 @@ export default function LoginScreen() {
             </View>
 
             <Pressable
-              style={[styles.button, isLoading && styles.buttonDisabled]}
+              style={[styles.button, anyBusy && styles.buttonDisabled]}
               onPress={handleLogin}
-              disabled={isLoading}
+              disabled={anyBusy}
             >
               {isLoading ? (
                 <ActivityIndicator color="#fff" size="small" />
@@ -191,6 +269,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  socialBtn: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+  socialText: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  appleBtn: {
+    width: '100%',
+    height: 46,
+    marginBottom: 10,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#9ca3af',
+    fontSize: 12,
+    textTransform: 'uppercase',
+  },
   field: {
     marginBottom: 16,
   },
@@ -236,3 +349,85 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.container}>
+          {/* Logo / title */}
+          <View style={styles.header}>
+            <View style={styles.logoBox}>
+              <Text style={styles.logoLetter}>C</Text>
+            </View>
+            <Text style={styles.title}>Coaching App</Text>
+            <Text style={styles.subtitle}>Sign in to your account</Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry
+                textContentType="password"
+                autoComplete="current-password"
+                onSubmitEditing={handleLogin}
+                returnKeyType="go"
+              />
+            </View>
+
+            <Pressable
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Sign In</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/(auth)/forgot-password')}
+              style={styles.linkBtn}
+            >
+              <Text style={styles.linkText}>Forgot password?</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+

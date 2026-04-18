@@ -27,6 +27,7 @@ function AcceptInviteInner() {
   const [form, setForm] = useState({ firstName: '', lastName: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [completed, setCompleted] = useState<{ role: AuthUser['role'] } | null>(null);
 
   const decoded = useMemo(() => {
     if (!token) return null;
@@ -86,6 +87,14 @@ function AcceptInviteInner() {
         firebaseUser: credential.user,
         isHydrated: true,
       });
+
+      // For client invites, offer the option to continue in the mobile app
+      // (deep link) before redirecting to the web app.
+      if (res.user.role === 'CLIENT') {
+        setCompleted({ role: res.user.role });
+        return;
+      }
+
       router.push(postLoginPath(res.user.role));
     } catch (err) {
       if (err instanceof FirebaseError) {
@@ -114,6 +123,37 @@ function AcceptInviteInner() {
         <Button asChild variant="outline">
           <Link href="/login">{t('common.signIn')}</Link>
         </Button>
+      </div>
+    );
+  }
+
+  if (completed) {
+    const deepLink = `coaching-app://accept-invite?token=${encodeURIComponent(token)}`;
+    return (
+      <div className="w-full space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            You&apos;re all set!
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Open the OWL Performance app on your phone to continue, or keep using
+            the web dashboard.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <Button asChild variant="gradient" size="lg" className="w-full">
+            <a href={deepLink}>Open in mobile app</a>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="w-full"
+            onClick={() => router.push(postLoginPath(completed.role))}
+          >
+            Continue in browser
+          </Button>
+        </div>
       </div>
     );
   }

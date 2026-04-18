@@ -65,11 +65,17 @@ export class AuthService {
       const user = userDoc.data();
       const userOrg = user.orgs?.[0];
 
-      // Link firebaseUid to existing profile
-      await userDoc.ref.update({
+      // Link firebaseUid to existing profile and activate it (was PENDING
+      // until the user actually signed in for the first time).
+      const updates: Record<string, unknown> = {
         firebaseUid,
         lastLoginAt: new Date().toISOString(),
-      });
+      };
+      if (user.status === 'PENDING') updates.status = 'ACTIVE';
+      if (user.clientProfile && user.clientProfile.status === 'PENDING') {
+        updates['clientProfile.status'] = 'ACTIVE';
+      }
+      await userDoc.ref.update(updates);
 
       return {
         user: {
@@ -176,12 +182,85 @@ export class AuthService {
     };
   }
 
-  // â”€â”€ Invite flows (still uses JWT for invite tokens) â”€â”€â”€â”€â”€â”€
+  // ── Invite flows (still uses JWT for invite tokens) ──────
 
+  /**
+   * Coach invites a client: creates a PENDING Firestore user doc + client
+   * profile (+ optional coach assignment) so that when the client later signs
+   * in with Google/Apple/email/password using the same email address,
+   * `syncUser()` auto-links by email and the user immediately has access to
+   * their org and assigned coach.
+   *
+   * If a user already exists with that email (PENDING or ACTIVE), this is a
+   * no-op for the user doc — we just re-issue the invite token so the coach
+   * can resend the link.
+   */
   async createClientInvite(coachProfileId: string, orgId: string, email: string) {
+    const lowerEmail = email.toLowerCase();
+
+    const existingSnap = await this.firebase
+      .users()
+      .where('email', '==', lowerEmail)
+      .limit(1)
+      .get();
+
+    if (existingSnap.empty) {
+      const userId = this.firebase.generateId();
+      const clientProfileId = this.firebase.generateId();
+      const now = new Date().toISOString();
+
+      const batch = this.firebase.batch();
+
+      batch.set(this.firebase.users().doc(userId), {
+        firebaseUid: null,
+        email: lowerEmail,
+        firstName: '',
+        lastName: '',
+        phone: null,
+        avatarUrl: null,
+        status: 'PENDING',
+        lastLoginAt: null,
+        createdAt: now,
+        updatedAt: now,
+        orgs: [{ orgId, role: 'CLIENT', joinedAt: now }],
+        coachProfile: null,
+        clientProfile: {
+          id: clientProfileId,
+          orgId,
+          status: 'PENDING',
+          dob: null,
+          heightCm: null,
+          goals: null,
+          medicalNotes: null,
+          archivedAt: null,
+        },
+      });
+
+      batch.set(this.firebase.clientAssignments(orgId).doc(), {
+        clientId: clientProfileId,
+        clientUserId: userId,
+        coachId: coachProfileId,
+        status: 'ACTIVE',
+        startAt: now,
+        endAt: null,
+        notes: null,
+        createdAt: now,
+      });
+
+      batch.set(this.firebase.auditLogs(orgId).doc(), {
+        actorId: coachProfileId,
+        action: 'auth.invite_client',
+        targetType: 'User',
+        targetId: lowerEmail,
+        createdAt: now,
+      });
+
+      await batch.commit();
+    }
+
     const payload = {
       type: 'client-invite',
-      email: email.toLowerCase(),
+      email: lowerEmail,
       orgId,
       coachProfileId,
     };
@@ -282,15 +361,120 @@ export class AuthService {
     firstName: string,
     lastName: string,
   ) {
+    const lowerEmail = email.toLowerCase();
+    const now = new Date().toISOString();
+
+    // If a user doc already exists for this email (PENDING from invite, or
+    // ACTIVE from a prior social login), upgrade it in-place instead of
+    // creating a duplicate.
+    const existingSnap = await this.firebase
+      .users()
+      .where('email', '==', lowerEmail)
+      .limit(1)
+      .get();
+
+    if (!existingSnap.empty) {
+      const userDoc = existingSnap.docs[0];
+      const existing = userDoc.data();
+      const existingClientProfileId: string | undefined =
+        existing.clientProfile?.id;
+
+      const updates: Record<string, unknown> = {
+        firebaseUid,
+        firstName: firstName || existing.firstName || '',
+        lastName: lastName || existing.lastName || '',
+        status: 'ACTIVE',
+        lastLoginAt: now,
+        updatedAt: now,
+      };
+
+      // Ensure org membership exists.
+      const orgs: Array<{ orgId: string; role: string; joinedAt: string }> =
+        Array.isArray(existing.orgs) ? existing.orgs : [];
+      const hasOrg = orgs.some((o) => o.orgId === payload.orgId);
+      if (!hasOrg) {
+        updates.orgs = [
+          ...orgs,
+          { orgId: payload.orgId, role: 'CLIENT', joinedAt: now },
+        ];
+      }
+
+      const clientProfileId = existingClientProfileId ?? this.firebase.generateId();
+      if (!existingClientProfileId) {
+        updates.clientProfile = {
+          id: clientProfileId,
+          orgId: payload.orgId,
+          status: 'ACTIVE',
+          dob: null,
+          heightCm: null,
+          goals: null,
+          medicalNotes: null,
+          archivedAt: null,
+        };
+      } else if (existing.clientProfile?.status !== 'ACTIVE') {
+        updates['clientProfile.status'] = 'ACTIVE';
+      }
+
+      const batch = this.firebase.batch();
+      batch.update(userDoc.ref, updates);
+
+      // Ensure coach assignment exists if invite carried one.
+      if (payload.coachProfileId) {
+        const assignSnap = await this.firebase
+          .clientAssignments(payload.orgId)
+          .where('clientId', '==', clientProfileId)
+          .where('coachId', '==', payload.coachProfileId)
+          .where('status', '==', 'ACTIVE')
+          .limit(1)
+          .get();
+
+        if (assignSnap.empty) {
+          batch.set(this.firebase.clientAssignments(payload.orgId).doc(), {
+            clientId: clientProfileId,
+            clientUserId: userDoc.id,
+            coachId: payload.coachProfileId,
+            status: 'ACTIVE',
+            startAt: now,
+            endAt: null,
+            notes: null,
+            createdAt: now,
+          });
+        }
+      }
+
+      batch.set(this.firebase.auditLogs(payload.orgId).doc(), {
+        actorId: userDoc.id,
+        action: 'auth.accept_invite',
+        targetType: 'ClientProfile',
+        targetId: clientProfileId,
+        createdAt: now,
+      });
+
+      await batch.commit();
+
+      return {
+        user: {
+          id: userDoc.id,
+          email: lowerEmail,
+          firstName: (updates.firstName as string) ?? '',
+          lastName: (updates.lastName as string) ?? '',
+          orgId: payload.orgId,
+          role: 'CLIENT' as const,
+          avatarUrl: existing.avatarUrl ?? null,
+        },
+      };
+    }
+
+    // No existing user — create from scratch (legacy path, e.g. invite link
+    // opened on a device without prior sign-in).
     const userId = this.firebase.generateId();
     const clientProfileId = this.firebase.generateId();
-    const now = new Date().toISOString();
 
     const batch = this.firebase.batch();
 
     batch.set(this.firebase.users().doc(userId), {
       firebaseUid,
-      email: email.toLowerCase(),
+      email: lowerEmail,
       firstName,
       lastName,
       phone: null,
@@ -339,7 +523,7 @@ export class AuthService {
     return {
       user: {
         id: userId,
-        email: email.toLowerCase(),
+        email: lowerEmail,
         firstName,
         lastName,
         orgId: payload.orgId,

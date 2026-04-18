@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1076962539759",
+    "project_id": "my-coaching-app-38e46",
+    "storage_bucket": "my-coaching-app-38e46.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1076962539759:android:14244746d92f136f59431a",
+        "android_client_info": {
+          "package_name": "owl.performance.com"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1076962539759-hdflsafusioqetfu2aksl6qh0vdo87o0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxdD3Rfs0oD7rf_534qxRt83-HMHCrhpo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1076962539759-hdflsafusioqetfu2aksl6qh0vdo87o0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1076962539759-6n736qtduar8d3j25r3olifhaanig554.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "owl.performance.com"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuthStore } from '@/stores/auth.store';
 
 export default function AcceptInviteScreen() {
   const params = useLocalSearchParams<{ token?: string }>();
-  const { acceptInvite } = useAuthStore();
+  const { acceptInvite, loginWithGoogle, loginWithApple } = useAuthStore();
+  const [socialBusy, setSocialBusy] = useState<'google' | 'apple' | null>(null);
   const [form, setForm] = useState({
     token: params.token ?? '',
     email: '',
@@ -65,6 +67,36 @@ export default function AcceptInviteScreen() {
     }
   };
 
+  const handleSocial = async (provider: 'google' | 'apple') => {
+    setError('');
+    setSocialBusy(provider);
+    try {
+      if (provider === 'google') await loginWithGoogle();
+      else await loginWithApple();
+      // After social login, syncProfile auto-links the PENDING user doc
+      // (created by the coach invite) by email. The user is now ACTIVE.
+      const state = useAuthStore.getState();
+      if (state.user) {
+        router.replace('/(client)/today');
+      } else if (state.firebaseUser) {
+        router.replace('/(auth)/needs-invite');
+      }
+    } catch (err) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (
+        code === '12501' ||
+        code === '-5' ||
+        code === 'ERR_REQUEST_CANCELED'
+      ) {
+        // user cancelled
+      } else {
+        setError((err as Error)?.message || 'Sign-in failed. Please try again.');
+      }
+    } finally {
+      setSocialBusy(null);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -91,6 +123,40 @@ export default function AcceptInviteScreen() {
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
+
+            {/* Social signup — works when coach pre-created the invite for
+                the same email. Otherwise the user is sent to /needs-invite. */}
+            <Pressable
+              style={[styles.socialBtn, socialBusy && styles.buttonDisabled]}
+              onPress={() => handleSocial('google')}
+              disabled={!!socialBusy || busy}
+            >
+              {socialBusy === 'google' ? (
+                <ActivityIndicator color="#111827" size="small" />
+              ) : (
+                <Text style={styles.socialText}>Continue with Google</Text>
+              )}
+            </Pressable>
+
+            {Platform.OS === 'ios' && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={
+                  AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
+                }
+                buttonStyle={
+                  AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={10}
+                style={styles.appleBtn}
+                onPress={() => handleSocial('apple')}
+              />
+            )}
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or sign up with email</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
             {!params.token && (
               <View style={styles.field}>
@@ -215,6 +281,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: { color: '#dc2626', fontSize: 14 },
+  socialBtn: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+  socialText: { color: '#111827', fontSize: 15, fontWeight: '600' },
+  appleBtn: { width: '100%', height: 46, marginBottom: 10 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#9ca3af',
+    fontSize: 12,
+  },
   field: { marginBottom: 16 },
   label: {
     fontSize: 13,

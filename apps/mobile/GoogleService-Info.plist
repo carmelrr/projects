@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>1076962539759-6n736qtduar8d3j25r3olifhaanig554.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.1076962539759-6n736qtduar8d3j25r3olifhaanig554</string>
+	<key>API_KEY</key>
+	<string>AIzaSyCE5aMtY-IKg-rY0o_13RVjKCnRh0r2kHM</string>
+	<key>GCM_SENDER_ID</key>
+	<string>1076962539759</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>owl.performance.com</string>
+	<key>PROJECT_ID</key>
+	<string>my-coaching-app-38e46</string>
+	<key>STORAGE_BUCKET</key>
+	<string>my-coaching-app-38e46.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:1076962539759:ios:686493711bb43dc459431a</string>
+</dict>
+</plist>
