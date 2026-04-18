@@ -7,7 +7,7 @@ export const contentType = 'image/png';
 export const alt = 'OWL Performance — Coaching that scales with you';
 
 export default async function Image() {
-  const logoData = await readFile(join(process.cwd(), 'public/images/op-logo.png'));
+  const logoData = await readFile(join(process.cwd(), 'public/images/op-logo-transparent.png'));
   const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
 
   return new ImageResponse(
@@ -28,7 +28,7 @@ export default async function Image() {
       >
         {/* Header: logo + brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <img src={logoBase64} width="64" height="64" style={{ borderRadius: 12 }} />
+          <img src={logoBase64} width="64" height="64" style={{ borderRadius: 12, filter: 'invert(1)' }} />
           <span style={{ fontSize: 36, fontWeight: 600, letterSpacing: -0.5 }}>
             OWL Performance
           </span>

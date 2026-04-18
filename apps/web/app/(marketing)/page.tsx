@@ -12,6 +12,7 @@ import {
   Dumbbell,
   Smartphone,
 } from 'lucide-react';
+import Image from 'next/image';
 import { useT, useI18n } from '@/lib/i18n/client';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,18 @@ export default function MarketingHomePage() {
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="aurora absolute inset-0 -z-10 opacity-50" aria-hidden="true" />
+
+        {/* Blurred logo watermark */}
+        <div className="pointer-events-none absolute inset-0 -z-[5] flex items-center justify-center" aria-hidden="true">
+          <Image
+            src="/images/op-logo-transparent.png"
+            alt=""
+            width={700}
+            height={700}
+            className="size-[500px] opacity-[0.07] blur-[3px] dark:invert dark:opacity-[0.08] lg:size-[700px]"
+            priority
+          />
+        </div>
         <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
           <div className="mx-auto max-w-3xl text-center">
             <Badge variant="default" className="mb-4">
@@ -233,6 +246,17 @@ export default function MarketingHomePage() {
       {/* CTA BAND */}
       <section className="relative overflow-hidden border-t border-border">
         <div className="aurora absolute inset-0 -z-10 opacity-60" aria-hidden="true" />
+
+        {/* Blurred logo watermark */}
+        <div className="pointer-events-none absolute inset-0 -z-[5] flex items-center justify-center" aria-hidden="true">
+          <Image
+            src="/images/op-logo-transparent.png"
+            alt=""
+            width={400}
+            height={400}
+            className="size-[350px] opacity-[0.05] blur-[2px] dark:invert dark:opacity-[0.07]"
+          />
+        </div>
         <div className="mx-auto max-w-4xl px-4 py-20 text-center lg:px-8">
           <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {t('marketing.cta.title')}
