@@ -26,16 +26,20 @@ export const metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
   ),
-  title: 'Owl Performance — Coaching that scales with you',
+  title: 'OWL Performance — Coaching that scales with you',
   description: 'The coaching platform that watches over every client.',
+  icons: {
+    icon: '/icon.png',
+    apple: '/images/apple-touch-icon.png',
+  },
   openGraph: {
-    title: 'Owl Performance — Coaching that scales with you',
+    title: 'OWL Performance — Coaching that scales with you',
     description: 'The coaching platform that watches over every client.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Owl Performance',
+    title: 'OWL Performance',
     description: 'The coaching platform that watches over every client.',
   },
 };

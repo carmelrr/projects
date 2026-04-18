@@ -1,10 +1,15 @@
 import { ImageResponse } from 'next/og';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
-export const alt = 'Owl Performance — Coaching that scales with you';
+export const alt = 'OWL Performance — Coaching that scales with you';
 
 export default async function Image() {
+  const logoData = await readFile(join(process.cwd(), 'public/images/op-logo.png'));
+  const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
+
   return new ImageResponse(
     (
       <div
@@ -21,26 +26,11 @@ export default async function Image() {
           fontFamily: 'Inter, system-ui',
         }}
       >
-        {/* Header: mark + brand */}
+        {/* Header: logo + brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <svg width="64" height="64" viewBox="0 0 40 40">
-            <defs>
-              <linearGradient id="g" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stopColor="#a78bff" />
-                <stop offset="1" stopColor="#4e35c6" />
-              </linearGradient>
-            </defs>
-            <rect x="3" y="3" width="34" height="34" rx="10" fill="url(#g)" />
-            <path d="M11 9 L15 14 L8 12 Z" fill="#e6dfff" />
-            <path d="M29 9 L25 14 L32 12 Z" fill="#e6dfff" />
-            <circle cx="14.5" cy="19" r="4.2" fill="white" />
-            <circle cx="25.5" cy="19" r="4.2" fill="white" />
-            <circle cx="14.5" cy="19.4" r="2" fill="#1d1348" />
-            <circle cx="25.5" cy="19.4" r="2" fill="#1d1348" />
-            <path d="M20 22.5 L22 26 L18 26 Z" fill="#ffb547" />
-          </svg>
+          <img src={logoBase64} width="64" height="64" style={{ borderRadius: 12 }} />
           <span style={{ fontSize: 36, fontWeight: 600, letterSpacing: -0.5 }}>
-            Owl Performance
+            OWL Performance
           </span>
         </div>
 
