@@ -133,41 +133,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
+      // Try the authenticated /users/me first.
       try {
         const user = await loadProfile(firebaseUser);
         set({ user, firebaseUser, isHydrated: true });
         return;
       } catch (err) {
         const status = err instanceof ApiError ? err.status : 0;
-
-        // 401 ("User profile not found") is the normal path for a fresh
-        // social-login (Google/Apple via signInWithRedirect) where the
-        // Firestore profile hasn't been linked yet. Fall back to /auth/sync,
-        // which is the public endpoint that creates or links the profile.
-        if (status === 401 || status === 404) {
-          try {
-            await get().syncProfile(firebaseUser);
-            // syncProfile already called set() with the right state.
-            // If it set user=null + firebaseUser=non-null, the login page
-            // routes the user to /register.
-            set({ isHydrated: true });
-            return;
-          } catch (syncErr) {
-            // eslint-disable-next-line no-console
-            console.error('[auth] /auth/sync fallback failed:', syncErr);
-            set({ user: null, firebaseUser, isHydrated: true });
-            return;
-          }
-        }
-
-        // Any other status (500, network, etc.) is a transient backend
-        // error. Keep firebaseUser so the user is still signed-in at the
-        // Firebase layer (they can retry), but leave user=null and clear
-        // firebaseUser from the store so the login page doesn't bounce
-        // them into /register on every hiccup.
         // eslint-disable-next-line no-console
-        console.error('[auth] /users/me failed:', status, err);
-        set({ user: null, firebaseUser: null, isHydrated: true });
+        console.warn('[auth] /users/me failed, falling back to /auth/sync:', status, err);
+      }
+
+      // Fallback to the public /auth/sync, which:
+      //  • creates/links the Firestore profile for a fresh social login (401/404 case)
+      //  • is cheaper and more reliable than /users/me (no auth guard, no Firestore
+      //    composite queries), so it also recovers from transient 500s on /users/me.
+      try {
+        await get().syncProfile(firebaseUser);
+        // syncProfile already populated user + firebaseUser (or set user=null
+        // for brand-new social logins that need to finish /register).
+        set({ isHydrated: true });
+        return;
+      } catch (syncErr) {
+        // eslint-disable-next-line no-console
+        console.error('[auth] /auth/sync fallback failed:', syncErr);
+        // Backend is truly down. Keep firebaseUser so a retry is possible,
+        // but leave user null. The login page won't auto-bounce to /register
+        // because we explicitly don't know the user's state.
+        set({ user: null, firebaseUser, isHydrated: true });
       }
     });
   },
