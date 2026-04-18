@@ -31,7 +31,13 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   const res = await fetch(url, { ...options, headers });
 
   if (res.status === 401) {
-    if (typeof window !== 'undefined') window.location.href = '/login';
+    // Do NOT hard-redirect when we're already on the login page (e.g. the
+    // auth store is bootstrapping via /users/me after a social redirect)
+    // — that would cause an infinite reload loop. Let the caller's catch
+    // block handle the 401 (auth.store has a /auth/sync fallback for it).
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
     throw new ApiError('Unauthorized', 401);
   }
 

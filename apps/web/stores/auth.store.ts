@@ -106,12 +106,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   hydrate: () => {
     // Surface any pending redirect result (Google/Apple sign-in via
-    // signInWithRedirect). Errors are logged but non-fatal â€” onAuthStateChanged
+    // signInWithRedirect). Errors are logged but non-fatal — onAuthStateChanged
     // will still fire with the authenticated user if redirect succeeded.
     getRedirectResult(auth).catch((err) => {
       // eslint-disable-next-line no-console
       console.warn('[auth] getRedirectResult failed:', err);
     });
+
+    const loadProfile = async (
+      firebaseUser: FirebaseUser,
+    ): Promise<AuthUser | null> => {
+      const raw = await api.get<
+        AuthUser & { orgs?: Array<{ orgId: string; role: AuthUser['role'] }> }
+      >('/users/me');
+      const firstOrg = raw.orgs?.[0];
+      return {
+        ...raw,
+        orgId: raw.orgId ?? firstOrg?.orgId ?? '',
+        role: raw.role ?? firstOrg?.role ?? 'COACH',
+      };
+    };
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
@@ -120,36 +134,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       try {
-        // Try to get profile from API
-        const raw = await api.get<
-          AuthUser & { orgs?: Array<{ orgId: string; role: AuthUser['role'] }> }
-        >('/users/me');
-
-        const firstOrg = raw.orgs?.[0];
-        const user: AuthUser = {
-          ...raw,
-          orgId: raw.orgId ?? firstOrg?.orgId ?? '',
-          role: raw.role ?? firstOrg?.role ?? 'COACH',
-        };
+        const user = await loadProfile(firebaseUser);
         set({ user, firebaseUser, isHydrated: true });
+        return;
       } catch (err) {
-        // Only treat 404 as "profile does not exist yet" (new social login
-        // flow — the UI will send them to /register). For any other status
-        // (500 server error, network failure, etc.) we must NOT drop
-        // firebaseUser, otherwise the login page redirects the user to
-        // /register on every transient backend hiccup.
         const status = err instanceof ApiError ? err.status : 0;
-        if (status === 404) {
-          set({ user: null, firebaseUser, isHydrated: true });
-        } else {
-          // eslint-disable-next-line no-console
-          console.error('[auth] /users/me failed with non-404 status:', status, err);
-          // Preserve firebaseUser so the user stays signed-in at the Firebase
-          // layer (they can retry), but clear it from the store so the login
-          // page does not auto-redirect to /register. The user can re-attempt
-          // sign-in to refresh; a background refetch could be added later.
-          set({ user: null, firebaseUser: null, isHydrated: true });
+
+        // 401 ("User profile not found") is the normal path for a fresh
+        // social-login (Google/Apple via signInWithRedirect) where the
+        // Firestore profile hasn't been linked yet. Fall back to /auth/sync,
+        // which is the public endpoint that creates or links the profile.
+        if (status === 401 || status === 404) {
+          try {
+            await get().syncProfile(firebaseUser);
+            // syncProfile already called set() with the right state.
+            // If it set user=null + firebaseUser=non-null, the login page
+            // routes the user to /register.
+            set({ isHydrated: true });
+            return;
+          } catch (syncErr) {
+            // eslint-disable-next-line no-console
+            console.error('[auth] /auth/sync fallback failed:', syncErr);
+            set({ user: null, firebaseUser, isHydrated: true });
+            return;
+          }
         }
+
+        // Any other status (500, network, etc.) is a transient backend
+        // error. Keep firebaseUser so the user is still signed-in at the
+        // Firebase layer (they can retry), but leave user=null and clear
+        // firebaseUser from the store so the login page doesn't bounce
+        // them into /register on every hiccup.
+        // eslint-disable-next-line no-console
+        console.error('[auth] /users/me failed:', status, err);
+        set({ user: null, firebaseUser: null, isHydrated: true });
       }
     });
   },
