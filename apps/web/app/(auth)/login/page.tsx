@@ -40,6 +40,7 @@ export default function LoginPage() {
     if (err instanceof FirebaseError) {
       switch (err.code) {
         case 'auth/invalid-credential':
+        case 'auth/invalid-login-credentials':
         case 'auth/user-not-found':
         case 'auth/wrong-password':
           return t('auth.invalidCredentials');

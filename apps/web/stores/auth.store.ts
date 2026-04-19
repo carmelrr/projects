@@ -1,7 +1,6 @@
 ﻿import { create } from 'zustand';
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -11,7 +10,6 @@ import {
   type AuthProvider,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { FirebaseError } from 'firebase/app';
 import { auth } from '@/lib/firebase';
 import { api, ApiError } from '@/lib/api';
 
@@ -45,34 +43,24 @@ appleProvider.addScope('email');
 appleProvider.addScope('name');
 
 /**
- * Try popup first (better UX, no page reload). On environments where popup is
- * blocked or unsupported (Safari ITP, embedded browsers, some 3rd-party-cookie
- * setups), fall back to signInWithRedirect — `getRedirectResult()` in
- * `hydrate()` picks up the result on the next page load.
+ * Social sign-in on the web.
+ *
+ * We use `signInWithRedirect` directly (no popup) because:
+ *  - Popups are frequently blocked in production (Vercel + third-party cookie
+ *    restrictions, mobile browsers, embedded webviews).
+ *  - The popup→redirect fallback we used to have was fragile: some browsers
+ *    report `auth/popup-blocked`, others silently close the popup and surface
+ *    `auth/popup-closed-by-user`, and in that mixed state users saw a generic
+ *    "something went wrong" error instead of actually being redirected.
+ *
+ * `getRedirectResult()` in `hydrate()` + `onAuthStateChanged` pick up the
+ * signed-in user when the browser lands back on the app after the provider
+ * flow completes.
  */
 async function signInWithProvider(provider: AuthProvider): Promise<void> {
-  try {
-    await signInWithPopup(auth, provider);
-  } catch (err) {
-    if (err instanceof FirebaseError) {
-      const fallbackCodes = new Set([
-        'auth/popup-blocked',
-        'auth/popup-closed-by-user',
-        'auth/cancelled-popup-request',
-        'auth/operation-not-supported-in-this-environment',
-        'auth/web-storage-unsupported',
-      ]);
-      if (fallbackCodes.has(err.code)) {
-        if (err.code === 'auth/popup-closed-by-user') {
-          // User explicitly cancelled — don't fall back to redirect.
-          throw err;
-        }
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-    }
-    throw err;
-  }
+  await signInWithRedirect(auth, provider);
+  // Note: `signInWithRedirect` navigates the browser away, so code after this
+  // line typically does not execute on success.
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
