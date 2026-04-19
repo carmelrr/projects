@@ -6,14 +6,18 @@ export class ComplianceService {
   constructor(private firebase: FirebaseService) {}
 
   async calculateCompliance(clientId: string, orgId: string, periodStart: Date, periodEnd: Date) {
+    // Avoid requiring a composite index (clientUserId + scheduledDate):
+    // query by clientUserId only, filter by date in memory.
     const snap = await this.firebase
       .workoutInstances(orgId)
       .where('clientUserId', '==', clientId)
-      .where('scheduledDate', '>=', periodStart.toISOString())
-      .where('scheduledDate', '<=', periodEnd.toISOString())
       .get();
 
-    const instances = snap.docs.map(d => d.data());
+    const startIso = periodStart.toISOString();
+    const endIso = periodEnd.toISOString();
+    const instances = snap.docs
+      .map(d => d.data())
+      .filter(i => typeof i.scheduledDate === 'string' && i.scheduledDate >= startIso && i.scheduledDate <= endIso);
     const totalScheduled = instances.length;
     const totalCompleted = instances.filter(i => i.status === 'COMPLETED').length;
     const complianceRate = totalScheduled > 0 ? totalCompleted / totalScheduled : 0;
@@ -39,13 +43,14 @@ export class ComplianceService {
   }
 
   async getClientCompliance(clientId: string, orgId: string, limit = 12) {
+    // Avoid composite index (clientUserId + periodStart): sort in memory.
     const snap = await this.firebase
       .complianceSummaries(orgId)
       .where('clientUserId', '==', clientId)
-      .orderBy('periodStart', 'desc')
-      .limit(limit)
       .get();
 
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, unknown>));
+    items.sort((a, b) => ((b.periodStart as string | undefined) || '').localeCompare((a.periodStart as string | undefined) || ''));
+    return items.slice(0, limit);
   }
 }

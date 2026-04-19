@@ -13,15 +13,21 @@ export class WorkoutInstancesService {
     const inOrg = (user.orgs || []).some((o: { orgId: string }) => o.orgId === orgId);
     if (!inOrg || !user.clientProfile) throw new NotFoundException('Client not found');
 
+    // Avoid composite index (clientUserId + scheduledDate): query by
+    // clientUserId only, filter+sort scheduledDate in memory.
     const snap = await this.firebase
       .workoutInstances(orgId)
       .where('clientUserId', '==', clientId)
-      .where('scheduledDate', '>=', startDate)
-      .where('scheduledDate', '<=', endDate)
-      .orderBy('scheduledDate', 'asc')
       .get();
 
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const items = snap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Record<string, unknown>))
+      .filter(i => {
+        const sd = (i.scheduledDate as string | undefined) || '';
+        return sd >= startDate && sd <= endDate;
+      });
+    items.sort((a, b) => ((a.scheduledDate as string | undefined) || '').localeCompare((b.scheduledDate as string | undefined) || ''));
+    return items;
   }
 
   async getInstance(id: string, orgId: string) {

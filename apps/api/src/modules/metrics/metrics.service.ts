@@ -90,24 +90,24 @@ export class MetricsService {
     metricId: string,
     query: { from?: string; to?: string; limit?: string },
   ) {
-    let q = this.firebase
+    // Avoid composite index (clientUserId + metricId + capturedAt): query
+    // on equality filters only, then sort + filter by date in memory.
+    const snap = await this.firebase
       .metricEntries(orgId)
       .where('clientUserId', '==', clientId)
       .where('metricId', '==', metricId)
-      .orderBy('capturedAt', 'desc');
+      .get();
 
+    let entries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, unknown>));
     if (query.from) {
-      q = q.where('capturedAt', '>=', query.from);
+      entries = entries.filter(e => ((e.capturedAt as string | undefined) || '') >= query.from!);
     }
     if (query.to) {
-      q = q.where('capturedAt', '<=', query.to);
+      entries = entries.filter(e => ((e.capturedAt as string | undefined) || '') <= query.to!);
     }
-
+    entries.sort((a, b) => ((b.capturedAt as string | undefined) || '').localeCompare((a.capturedAt as string | undefined) || ''));
     const limitNum = query.limit ? parseInt(query.limit, 10) : 100;
-    q = q.limit(limitNum);
-
-    const snap = await q.get();
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return entries.slice(0, limitNum);
   }
 
   async getLatestMetrics(clientId: string, orgId: string) {
@@ -116,15 +116,20 @@ export class MetricsService {
 
     const latest = await Promise.all(
       definitions.map(async (def) => {
+        // Avoid composite index: query by equality only, pick latest in memory.
         const entrySnap = await this.firebase
           .metricEntries(orgId)
           .where('clientUserId', '==', clientId)
           .where('metricId', '==', def.id)
-          .orderBy('capturedAt', 'desc')
-          .limit(1)
           .get();
 
-        const latestEntry = entrySnap.empty ? null : { id: entrySnap.docs[0].id, ...entrySnap.docs[0].data() };
+        let latestEntry: Record<string, unknown> | null = null;
+        for (const d of entrySnap.docs) {
+          const data = { id: d.id, ...d.data() } as Record<string, unknown>;
+          if (!latestEntry || ((data.capturedAt as string | undefined) || '') > (((latestEntry.capturedAt as string | undefined) || ''))) {
+            latestEntry = data;
+          }
+        }
         return { definition: def, latestEntry };
       }),
     );

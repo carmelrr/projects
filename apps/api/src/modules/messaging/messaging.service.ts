@@ -6,11 +6,14 @@ export class MessagingService {
   constructor(private firebase: FirebaseService) {}
 
   async listThreads(userId: string, orgId: string) {
-    // Query threads where this user is a participant
+    // Query threads where this user is a participant.
+    // NOTE: we deliberately don't use .orderBy('updatedAt', 'desc') here
+    // because combining array-contains with orderBy requires a composite
+    // index. We sort in-memory instead — number of threads per user is
+    // always small.
     const snap = await this.firebase
       .threads(orgId)
       .where('participantIds', 'array-contains', userId)
-      .orderBy('updatedAt', 'desc')
       .get();
 
     const threads: Array<Record<string, unknown>> = [];
@@ -54,6 +57,13 @@ export class MessagingService {
         unreadCount,
       });
     }
+
+    // Sort by updatedAt desc in-memory (see note above about composite indexes)
+    threads.sort((a, b) => {
+      const au = (a.updatedAt as string | undefined) || '';
+      const bu = (b.updatedAt as string | undefined) || '';
+      return bu.localeCompare(au);
+    });
 
     return threads;
   }

@@ -25,14 +25,15 @@ export class NotificationsService {
   async listNotifications(userId: string, query: { page?: string; limit?: string; unreadOnly?: string }) {
     const pagination = parsePagination(query);
 
-    let q = this.firebase.notifications(userId).orderBy('createdAt', 'desc');
-
+    // Avoid composite index (readAt + createdAt): sort in memory.
+    let q = this.firebase.notifications(userId) as FirebaseFirestore.Query;
     if (query.unreadOnly === 'true') {
       q = q.where('readAt', '==', null);
     }
 
     const snap = await q.get();
-    const notifications = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const notifications = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, unknown>));
+    notifications.sort((a, b) => ((b.createdAt as string | undefined) || '').localeCompare((a.createdAt as string | undefined) || ''));
     const total = notifications.length;
     const paged = notifications.slice(pagination.skip, pagination.skip + pagination.limit);
 

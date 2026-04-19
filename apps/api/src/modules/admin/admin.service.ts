@@ -219,12 +219,14 @@ export class AdminService {
     },
   ) {
     const pagination = parsePagination(query);
-    let q = this.firebase.auditLogs(orgId).orderBy('createdAt', 'desc').limit(500);
+    // Avoid composite index: query by equality filters only, sort in memory.
+    let q = this.firebase.auditLogs(orgId).limit(500) as FirebaseFirestore.Query;
     if (query.action) q = q.where('action', '==', query.action);
     if (query.actorUserId) q = q.where('actorUserId', '==', query.actorUserId);
 
     const snap = await q.get();
     let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Record<string, unknown>);
+    items.sort((a, b) => ((b.createdAt as string | undefined) || '').localeCompare((a.createdAt as string | undefined) || ''));
 
     if (query.from) {
       items = items.filter((i) => (i.createdAt as string) >= query.from!);

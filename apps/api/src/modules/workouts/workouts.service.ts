@@ -25,9 +25,15 @@ export class WorkoutsService {
   async listWorkouts(orgId: string, query: { page?: string; limit?: string; search?: string; type?: string }) {
     const pagination = parsePagination(query);
 
-    let snap = await this.firebase.workouts(orgId).where('isTemplate', '==', true).orderBy('updatedAt', 'desc').get();
+    // Avoid composite index (isTemplate + updatedAt): filter + sort in memory.
+    const snap = await this.firebase.workouts(orgId).where('isTemplate', '==', true).get();
 
     let workouts: Array<Record<string, unknown>> = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    workouts.sort((a, b) => {
+      const au = (a.updatedAt as string | undefined) || '';
+      const bu = (b.updatedAt as string | undefined) || '';
+      return bu.localeCompare(au);
+    });
 
     if (query.search) {
       const s = query.search.toLowerCase();

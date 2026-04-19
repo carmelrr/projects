@@ -72,17 +72,21 @@ export class ClientsService {
     const cutoff = new Date(now.getTime() - PERIOD_DAYS.NINETY_DAY * 86400000).toISOString();
 
     // Firestore `in` supports max 30 values; chunk clientUserIds.
+    // NOTE: we do NOT combine `in` with another range filter here because
+    // that requires a composite index (clientUserId + scheduledDate).
+    // Instead, we filter scheduledDate in-memory — the dataset per coach
+    // over 90 days is small.
     const instancesByClient = new Map<string, WorkoutInstanceDoc[]>();
     for (let i = 0; i < clientUserIds.length; i += 30) {
       const chunk = clientUserIds.slice(i, i + 30);
       const snap = await this.firebase
         .workoutInstances(orgId)
         .where('clientUserId', 'in', chunk)
-        .where('scheduledDate', '>=', cutoff)
         .get();
       for (const doc of snap.docs) {
         const data = doc.data() as WorkoutInstanceDoc;
         if (!data.clientUserId) continue;
+        if (!data.scheduledDate || data.scheduledDate < cutoff) continue;
         const list = instancesByClient.get(data.clientUserId) ?? [];
         list.push(data);
         instancesByClient.set(data.clientUserId, list);

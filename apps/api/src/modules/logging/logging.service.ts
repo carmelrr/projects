@@ -101,13 +101,14 @@ export class LoggingService {
 
     const pagination = parsePagination(query);
 
+    // Avoid composite index (clientUserId + createdAt): sort in memory.
     const snap = await this.firebase
       .workoutLogs(orgId)
       .where('clientUserId', '==', clientId)
-      .orderBy('createdAt', 'desc')
       .get();
 
-    const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, unknown>));
+    logs.sort((a, b) => ((b.createdAt as string | undefined) || '').localeCompare((a.createdAt as string | undefined) || ''));
     const total = logs.length;
     const paged = logs.slice(pagination.skip, pagination.skip + pagination.limit);
 
