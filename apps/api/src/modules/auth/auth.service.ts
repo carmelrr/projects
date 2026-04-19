@@ -197,6 +197,7 @@ export class AuthService {
    */
   async createClientInvite(coachProfileId: string, orgId: string, email: string) {
     const lowerEmail = email.toLowerCase();
+    const now = new Date().toISOString();
 
     const existingSnap = await this.firebase
       .users()
@@ -204,12 +205,14 @@ export class AuthService {
       .limit(1)
       .get();
 
-    if (existingSnap.empty) {
-      const userId = this.firebase.generateId();
-      const clientProfileId = this.firebase.generateId();
-      const now = new Date().toISOString();
+    const batch = this.firebase.batch();
+    let userId: string;
+    let clientProfileId: string;
 
-      const batch = this.firebase.batch();
+    if (existingSnap.empty) {
+      // Brand-new invitee: create PENDING user + clientProfile.
+      userId = this.firebase.generateId();
+      clientProfileId = this.firebase.generateId();
 
       batch.set(this.firebase.users().doc(userId), {
         firebaseUid: null,
@@ -235,7 +238,56 @@ export class AuthService {
           archivedAt: null,
         },
       });
+    } else {
+      // User already exists (e.g. self-registered earlier, or re-invited).
+      // Ensure org membership + clientProfile, but never overwrite a profile
+      // that already lives in another org — assignments join on
+      // `clientUserId`, not `clientProfile.id`.
+      const userDoc = existingSnap.docs[0];
+      const existing = userDoc.data();
+      userId = userDoc.id;
 
+      const updates: Record<string, unknown> = { updatedAt: now };
+
+      const orgs: Array<{ orgId: string; role: string; joinedAt: string }> =
+        Array.isArray(existing.orgs) ? existing.orgs : [];
+      const hasOrg = orgs.some((o) => o.orgId === orgId);
+      if (!hasOrg) {
+        updates.orgs = [...orgs, { orgId, role: 'CLIENT', joinedAt: now }];
+      }
+
+      const existingClientProfileId: string | undefined =
+        existing.clientProfile?.id;
+      if (existingClientProfileId) {
+        clientProfileId = existingClientProfileId;
+      } else {
+        clientProfileId = this.firebase.generateId();
+        updates.clientProfile = {
+          id: clientProfileId,
+          orgId,
+          status: 'PENDING',
+          dob: null,
+          heightCm: null,
+          goals: null,
+          medicalNotes: null,
+          archivedAt: null,
+        };
+      }
+
+      batch.update(userDoc.ref, updates);
+    }
+
+    // Always ensure exactly one ACTIVE assignment exists for
+    // (clientUserId, coachId) in the inviting coach's org.
+    const assignSnap = await this.firebase
+      .clientAssignments(orgId)
+      .where('clientUserId', '==', userId)
+      .where('coachId', '==', coachProfileId)
+      .where('status', '==', 'ACTIVE')
+      .limit(1)
+      .get();
+
+    if (assignSnap.empty) {
       batch.set(this.firebase.clientAssignments(orgId).doc(), {
         clientId: clientProfileId,
         clientUserId: userId,
@@ -246,17 +298,17 @@ export class AuthService {
         notes: null,
         createdAt: now,
       });
-
-      batch.set(this.firebase.auditLogs(orgId).doc(), {
-        actorId: coachProfileId,
-        action: 'auth.invite_client',
-        targetType: 'User',
-        targetId: lowerEmail,
-        createdAt: now,
-      });
-
-      await batch.commit();
     }
+
+    batch.set(this.firebase.auditLogs(orgId).doc(), {
+      actorId: coachProfileId,
+      action: 'auth.invite_client',
+      targetType: 'User',
+      targetId: lowerEmail,
+      createdAt: now,
+    });
+
+    await batch.commit();
 
     const payload = {
       type: 'client-invite',

@@ -9,6 +9,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { AuthService } from '../auth/auth.service';
@@ -49,7 +50,13 @@ export class ClientsController {
     @Body() body: { email: string },
   ) {
     if (!user.coachProfileId) {
-      throw new Error('Coach profile required to invite clients');
+      throw new BadRequestException('Coach profile required to invite clients');
+    }
+    if (!user.orgId) {
+      throw new BadRequestException('Missing organization context');
+    }
+    if (!body?.email?.trim()) {
+      throw new BadRequestException('Email is required');
     }
     return this.authService.createClientInvite(user.coachProfileId, user.orgId, body.email);
   }

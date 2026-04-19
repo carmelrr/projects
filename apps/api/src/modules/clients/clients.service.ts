@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { parsePagination, paginatedResponse } from '../../common/utils/pagination';
 
@@ -59,6 +59,8 @@ function computeCompliance(
 
 @Injectable()
 export class ClientsService {
+  private readonly logger = new Logger(ClientsService.name);
+
   constructor(private firebase: FirebaseService) {}
 
   private async fetchComplianceByClient(
@@ -93,7 +95,31 @@ export class ClientsService {
     }
     return result;
   }
+if (!orgId) {
+      throw new BadRequestException('Missing organization context');
+    }
 
+    try {
+      return await this.listClientsInner(orgId, query, requestingCoachId);
+    } catch (err) {
+      // Surface the real cause in server logs — the global filter masks
+      // non-HttpException errors as a generic 500.
+      this.logger.error(
+        `listClients failed for org=${orgId} coach=${requestingCoachId ?? 'ALL'}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw err;
+    }
+  }
+
+  private async listClientsInner(
+    orgId: string,
+    query: ListClientsQuery,
+    requestingCoachId?: string,
+  ) {
+    
   async listClients(orgId: string, query: ListClientsQuery, requestingCoachId?: string) {
     const { page, limit, skip } = parsePagination(query);
 
