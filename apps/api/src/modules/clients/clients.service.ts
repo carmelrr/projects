@@ -95,7 +95,9 @@ export class ClientsService {
     }
     return result;
   }
-if (!orgId) {
+
+  async listClients(orgId: string, query: ListClientsQuery, requestingCoachId?: string) {
+    if (!orgId) {
       throw new BadRequestException('Missing organization context');
     }
 
@@ -119,8 +121,6 @@ if (!orgId) {
     query: ListClientsQuery,
     requestingCoachId?: string,
   ) {
-    
-  async listClients(orgId: string, query: ListClientsQuery, requestingCoachId?: string) {
     const { page, limit, skip } = parsePagination(query);
 
     // Get client assignments for this org
