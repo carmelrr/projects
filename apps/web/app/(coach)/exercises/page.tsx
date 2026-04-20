@@ -11,8 +11,6 @@ import {
 } from '@/hooks/useExercises';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
-import { useT } from '@/lib/i18n/client';
-import { useT } from '@/lib/i18n/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,6 +34,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/client';
 
 const CATEGORIES = ['Strength', 'Cardio', 'Mobility', 'Plyometric', 'Stretching', 'Balance', 'Olympic'];
 const MUSCLE_GROUPS = [
@@ -80,8 +79,7 @@ function ExerciseDialog({
   open: boolean;
   initial?: Exercise;
   onOpenChange: (open: boolean) => void;
-}) {t = useT();
-  const 
+}) {
   const t = useT();
   const create = useCreateExercise();
   const update = useUpdateExercise();
@@ -114,7 +112,9 @@ function ExerciseDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="mat('exercises.dialog.titleEdit') : t('exercises.dialog.titleNew')}</DialogTitle>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{initial ? t('exercises.dialog.titleEdit') : t('exercises.dialog.titleNew')}</DialogTitle>
           <DialogDescription>{t('exercises.dialog.description')}</DialogDescription>
         </DialogHeader>
 
@@ -142,7 +142,7 @@ function ExerciseDialog({
                 <SelectContent>
                   {CATEGORIES.map((c) => (
                     <SelectItem key={c} value={c}>
-                      {t(`exercises.categories.${c}`)}
+                      {c}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -172,7 +172,7 @@ function ExerciseDialog({
               {MUSCLE_GROUPS.map((m) => (
                 <ChipToggle
                   key={m}
-                  label={t(`exercises.muscleGroupNames.${m}`)}
+                  label={m}
                   active={form.muscleGroups.includes(m)}
                   onClick={() => toggleArr('muscleGroups', m)}
                 />
@@ -186,7 +186,7 @@ function ExerciseDialog({
               {EQUIPMENT.map((e) => (
                 <ChipToggle
                   key={e}
-                  label={t(`exercises.equipmentNames.${e}`)}
+                  label={e}
                   active={form.equipment.includes(e)}
                   onClick={() => toggleArr('equipment', e)}
                 />
@@ -232,8 +232,6 @@ function ExerciseDialog({
             {t('exercises.dialog.cancel')}
           </Button>
           <Button variant="gradient" onClick={save} disabled={isPending || !form.name.trim()}>
-            {isPending ? t('exercises.dialog.saving') : initial ? t('exercises.dialog.save') : t('exercises.dialog.create')
-          <Button variant="gradient" onClick={save} disabled={isPending || !form.name.trim()}>
             {isPending ? t('exercises.dialog.saving') : initial ? t('exercises.dialog.save') : t('exercises.dialog.create')}
           </Button>
         </DialogFooter>
@@ -241,8 +239,7 @@ function ExerciseDialog({
     </Dialog>
   );
 }
-t = useT();
-  const 
+
 export default function ExercisesPage() {
   const t = useT();
   const [search, setSearch] = useState('');
@@ -268,7 +265,7 @@ export default function ExercisesPage() {
   };
   const openEdit = (ex: Exercise) => {
     setEditing(ex);
-    setDialogOpet('exercises.confirmDelete')
+    setDialogOpen(true);
   };
   const remove = async (id: string) => {
     if (confirm(t('exercises.confirmDelete'))) await del.mutateAsync(id);
@@ -282,7 +279,10 @@ export default function ExercisesPage() {
     setEquipment('');
   };
 
-  return ({t('exercises.title')}
+  return (
+    <div className="p-6 lg:p-8 space-y-6">
+      <PageHeader
+        title={t('exercises.title')}
         description={t('exercises.description')}
         actions={
           <Button variant="gradient" onClick={openCreate}>
@@ -313,7 +313,7 @@ export default function ExercisesPage() {
                 <SelectItem value="all">{t('exercises.filter.allCategories')}</SelectItem>
                 {CATEGORIES.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {t(`exercises.categories.${c}`)}
+                    {c}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -329,7 +329,7 @@ export default function ExercisesPage() {
                 <SelectItem value="all">{t('exercises.filter.allMuscleGroups')}</SelectItem>
                 {MUSCLE_GROUPS.map((m) => (
                   <SelectItem key={m} value={m}>
-                    {t(`exercises.muscleGroupNames.${m}`)}
+                    {m}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -341,14 +341,11 @@ export default function ExercisesPage() {
             {EQUIPMENT.map((e) => (
               <ChipToggle
                 key={e}
-                label={t(`exercises.equipmentNames.${e}`)}
+                label={e}
                 active={equipment === e}
                 onClick={() => setEquipment(equipment === e ? '' : e)}
               />
             ))}
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={resetFilters} className="ms-auto">
-                {t('exercises.filter.clear')}
             {hasFilters && (
               <Button variant="ghost" size="sm" onClick={resetFilters} className="ms-auto">
                 {t('exercises.filter.clear')}
@@ -365,7 +362,10 @@ export default function ExercisesPage() {
             <Skeleton key={i} className="h-40" />
           ))}
         </div>
-      ) : exerci{t('exercises.emptyTitle')}
+      ) : exercises.length === 0 ? (
+        <EmptyState
+          icon={Dumbbell}
+          title={t('exercises.emptyTitle')}
           description={hasFilters ? t('exercises.emptyFilters') : t('exercises.emptyHint')}
           action={
             hasFilters ? (
@@ -373,9 +373,6 @@ export default function ExercisesPage() {
                 {t('exercises.filter.clear')}
               </Button>
             ) : (
-              <Button variant="gradient" onClick={openCreate}>
-                <Plus className="size-4" />
-                {t('exercises.newExercise')}
               <Button variant="gradient" onClick={openCreate}>
                 <Plus className="size-4" />
                 {t('exercises.newExercise')}
@@ -389,26 +386,25 @@ export default function ExercisesPage() {
             <Card key={ex.id} className="card-interactive group">
               <CardContent className="flex h-full flex-col p-4">
                 <div className="mb-3 flex items-start justify-between gap-2">
-                  <div className="mi t(`exercises.categories.${ex.category}`) : t('exercises.uncategorized')}
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-foreground">{ex.name}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {ex.category ?? 'Uncategorized'}
                       {ex.difficulty && (
                         <span className="ms-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-                          {ex.difficulty === 'BEGINNER'
-                            ? t('exercises.dialog.difficultyBeginner')
-                            : ex.difficulty === 'INTERMEDIATE'
-                              ? t('exercises.dialog.difficultyIntermediate')
-                              : t('exercises.dialog.difficultyAdvanced')exercises.categories.${ex.category}`) : t('exercises.uncategorized')}
-                      {ex.difficulty && (
-                        <span className="ms-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-                          {ex.difficulty === 'BEGINNER'
-                            ? t('exercises.dialog.difficultyBeginner')
-                            : ex.difficulty === 'INTERMEDIATE'
-                              ? t('exercises.dialog.difficultyIntermediate')
-                              : t('exercises.dialog.difficultyAdvanced')}
+                          {ex.difficulty}
                         </span>
                       )}
                     </p>
                   </div>
-                  <div className="f{t('exercises.playVideo')}
+                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                    {ex.videoUrl && (
+                      <a
+                        href={ex.videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        aria-label="Play video"
                       >
                         <Play className="size-4" />
                       </a>
@@ -418,21 +414,14 @@ export default function ExercisesPage() {
                         <button
                           onClick={() => openEdit(ex)}
                           className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                          aria-label={t('exercises.edit')}
+                          aria-label="Edit"
                         >
                           <Pencil className="size-4" />
                         </button>
                         <button
                           onClick={() => remove(ex.id)}
                           className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          aria-label={t('exercises.delete')}cises.edit')}
-                        >
-                          <Pencil className="size-4" />
-                        </button>
-                        <button
-                          onClick={() => remove(ex.id)}
-                          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          aria-label={t('exercises.delete')}
+                          aria-label="Delete"
                         >
                           <Trash2 className="size-4" />
                         </button>
@@ -443,7 +432,14 @@ export default function ExercisesPage() {
 
                 {ex.description && (
                   <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">{ex.description}</p>
-                )}t(`exercises.muscleGroupNames.${m}`)}
+                )}
+
+                <div className="mt-auto space-y-2">
+                  {ex.muscleGroups && ex.muscleGroups.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {ex.muscleGroups.slice(0, 4).map((m) => (
+                        <Badge key={m} variant="muted" className="text-[10px]">
+                          {m}
                         </Badge>
                       ))}
                       {ex.muscleGroups.length > 4 && (
@@ -455,14 +451,7 @@ export default function ExercisesPage() {
                   )}
                   {ex.isSystem && (
                     <Badge variant="default" className="text-[10px]">
-                      {t('exercises.system')}ex.muscleGroups.length - 4}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {ex.isSystem && (
-                    <Badge variant="default" className="text-[10px]">
-                      {t('exercises.system')}
+                      System
                     </Badge>
                   )}
                 </div>
