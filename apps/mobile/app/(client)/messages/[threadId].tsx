@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   View,
-  Text,
   FlatList,
   Pressable,
   TextInput,
-  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, MessageSquare, Send } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
 import {
   useMessages,
@@ -19,6 +17,8 @@ import {
   useMarkRead,
   type Message,
 } from '@/hooks/useMessaging';
+import { useTheme, withAlpha } from '@/lib/theme';
+import { Screen, Text, Icon, Button } from '@/components/ui';
 
 function MessageBubble({
   message,
@@ -27,17 +27,67 @@ function MessageBubble({
   message: Message;
   isMine: boolean;
 }) {
+  const theme = useTheme();
+  const isSystem = message.messageType === 'SYSTEM';
+
+  if (isSystem) {
+    return (
+      <View style={{ alignItems: 'center', marginVertical: theme.spacing[2] }}>
+        <Text
+          variant="caption"
+          color="mutedForeground"
+          style={{ fontStyle: 'italic', textAlign: 'center' }}
+        >
+          {message.body}
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine]}>
-      <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-        {message.messageType === 'SYSTEM' ? (
-          <Text style={styles.systemText}>{message.body}</Text>
-        ) : (
-          <Text style={isMine ? styles.bubbleTextMine : styles.bubbleText}>
-            {message.body ?? '[attachment]'}
-          </Text>
-        )}
-        <Text style={[styles.timestamp, isMine && styles.timestampMine]}>
+    <View
+      style={{
+        alignItems: isMine ? 'flex-end' : 'flex-start',
+        marginVertical: theme.spacing[0.5],
+      }}
+    >
+      <View
+        style={{
+          maxWidth: '78%',
+          paddingVertical: theme.spacing[2],
+          paddingHorizontal: theme.spacing[3],
+          borderRadius: theme.radii.xl,
+          backgroundColor: isMine ? theme.colors.primary : theme.colors.card,
+          borderWidth: isMine ? 0 : 1,
+          borderColor: theme.colors.border,
+          borderTopStartRadius: isMine ? theme.radii.xl : theme.radii.sm,
+          borderTopEndRadius: isMine ? theme.radii.sm : theme.radii.xl,
+        }}
+      >
+        <Text
+          variant="body"
+          color="inherit"
+          style={{
+            color: isMine
+              ? theme.colors.primaryForeground
+              : theme.colors.foreground,
+            lineHeight: 20,
+          }}
+        >
+          {message.body ?? '[attachment]'}
+        </Text>
+        <Text
+          variant="caption"
+          color="inherit"
+          style={{
+            fontSize: 10,
+            marginTop: theme.spacing[0.5],
+            color: isMine
+              ? withAlpha(theme.colors.primaryForeground, 0.7)
+              : theme.colors.mutedForeground,
+            textAlign: isMine ? 'right' : 'left',
+          }}
+        >
           {new Date(message.createdAt).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
@@ -49,6 +99,7 @@ function MessageBubble({
 }
 
 export default function ThreadScreen() {
+  const theme = useTheme();
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
   const { user } = useAuthStore();
   const listRef = useRef<FlatList<Message>>(null);
@@ -58,8 +109,8 @@ export default function ThreadScreen() {
   const markRead = useMarkRead(threadId!);
 
   const [text, setText] = useState('');
+  const [composerFocused, setComposerFocused] = useState(false);
 
-  // Reverse the array so newest is at the bottom using inverted list
   const messages = (data?.items ?? []).slice();
 
   useEffect(() => {
@@ -81,24 +132,58 @@ export default function ThreadScreen() {
     }
   };
 
+  const canSend = text.trim().length > 0 && !send.isPending;
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
+    <Screen edges={['top']}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: theme.spacing[4],
+          paddingVertical: theme.spacing[3],
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+          backgroundColor: theme.colors.card,
+        }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={8}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing[1],
+            opacity: pressed ? 0.6 : 1,
+            minWidth: 64,
+          })}
+        >
+          <Icon icon={ArrowLeft} size={18} color="primary" />
+          <Text variant="bodyMedium" color="primary">
+            Back
+          </Text>
         </Pressable>
-        <Text style={styles.title}>Conversation</Text>
-        <View style={{ width: 60 }} />
+        <Text variant="h3">Conversation</Text>
+        <View style={{ width: 64 }} />
       </View>
 
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {isLoading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color="#2563eb" size="large" />
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ActivityIndicator color={theme.colors.primary} size="large" />
           </View>
         ) : (
           <FlatList
@@ -106,15 +191,45 @@ export default function ThreadScreen() {
             data={messages}
             keyExtractor={(m) => m.id}
             inverted
-            contentContainerStyle={styles.list}
+            contentContainerStyle={{
+              padding: theme.spacing[4],
+              flexGrow: 1,
+            }}
             renderItem={({ item }) => (
-              <MessageBubble message={item} isMine={item.senderId === user?.id} />
+              <MessageBubble
+                message={item}
+                isMine={item.senderId === user?.id}
+              />
             )}
             ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>💬</Text>
-                <Text style={styles.emptyTitle}>No messages yet</Text>
-                <Text style={styles.emptySub}>
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: theme.spacing[10],
+                  gap: theme.spacing[3],
+                  transform: [{ scaleY: -1 }],
+                }}
+              >
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: theme.radii.full,
+                    backgroundColor: withAlpha(theme.colors.primary, 0.1),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon icon={MessageSquare} size={24} color="primary" />
+                </View>
+                <Text variant="h3">No messages yet</Text>
+                <Text
+                  variant="body"
+                  color="mutedForeground"
+                  style={{ textAlign: 'center' }}
+                >
                   Send the first message to start the conversation.
                 </Text>
               </View>
@@ -122,134 +237,59 @@ export default function ThreadScreen() {
           />
         )}
 
-        <View style={styles.composerWrap}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            gap: theme.spacing[2],
+            padding: theme.spacing[3],
+            backgroundColor: theme.colors.card,
+            borderTopWidth: 1,
+            borderTopColor: theme.colors.border,
+          }}
+        >
           <TextInput
-            style={styles.input}
             value={text}
             onChangeText={setText}
+            onFocus={() => setComposerFocused(true)}
+            onBlur={() => setComposerFocused(false)}
             placeholder="Type a message…"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={withAlpha(theme.colors.mutedForeground, 0.8)}
             multiline
+            style={{
+              flex: 1,
+              borderWidth: 1,
+              borderColor: composerFocused
+                ? theme.colors.ring
+                : theme.colors.input,
+              borderRadius: theme.radii.full,
+              paddingHorizontal: theme.spacing[4],
+              paddingVertical: theme.spacing[2.5],
+              fontSize: 15,
+              color: theme.colors.foreground,
+              maxHeight: 100,
+              backgroundColor: theme.colors.background,
+            }}
           />
-          <Pressable
+          <Button
             onPress={handleSend}
-            disabled={!text.trim() || send.isPending}
-            style={[
-              styles.sendBtn,
-              (!text.trim() || send.isPending) && styles.sendBtnDisabled,
-            ]}
-          >
-            {send.isPending ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.sendText}>Send</Text>
-            )}
-          </Pressable>
+            disabled={!canSend}
+            loading={send.isPending}
+            size="icon"
+            style={{ borderRadius: theme.radii.full }}
+            accessibilityLabel="Send message"
+            iconLeft={
+              !send.isPending ? (
+                <Icon
+                  icon={Send}
+                  size={18}
+                  color={theme.colors.primaryForeground}
+                />
+              ) : null
+            }
+          />
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
-  flex: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  backBtn: { minWidth: 60 },
-  backText: { color: '#2563eb', fontSize: 15, fontWeight: '500' },
-  title: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 16, flexGrow: 1 },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-    transform: [{ scaleY: -1 }], // undo inverted
-  },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  emptySub: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 6,
-  },
-
-  bubbleRow: { alignItems: 'flex-start', marginVertical: 3 },
-  bubbleRowMine: { alignItems: 'flex-end' },
-  bubble: {
-    maxWidth: '78%',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-  },
-  bubbleTheirs: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  bubbleMine: {
-    backgroundColor: '#2563eb',
-    borderTopRightRadius: 4,
-  },
-  bubbleText: { color: '#111827', fontSize: 14, lineHeight: 20 },
-  bubbleTextMine: { color: '#fff', fontSize: 14, lineHeight: 20 },
-  systemText: {
-    color: '#6b7280',
-    fontSize: 12,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  timestamp: {
-    fontSize: 10,
-    color: '#9ca3af',
-    marginTop: 2,
-  },
-  timestampMine: {
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'right',
-  },
-
-  composerWrap: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    padding: 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#111827',
-    maxHeight: 100,
-    backgroundColor: '#f9fafb',
-  },
-  sendBtn: {
-    backgroundColor: '#2563eb',
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendBtnDisabled: { opacity: 0.5 },
-  sendText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-});

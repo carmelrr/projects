@@ -1,34 +1,39 @@
 import { Tabs } from 'expo-router';
 import { useEffect } from 'react';
-import { useAuthStore } from '@/stores/auth.store';
 import { Redirect } from 'expo-router';
 import {
-  View,
-  Text,
-  StyleSheet,
-} from 'react-native';
+  CalendarCheck,
+  LineChart,
+  Sprout,
+  MessageSquare,
+  User,
+} from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import { useAuthStore } from '@/stores/auth.store';
 import { registerForPushNotifications } from '@/lib/push';
+import { useTheme } from '@/lib/theme';
 
 // ── Tab icon helper ────────────────────────────────────────────────────────
 
 function TabIcon({
   focused,
-  label,
-  emoji,
+  icon: IconComponent,
 }: {
   focused: boolean;
-  label: string;
-  emoji: string;
+  icon: LucideIcon;
 }) {
+  const theme = useTheme();
   return (
-    <View style={styles.tabItem}>
-      <Text style={[styles.tabEmoji, focused && styles.tabEmojiFocused]}>{emoji}</Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>{label}</Text>
-    </View>
+    <IconComponent
+      size={22}
+      strokeWidth={focused ? 2.2 : 1.75}
+      color={focused ? theme.colors.primary : theme.colors.mutedForeground}
+    />
   );
 }
 
 export default function ClientLayout() {
+  const theme = useTheme();
   const { user, isHydrated } = useAuthStore();
 
   useEffect(() => {
@@ -44,43 +49,61 @@ export default function ClientLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.mutedForeground,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 0,
+        },
+        tabBarStyle: {
+          backgroundColor: theme.colors.card,
+          borderTopColor: theme.colors.border,
+          borderTopWidth: 1,
+          height: 76,
+          paddingTop: 8,
+          paddingBottom: 12,
+        },
       }}
     >
       <Tabs.Screen
         name="today"
         options={{
+          title: 'Today',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} label="Today" emoji="📋" />
+            <TabIcon focused={focused} icon={CalendarCheck} />
           ),
         }}
       />
       <Tabs.Screen
         name="log/[instanceId]"
-        options={{ href: null }} // hidden from tab bar, navigated to programmatically
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="metrics"
         options={{
+          title: 'Metrics',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} label="Metrics" emoji="📊" />
+            <TabIcon focused={focused} icon={LineChart} />
           ),
         }}
       />
       <Tabs.Screen
         name="habits"
         options={{
+          title: 'Habits',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} label="Habits" emoji="🌱" />
+            <TabIcon focused={focused} icon={Sprout} />
           ),
         }}
       />
       <Tabs.Screen
         name="messages/index"
         options={{
+          title: 'Messages',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} label="Messages" emoji="💬" />
+            <TabIcon focused={focused} icon={MessageSquare} />
           ),
         }}
       />
@@ -99,42 +122,12 @@ export default function ClientLayout() {
       <Tabs.Screen
         name="profile"
         options={{
+          title: 'Profile',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} label="Profile" emoji="👤" />
+            <TabIcon focused={focused} icon={User} />
           ),
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: '#fff',
-    borderTopColor: '#f3f4f6',
-    borderTopWidth: 1,
-    height: 72,
-    paddingBottom: 8,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 6,
-  },
-  tabEmoji: {
-    fontSize: 22,
-    opacity: 0.5,
-  },
-  tabEmojiFocused: {
-    opacity: 1,
-  },
-  tabLabel: {
-    fontSize: 10,
-    color: '#9ca3af',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  tabLabelFocused: {
-    color: '#2563eb',
-  },
-});

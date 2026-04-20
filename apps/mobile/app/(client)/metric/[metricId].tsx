@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   Pressable,
-  StyleSheet,
-  ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import Svg, { Path, Circle, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { ChevronLeft, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { Screen, Card, Text, Icon, Skeleton } from '@/components/ui';
+import { useTheme, withAlpha } from '@/lib/theme';
 import {
   useMetricHistory,
   useMetricDefinitions,
@@ -30,8 +29,9 @@ function MetricChart({
   points: MetricEntry[];
   unit: string;
 }) {
+  const theme = useTheme();
   const screenW = Dimensions.get('window').width;
-  const W = screenW - 48; // horizontal padding
+  const W = screenW - 48;
   const H = 180;
   const PAD_X = 8;
   const PAD_TOP = 12;
@@ -43,28 +43,36 @@ function MetricChart({
 
   if (sorted.length === 0) {
     return (
-      <View style={[styles.chartBox, { height: H, justifyContent: 'center' }]}>
-        <Text style={styles.emptyChart}>No data yet</Text>
-      </View>
+      <Card style={{ height: H, justifyContent: 'center' }}>
+        <Text variant="body" color="mutedForeground" style={{ textAlign: 'center' }}>
+          No data yet
+        </Text>
+      </Card>
     );
   }
 
   if (sorted.length === 1) {
+    const p0 = sorted[0];
     return (
-      <View style={[styles.chartBox, { height: H }]}>
-        <View style={styles.singleValueBox}>
-          <Text style={styles.singleValue}>
-            {sorted[0].value}
-            <Text style={styles.singleUnit}> {unit}</Text>
+      <Card style={{ height: H, alignItems: 'center', justifyContent: 'center' }}>
+        <Text variant="h1" weight="700">
+          {p0.value}
+          <Text variant="bodyLg" color="mutedForeground" weight="500">
+            {' '}
+            {unit}
           </Text>
-          <Text style={styles.singleDate}>
-            {new Date(sorted[0].capturedAt).toLocaleDateString()}
-          </Text>
-          <Text style={styles.singleHint}>
-            Log more entries to see your trend.
-          </Text>
-        </View>
-      </View>
+        </Text>
+        <Text variant="body" color="mutedForeground" style={{ marginTop: 4 }}>
+          {new Date(p0.capturedAt).toLocaleDateString()}
+        </Text>
+        <Text
+          variant="caption"
+          color="mutedForeground"
+          style={{ marginTop: theme.spacing[3] }}
+        >
+          Log more entries to see your trend.
+        </Text>
+      </Card>
     );
   }
 
@@ -86,23 +94,47 @@ function MetricChart({
   const first = vals[0];
   const last = vals[vals.length - 1];
   const delta = last - first;
-  const trendColor = delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : '#6b7280';
+  const trendColor =
+    delta > 0 ? theme.colors.success : delta < 0 ? theme.colors.destructive : theme.colors.mutedForeground;
+  const TrendIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
 
-  // Y-axis labels (min, mid, max)
-  const mid = (min + max) / 2;
+  const primary = theme.colors.primary;
 
   return (
-    <View style={styles.chartBox}>
-      <View style={styles.chartHeader}>
-        <Text style={styles.chartValue}>
+    <Card>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          marginBottom: theme.spacing[3],
+        }}
+      >
+        <Text variant="display" weight="700">
           {last}
-          <Text style={styles.chartUnit}> {unit}</Text>
-        </Text>
-        <View style={styles.chartDelta}>
-          <Text style={[styles.deltaValue, { color: trendColor }]}>
-            {delta > 0 ? '▲' : delta < 0 ? '▼' : '–'} {Math.abs(delta).toFixed(1)} {unit}
+          <Text variant="bodyLg" color="mutedForeground" weight="500">
+            {' '}
+            {unit}
           </Text>
-          <Text style={styles.deltaLabel}>
+        </Text>
+        <View style={{ alignItems: 'flex-end' }}>
+          <View
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          >
+            <TrendIcon size={14} color={trendColor} strokeWidth={2.25} />
+            <Text
+              variant="caption"
+              weight="600"
+              style={{ color: trendColor }}
+            >
+              {Math.abs(delta).toFixed(1)} {unit}
+            </Text>
+          </View>
+          <Text
+            variant="caption"
+            color="mutedForeground"
+            style={{ fontSize: 11, marginTop: 1 }}
+          >
             vs {new Date(sorted[0].capturedAt).toLocaleDateString()}
           </Text>
         </View>
@@ -111,12 +143,11 @@ function MetricChart({
       <Svg width={W} height={H}>
         <Defs>
           <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#2563eb" stopOpacity={0.22} />
-            <Stop offset="1" stopColor="#2563eb" stopOpacity={0} />
+            <Stop offset="0" stopColor={primary} stopOpacity={0.22} />
+            <Stop offset="1" stopColor={primary} stopOpacity={0} />
           </LinearGradient>
         </Defs>
 
-        {/* gridlines */}
         {[0.25, 0.5, 0.75].map((f, i) => (
           <Line
             key={i}
@@ -124,7 +155,7 @@ function MetricChart({
             x2={W - PAD_X}
             y1={PAD_TOP + f * (H - PAD_TOP - PAD_BOTTOM)}
             y2={PAD_TOP + f * (H - PAD_TOP - PAD_BOTTOM)}
-            stroke="#f3f4f6"
+            stroke={theme.colors.border}
             strokeWidth={1}
           />
         ))}
@@ -133,39 +164,45 @@ function MetricChart({
         <Path
           d={linePath}
           fill="none"
-          stroke="#2563eb"
+          stroke={primary}
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
 
-        {/* endpoint dots */}
-        <Circle cx={xs[0]} cy={ys[0]} r={3} fill="#2563eb" />
-        <Circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r={4} fill="#2563eb" />
+        <Circle cx={xs[0]} cy={ys[0]} r={3} fill={primary} />
+        <Circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r={4} fill={primary} />
       </Svg>
 
-      <View style={styles.axisRow}>
-        <Text style={styles.axisText}>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginTop: 6,
+        }}
+      >
+        <Text variant="caption" color="mutedForeground" style={{ fontSize: 10 }}>
           {new Date(sorted[0].capturedAt).toLocaleDateString(undefined, {
             month: 'short',
             day: 'numeric',
           })}
         </Text>
-        <Text style={styles.axisText}>
+        <Text variant="caption" color="mutedForeground" style={{ fontSize: 10 }}>
           Range {min.toFixed(1)} – {max.toFixed(1)}
         </Text>
-        <Text style={styles.axisText}>
+        <Text variant="caption" color="mutedForeground" style={{ fontSize: 10 }}>
           {new Date(sorted[sorted.length - 1].capturedAt).toLocaleDateString(
             undefined,
             { month: 'short', day: 'numeric' },
           )}
         </Text>
       </View>
-    </View>
+    </Card>
   );
 }
 
 export default function MetricDetailScreen() {
+  const theme = useTheme();
   const { metricId } = useLocalSearchParams<{ metricId: string }>();
   const [windowDays, setWindowDays] = useState(30);
 
@@ -174,180 +211,161 @@ export default function MetricDetailScreen() {
   const { data: history, isLoading } = useMetricHistory(metricId!, windowDays);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
+    <Screen>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: theme.spacing[4],
+          paddingVertical: theme.spacing[3],
+          backgroundColor: theme.colors.card,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+        }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={{ minWidth: 60, flexDirection: 'row', alignItems: 'center' }}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Icon icon={ChevronLeft} size={18} color="primary" />
+          <Text variant="body" color="primary" weight="500">
+            Back
+          </Text>
         </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          variant="body"
+          weight="700"
+          style={{ flex: 1, textAlign: 'center' }}
+          numberOfLines={1}
+        >
           {def?.name ?? 'Metric'}
         </Text>
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.windowRow}>
-          {WINDOWS.map((w) => (
-            <Pressable
-              key={w.days}
-              style={[
-                styles.windowBtn,
-                windowDays === w.days && styles.windowBtnActive,
-              ]}
-              onPress={() => setWindowDays(w.days)}
-            >
-              <Text
-                style={[
-                  styles.windowText,
-                  windowDays === w.days && styles.windowTextActive,
-                ]}
+      <ScrollView
+        contentContainerStyle={{ padding: theme.spacing[5], paddingBottom: 40 }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: theme.spacing[2],
+            marginBottom: theme.spacing[4],
+          }}
+        >
+          {WINDOWS.map((w) => {
+            const active = windowDays === w.days;
+            return (
+              <Pressable
+                key={w.days}
+                onPress={() => setWindowDays(w.days)}
+                accessibilityRole="button"
+                style={{
+                  paddingVertical: theme.spacing[2],
+                  paddingHorizontal: theme.spacing[4],
+                  borderRadius: 20,
+                  backgroundColor: active ? theme.colors.primary : theme.colors.card,
+                  borderWidth: 1,
+                  borderColor: active ? theme.colors.primary : theme.colors.border,
+                }}
               >
-                {w.label}
-              </Text>
-            </Pressable>
-          ))}
+                <Text
+                  variant="caption"
+                  weight="600"
+                  color={active ? 'primaryForeground' : 'foreground'}
+                >
+                  {w.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {isLoading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color="#2563eb" size="large" />
+          <View style={{ paddingVertical: theme.spacing[4], gap: theme.spacing[2] }}>
+            <Skeleton height={160} radius={theme.radii.md} />
+            <View style={{ flexDirection: 'row', gap: theme.spacing[2] }}>
+              <Skeleton height={14} width="28%" />
+              <Skeleton height={14} width="28%" />
+              <Skeleton height={14} width="28%" />
+            </View>
           </View>
         ) : (
           <MetricChart points={history ?? []} unit={def?.unit ?? ''} />
         )}
 
-        <Text style={styles.sectionTitle}>History</Text>
+        <Text
+          variant="bodyMedium"
+          weight="700"
+          style={{
+            marginTop: theme.spacing[6],
+            marginBottom: theme.spacing[2.5],
+          }}
+        >
+          History
+        </Text>
         {(history ?? []).length === 0 ? (
-          <View style={styles.historyEmpty}>
-            <Text style={styles.historyEmptyText}>No entries in this window.</Text>
-          </View>
+          <Card style={{ alignItems: 'center', padding: theme.spacing[6] }}>
+            <Text variant="body" color="mutedForeground">
+              No entries in this window.
+            </Text>
+          </Card>
         ) : (
-          <View style={styles.historyList}>
+          <Card style={{ overflow: 'hidden', padding: 0 }}>
             {(history ?? [])
               .slice()
               .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt))
-              .map((h) => (
-                <View key={h.id} style={styles.historyRow}>
-                  <View>
-                    <Text style={styles.historyValue}>
+              .map((h, idx, arr) => (
+                <View
+                  key={h.id}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    padding: theme.spacing[4],
+                    borderBottomWidth: idx < arr.length - 1 ? 1 : 0,
+                    borderBottomColor: theme.colors.border,
+                  }}
+                >
+                  <View style={{ flex: 1, marginEnd: theme.spacing[3] }}>
+                    <Text variant="bodyLg" weight="700" color="primary">
                       {h.value}
-                      <Text style={styles.historyUnit}> {def?.unit ?? ''}</Text>
+                      <Text
+                        variant="caption"
+                        color="mutedForeground"
+                        weight="500"
+                      >
+                        {' '}
+                        {def?.unit ?? ''}
+                      </Text>
                     </Text>
                     {h.notes ? (
-                      <Text style={styles.historyNotes} numberOfLines={2}>
+                      <Text
+                        variant="caption"
+                        color="mutedForeground"
+                        numberOfLines={2}
+                        style={{ marginTop: 4, maxWidth: 220 }}
+                      >
                         {h.notes}
                       </Text>
                     ) : null}
                   </View>
-                  <Text style={styles.historyDate}>
+                  <Text
+                    variant="caption"
+                    color="mutedForeground"
+                    style={{ backgroundColor: withAlpha(theme.colors.muted, 0) }}
+                  >
                     {new Date(h.capturedAt).toLocaleDateString()}
                   </Text>
                 </View>
               ))}
-          </View>
+          </Card>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  backBtn: { minWidth: 60 },
-  backText: { color: '#2563eb', fontSize: 15, fontWeight: '500' },
-  title: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827', textAlign: 'center' },
-
-  content: { padding: 20, paddingBottom: 40 },
-  center: { paddingVertical: 60, alignItems: 'center' },
-
-  windowRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  windowBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  windowBtnActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  windowText: { color: '#374151', fontWeight: '600', fontSize: 13 },
-  windowTextActive: { color: '#fff' },
-
-  chartBox: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  chartValue: { fontSize: 32, fontWeight: '700', color: '#111827' },
-  chartUnit: { fontSize: 16, color: '#6b7280', fontWeight: '500' },
-  chartDelta: { alignItems: 'flex-end' },
-  deltaValue: { fontSize: 13, fontWeight: '600' },
-  deltaLabel: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
-  emptyChart: { color: '#9ca3af', textAlign: 'center' },
-
-  singleValueBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  singleValue: { fontSize: 36, fontWeight: '700', color: '#111827' },
-  singleUnit: { fontSize: 16, color: '#6b7280' },
-  singleDate: { fontSize: 13, color: '#6b7280', marginTop: 4 },
-  singleHint: { fontSize: 12, color: '#9ca3af', marginTop: 12 },
-
-  axisRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  axisText: { fontSize: 10, color: '#9ca3af' },
-
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 24,
-    marginBottom: 10,
-  },
-  historyList: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' },
-  historyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  historyValue: { fontSize: 17, fontWeight: '700', color: '#2563eb' },
-  historyUnit: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
-  historyNotes: { fontSize: 12, color: '#6b7280', marginTop: 4, maxWidth: 220 },
-  historyDate: { fontSize: 12, color: '#9ca3af' },
-  historyEmpty: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  historyEmptyText: { color: '#9ca3af', fontSize: 14 },
-});

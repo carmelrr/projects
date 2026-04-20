@@ -1,6 +1,7 @@
 'use client';
 
 import { OwlLogo } from '@/components/brand/OwlLogo';
+import { BrandWatermark } from '@/components/brand/BrandWatermark';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
 import { useT } from '@/lib/i18n/client';
@@ -81,7 +82,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       {/* Form panel */}
       <div className="relative flex flex-col">
-        <header className="flex items-center justify-between p-4 lg:hidden">
+        <BrandWatermark />
+        <header className="relative z-[2] flex items-center justify-between p-4 lg:hidden">
           <OwlLogo variant="lockup" />
           <div className="flex items-center gap-1">
             <ThemeToggle />
@@ -89,12 +91,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
 
-        <div className="absolute end-4 top-4 hidden lg:flex lg:items-center lg:gap-1">
+        <div className="absolute end-4 top-4 z-[3] hidden lg:flex lg:items-center lg:gap-1">
           <ThemeToggle />
           <LocaleSwitcher />
         </div>
 
-        <div className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="relative z-[2] flex flex-1 items-center justify-center px-4 py-10">
           <div className="anim-fade-up w-full max-w-sm">{children}</div>
         </div>
       </div>

@@ -1,21 +1,19 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   Pressable,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { Screen, Card, Text, Input, Button, OwlLogo, FadeInUp } from '@/components/ui';
+import { useTheme, withAlpha } from '@/lib/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { ApiError } from '@/lib/api';
 
 export default function LoginScreen() {
+  const theme = useTheme();
   const { loginWithEmail, loginWithGoogle, loginWithApple } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,7 +42,7 @@ export default function LoginScreen() {
     } else if (code === 'auth/too-many-requests') {
       setError('Too many attempts. Please try again later.');
     } else if (code === '12501' || code === '-5' || code === 'ERR_REQUEST_CANCELED') {
-      // User cancelled â€” don't show an error.
+      // User cancelled — silent.
     } else {
       setError('Something went wrong. Please try again.');
     }
@@ -56,7 +54,6 @@ export default function LoginScreen() {
       setError('Please enter your email and password.');
       return;
     }
-
     setIsLoading(true);
     try {
       await loginWithEmail(email.trim().toLowerCase(), password);
@@ -98,41 +95,66 @@ export default function LoginScreen() {
   const anyBusy = isLoading || socialBusy !== null;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.container}>
-          {/* Logo / title */}
-          <View style={styles.header}>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoLetter}>C</Text>
-            </View>
-            <Text style={styles.title}>Coaching App</Text>
-            <Text style={styles.subtitle}>Sign in to your account</Text>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            paddingHorizontal: theme.spacing[6],
+            paddingBottom: theme.spacing[8],
+          }}
+        >
+          <View style={{ alignItems: 'center', marginBottom: theme.spacing[10] }}>
+            <FadeInUp>
+              <OwlLogo size={64} framed style={{ marginBottom: theme.spacing[4], alignSelf: 'center' }} />
+              <Text variant="h1" weight="700" style={{ marginBottom: 6, textAlign: 'center' }}>
+                OWL Performance
+              </Text>
+              <Text variant="bodyLg" color="mutedForeground" style={{ textAlign: 'center' }}>
+                Sign in to your account
+              </Text>
+            </FadeInUp>
           </View>
 
-          {/* Form */}
-          <View style={styles.form}>
+          <FadeInUp delay={120}>
+          <Card>
             {error ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite"
+                style={{
+                  backgroundColor: withAlpha(theme.colors.destructive, 0.1),
+                  borderRadius: theme.radii.sm,
+                  padding: theme.spacing[3],
+                  marginBottom: theme.spacing[4],
+                }}
+              >
+                <Text
+                  variant="body"
+                  color="destructive"
+                  style={{ textAlign: 'center' }}
+                >
+                  {error}
+                </Text>
               </View>
             ) : null}
 
-            {/* Social login */}
-            <Pressable
-              style={[styles.socialBtn, anyBusy && styles.buttonDisabled]}
+            <Button
+              variant="outline"
+              size="lg"
+              fullWidth
               onPress={handleGoogle}
               disabled={anyBusy}
+              loading={socialBusy === 'google'}
+              accessibilityHint="Signs in using your Google account"
+              style={{ marginBottom: theme.spacing[2.5] }}
             >
-              {socialBusy === 'google' ? (
-                <ActivityIndicator color="#111827" size="small" />
-              ) : (
-                <Text style={styles.socialText}>Continue with Google</Text>
-              )}
-            </Pressable>
+              Continue with Google
+            </Button>
 
             {showApple && (
               <AppleAuthentication.AppleAuthenticationButton
@@ -143,210 +165,82 @@ export default function LoginScreen() {
                   AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
                 }
                 cornerRadius={10}
-                style={styles.appleBtn}
+                style={{ width: '100%', height: 46, marginBottom: theme.spacing[2.5] }}
                 onPress={handleApple}
               />
             )}
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginVertical: theme.spacing[4],
+              }}
+            >
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.colors.border }} />
+              <Text
+                variant="caption"
+                color="mutedForeground"
+                style={{ marginHorizontal: theme.spacing[3] }}
+              >
+                or
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.colors.border }} />
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor="#9ca3af"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                autoComplete="email"
-              />
-            </View>
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              autoComplete="email"
+              containerStyle={{ marginBottom: theme.spacing[4] }}
+            />
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                textContentType="password"
-                autoComplete="current-password"
-                onSubmitEditing={handleLogin}
-                returnKeyType="go"
-              />
-            </View>
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              secureTextEntry
+              textContentType="password"
+              autoComplete="current-password"
+              onSubmitEditing={handleLogin}
+              returnKeyType="go"
+              containerStyle={{ marginBottom: theme.spacing[4] }}
+            />
 
-            <Pressable
-              style={[styles.button, anyBusy && styles.buttonDisabled]}
+            <Button
+              variant="default"
+              size="lg"
+              fullWidth
               onPress={handleLogin}
               disabled={anyBusy}
+              loading={isLoading}
+              accessibilityHint="Signs in with your email and password"
             >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </Pressable>
+              Sign In
+            </Button>
 
             <Pressable
               onPress={() => router.push('/(auth)/forgot-password')}
-              style={styles.linkBtn}
+              style={{ alignItems: 'center', paddingVertical: theme.spacing[3], marginTop: theme.spacing[2] }}
+              accessibilityRole="button"
+              accessibilityLabel="Forgot password"
+              accessibilityHint="Opens the password reset screen"
             >
-              <Text style={styles.linkText}>Forgot password?</Text>
+              <Text variant="body" color="primary" weight="500">
+                Forgot password?
+              </Text>
             </Pressable>
-          </View>
+          </Card>
+          </FadeInUp>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
-  flex: { flex: 1 },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  logoLetter: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#6b7280',
-  },
-  form: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  errorBanner: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  socialBtn: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
-  socialText: {
-    color: '#111827',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  appleBtn: {
-    width: '100%',
-    height: 46,
-    marginBottom: 10,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#9ca3af',
-    fontSize: 12,
-    textTransform: 'uppercase',
-  },
-  field: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#fff',
-  },
-  button: {
-    backgroundColor: '#2563eb',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  linkBtn: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginTop: 4,
-  },
-  linkText: {
-    color: '#2563eb',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-});
-

@@ -1,24 +1,24 @@
 import {
   View,
-  Text,
   FlatList,
   Pressable,
-  StyleSheet,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Bell, ChevronRight, Clock, Gauge, PartyPopper } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
 import { useTodayWorkouts, type WorkoutInstance } from '@/hooks/useWorkouts';
 import { useUnreadCount } from '@/hooks/useNotifications';
+import { useTheme, withAlpha } from '@/lib/theme';
+import { Screen, Text, Card, Badge, ProgressBar, Icon, Skeleton } from '@/components/ui';
+import type { BadgeVariant, CardTone } from '@/components/ui';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function greeting(name: string) {
   const h = new Date().getHours();
   const time = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  return `${time}, ${name} 👋`;
+  return name ? `${time}, ${name}` : time;
 }
 
 function formatDate(iso: string) {
@@ -29,17 +29,21 @@ function formatDate(iso: string) {
   });
 }
 
-// ── Workout Card ───────────────────────────────────────────────────────────
-
-const STATUS_CONFIG = {
-  SCHEDULED: { bg: '#eff6ff', border: '#bfdbfe', badge: '#2563eb', label: 'Scheduled' },
-  COMPLETED: { bg: '#f0fdf4', border: '#bbf7d0', badge: '#16a34a', label: 'Completed' },
-  SKIPPED: { bg: '#f9fafb', border: '#e5e7eb', badge: '#6b7280', label: 'Skipped' },
-  MISSED: { bg: '#fef2f2', border: '#fecaca', badge: '#dc2626', label: 'Missed' },
+const STATUS_MAP: Record<
+  WorkoutInstance['status'],
+  { tone: CardTone; badge: BadgeVariant; label: string }
+> = {
+  SCHEDULED: { tone: 'brand', badge: 'default', label: 'Scheduled' },
+  COMPLETED: { tone: 'success', badge: 'success', label: 'Completed' },
+  SKIPPED: { tone: 'muted', badge: 'muted', label: 'Skipped' },
+  MISSED: { tone: 'destructive', badge: 'destructive', label: 'Missed' },
 };
 
+// ── Workout Card ───────────────────────────────────────────────────────────
+
 function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
-  const cfg = STATUS_CONFIG[instance.status] ?? STATUS_CONFIG.SCHEDULED;
+  const theme = useTheme();
+  const cfg = STATUS_MAP[instance.status] ?? STATUS_MAP.SCHEDULED;
   const title = instance.template?.title ?? instance.title ?? 'Workout';
   const itemCount = instance.template?.items?.length ?? 0;
   const duration = instance.template?.estimatedDuration;
@@ -52,64 +56,193 @@ function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
   };
 
   return (
-    <Pressable
-      onPress={handlePress}
+    <Card
+      tone={cfg.tone}
+      onPress={isActionable ? handlePress : undefined}
       disabled={!isActionable}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: cfg.bg, borderColor: cfg.border },
-        pressed && isActionable && styles.cardPressed,
-      ]}
+      accessibilityLabel={`${title} — ${cfg.label}`}
     >
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleRow}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: cfg.badge }]}>
-            <Text style={styles.statusLabel}>{cfg.label}</Text>
-          </View>
-        </View>
+      {/* Title row */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing[2],
+        }}
+      >
+        <Text variant="h3" style={{ flex: 1 }} numberOfLines={1}>
+          {title}
+        </Text>
+        <Badge variant={cfg.badge}>{cfg.label}</Badge>
+      </View>
 
-        <View style={styles.cardMeta}>
+      {/* Meta row */}
+      {(itemCount > 0 || duration || instance.template?.type) && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing[2],
+            marginTop: theme.spacing[1.5],
+          }}
+        >
           {itemCount > 0 && (
-            <Text style={styles.metaText}>
+            <Text variant="caption" color="mutedForeground">
               {itemCount} exercise{itemCount !== 1 ? 's' : ''}
             </Text>
           )}
-          {duration && (
+          {duration ? (
             <>
-              <Text style={styles.metaDot}>·</Text>
-              <Text style={styles.metaText}>{duration} min</Text>
+              <Dot />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Clock size={12} color={theme.colors.mutedForeground} strokeWidth={1.75} />
+                <Text variant="caption" color="mutedForeground">
+                  {duration} min
+                </Text>
+              </View>
             </>
-          )}
-          {instance.template?.type && (
+          ) : null}
+          {instance.template?.type ? (
             <>
-              <Text style={styles.metaDot}>·</Text>
-              <Text style={styles.metaText}>{instance.template.type}</Text>
+              <Dot />
+              <Text variant="caption" color="mutedForeground">
+                {instance.template.type}
+              </Text>
             </>
-          )}
+          ) : null}
         </View>
-      </View>
+      )}
 
+      {/* Description */}
       {instance.template?.description ? (
-        <Text style={styles.cardDescription} numberOfLines={2}>
+        <Text
+          variant="body"
+          color="mutedForeground"
+          numberOfLines={2}
+          style={{ marginTop: theme.spacing[2] }}
+        >
           {instance.template.description}
         </Text>
       ) : null}
 
+      {/* Actionable footer */}
       {isActionable && (
-        <View style={styles.startRow}>
-          <Text style={styles.startText}>Tap to start workout →</Text>
+        <View
+          style={{
+            marginTop: theme.spacing[3],
+            paddingTop: theme.spacing[3],
+            borderTopWidth: 1,
+            borderTopColor: withAlpha(theme.colors.primary, 0.2),
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Text variant="bodyMedium" color="primary">
+            Tap to start workout
+          </Text>
+          <Icon icon={ChevronRight} size={16} color="primary" />
         </View>
       )}
 
+      {/* Completed footer */}
       {instance.status === 'COMPLETED' && instance.log && (
-        <View style={styles.completedRow}>
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: theme.spacing[3],
+            marginTop: theme.spacing[2.5],
+          }}
+        >
           {instance.log.durationMinutes ? (
-            <Text style={styles.completedMeta}>⏱ {instance.log.durationMinutes} min</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Clock size={12} color={theme.colors.success} strokeWidth={1.75} />
+              <Text variant="caption" color="success">
+                {instance.log.durationMinutes} min
+              </Text>
+            </View>
           ) : null}
           {instance.log.overallRpe ? (
-            <Text style={styles.completedMeta}>RPE {instance.log.overallRpe}/10</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Gauge size={12} color={theme.colors.success} strokeWidth={1.75} />
+              <Text variant="caption" color="success">
+                RPE {instance.log.overallRpe}/10
+              </Text>
+            </View>
           ) : null}
+        </View>
+      )}
+    </Card>
+  );
+}
+
+function Dot() {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: theme.colors.mutedForeground,
+        opacity: 0.5,
+      }}
+    />
+  );
+}
+
+// ── Header bell ────────────────────────────────────────────────────────────
+
+function BellButton() {
+  const theme = useTheme();
+  const { data } = useUnreadCount();
+  const count = data?.count ?? 0;
+
+  return (
+    <Pressable
+      onPress={() => router.push('/(client)/notifications')}
+      accessibilityRole="button"
+      accessibilityLabel={count > 0 ? `${count} unread notifications` : 'Notifications'}
+      style={({ pressed }) => [
+        {
+          width: 40,
+          height: 40,
+          borderRadius: theme.radii.full,
+          backgroundColor: theme.colors.card,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...theme.shadows.sm,
+        },
+        pressed ? { opacity: 0.75 } : null,
+      ]}
+    >
+      <Bell size={18} color={theme.colors.foreground} strokeWidth={1.75} />
+      {count > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            top: -2,
+            insetInlineEnd: -2,
+            minWidth: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: theme.colors.destructive,
+            paddingHorizontal: 4,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: theme.colors.background,
+          }}
+        >
+          <Text
+            variant="caption"
+            color="inherit"
+            style={{ color: theme.colors.destructiveForeground, fontSize: 10, fontWeight: '700', lineHeight: 12 }}
+          >
+            {count > 9 ? '9+' : count}
+          </Text>
         </View>
       )}
     </Pressable>
@@ -118,25 +251,8 @@ function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
-function BellButton() {
-  const { data } = useUnreadCount();
-  const count = data?.count ?? 0;
-  return (
-    <Pressable
-      onPress={() => router.push('/(client)/notifications')}
-      style={({ pressed }) => [styles.bell, pressed && styles.bellPressed]}
-    >
-      <Text style={styles.bellIcon}>🔔</Text>
-      {count > 0 && (
-        <View style={styles.bellBadge}>
-          <Text style={styles.bellBadgeText}>{count > 9 ? '9+' : count}</Text>
-        </View>
-      )}
-    </Pressable>
-  );
-}
-
 export default function TodayScreen() {
+  const theme = useTheme();
   const { user } = useAuthStore();
   const { data: instances, isLoading, refetch, isRefetching } = useTodayWorkouts();
 
@@ -145,35 +261,57 @@ export default function TodayScreen() {
   const total = (instances ?? []).length;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <Screen edges={['top']}>
       <FlatList
         data={instances ?? []}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={{
+          padding: theme.spacing[5],
+          paddingBottom: theme.spacing[10],
+        }}
+        ItemSeparatorComponent={() => <View style={{ height: theme.spacing[3] }} />}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#2563eb" />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            tintColor={theme.colors.primary}
+          />
         }
         ListHeaderComponent={
-          <View style={styles.header}>
-            <View style={styles.headerTopRow}>
+          <View style={{ marginBottom: theme.spacing[6] }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: theme.spacing[3],
+              }}
+            >
               <View style={{ flex: 1 }}>
-                <Text style={styles.greeting}>{greeting(user?.firstName ?? '')}</Text>
-                <Text style={styles.dateText}>{today}</Text>
+                <Text variant="eyebrow" color="mutedForeground">
+                  {today}
+                </Text>
+                <Text variant="h1" style={{ marginTop: theme.spacing[1] }}>
+                  {greeting(user?.firstName ?? '')}
+                </Text>
               </View>
               <BellButton />
             </View>
 
             {!isLoading && total > 0 && (
-              <View style={styles.progressRow}>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${total > 0 ? (completed / total) * 100 : 0}%` },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.progressLabel}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing[2.5],
+                  marginTop: theme.spacing[4],
+                }}
+              >
+                <ProgressBar
+                  value={completed / total}
+                  tone={completed === total ? 'success' : 'primary'}
+                  style={{ flex: 1 }}
+                />
+                <Text variant="captionMedium" color="mutedForeground" tabular>
                   {completed}/{total} done
                 </Text>
               </View>
@@ -182,123 +320,54 @@ export default function TodayScreen() {
         }
         ListEmptyComponent={
           isLoading ? (
-            <View style={styles.center}>
-              <ActivityIndicator color="#2563eb" size="large" />
+            <View style={{ gap: theme.spacing[3], paddingTop: theme.spacing[2] }}>
+              {[0, 1].map((i) => (
+                <Card key={i}>
+                  <View style={{ gap: theme.spacing[3] }}>
+                    <Skeleton width="60%" height={18} />
+                    <Skeleton width="40%" height={12} />
+                    <Skeleton height={8} radius={theme.radii.full} />
+                    <Skeleton width="100%" height={40} radius={theme.radii.md} />
+                  </View>
+                </Card>
+              ))}
             </View>
           ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>🎉</Text>
-              <Text style={styles.emptyTitle}>Rest day!</Text>
-              <Text style={styles.emptySubtitle}>No workouts scheduled for today.</Text>
-            </View>
+            <EmptyState />
           )
         }
         renderItem={({ item }) => <WorkoutCard instance={item} />}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
-  list: { padding: 20, paddingBottom: 40 },
-
-  header: { marginBottom: 24 },
-  headerTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  greeting: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  dateText: { fontSize: 14, color: '#6b7280', marginTop: 2 },
-
-  bell: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  bellPressed: { opacity: 0.7 },
-  bellIcon: { fontSize: 18 },
-  bellBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#dc2626',
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 10,
-  },
-  progressBar: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#e5e7eb',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-    backgroundColor: '#2563eb',
-  },
-  progressLabel: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
-
-  card: {
-    borderRadius: 14,
-    borderWidth: 1.5,
-    padding: 16,
-  },
-  cardPressed: { opacity: 0.85 },
-  cardHeader: { gap: 6 },
-  cardTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  cardTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  statusBadge: {
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  statusLabel: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 13, color: '#6b7280' },
-  metaDot: { fontSize: 13, color: '#d1d5db' },
-  cardDescription: { fontSize: 13, color: '#6b7280', marginTop: 6, lineHeight: 18 },
-
-  startRow: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#dbeafe' },
-  startText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
-
-  completedRow: { flexDirection: 'row', gap: 12, marginTop: 10 },
-  completedMeta: { fontSize: 13, color: '#16a34a', fontWeight: '500' },
-
-  separator: { height: 12 },
-  center: { paddingVertical: 60, alignItems: 'center' },
-  emptyState: { paddingVertical: 60, alignItems: 'center' },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  emptySubtitle: { fontSize: 14, color: '#6b7280', marginTop: 4 },
-});
+function EmptyState() {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        paddingVertical: theme.spacing[16],
+        alignItems: 'center',
+        gap: theme.spacing[3],
+      }}
+    >
+      <View
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: theme.radii.full,
+          backgroundColor: withAlpha(theme.colors.primary, 0.1),
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <PartyPopper size={28} color={theme.colors.primary} strokeWidth={1.75} />
+      </View>
+      <Text variant="h2">Rest day!</Text>
+      <Text variant="body" color="mutedForeground" style={{ textAlign: 'center' }}>
+        No workouts scheduled for today.
+      </Text>
+    </View>
+  );
+}

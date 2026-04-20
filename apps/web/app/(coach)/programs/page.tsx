@@ -22,6 +22,7 @@ import {
   type Program,
 } from '@/hooks/usePrograms';
 import { useClients } from '@/hooks/useClients';
+import { useT } from '@/lib/i18n/client';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ import {
 } from '@/components/ui/select';
 
 function CreateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const t = useT();
   const create = useCreateProgram();
   const [form, setForm] = useState({ title: '', description: '', isPrivate: false, tagInput: '', tags: [] as string[] });
 
@@ -79,34 +81,34 @@ function CreateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New program</DialogTitle>
-          <DialogDescription>Create a reusable program template.</DialogDescription>
+          <DialogTitle>{t('programs.create.title')}</DialogTitle>
+          <DialogDescription>{t('programs.create.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title">{t('programs.create.titleLabel')} *</Label>
             <Input
               id="title"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="e.g. 12-week strength builder"
+              placeholder={t('programs.create.titlePlaceholder')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="desc">Description</Label>
+            <Label htmlFor="desc">{t('programs.create.descLabel')}</Label>
             <Textarea
               id="desc"
               rows={3}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="What's this program for?"
+              placeholder={t('programs.create.descPlaceholder')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Tags</Label>
+            <Label>{t('programs.create.tagsLabel')}</Label>
             <div className="flex gap-2">
               <Input
                 value={form.tagInput}
@@ -117,22 +119,22 @@ function CreateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
                     addTag();
                   }
                 }}
-                placeholder="Add tag…"
+                placeholder={t('programs.create.tagPlaceholder')}
               />
               <Button variant="outline" type="button" onClick={addTag}>
-                Add
+                {t('programs.create.addTag')}
               </Button>
             </div>
             {form.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {form.tags.map((t) => (
-                  <Badge key={t} variant="default" className="gap-1">
-                    {t}
+                {form.tags.map((tag) => (
+                  <Badge key={tag} variant="default" className="gap-1">
+                    {tag}
                     <button
                       type="button"
-                      onClick={() => setForm({ ...form, tags: form.tags.filter((x) => x !== t) })}
+                      onClick={() => setForm({ ...form, tags: form.tags.filter((x) => x !== tag) })}
                       className="opacity-60 hover:opacity-100"
-                      aria-label={`Remove ${t}`}
+                      aria-label={t('programs.create.removeTag', { tag })}
                     >
                       ×
                     </button>
@@ -144,8 +146,8 @@ function CreateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
 
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
             <div>
-              <p className="text-sm font-medium text-foreground">Private</p>
-              <p className="text-xs text-muted-foreground">Only visible to you</p>
+              <p className="text-sm font-medium text-foreground">{t('programs.create.privateLabel')}</p>
+              <p className="text-xs text-muted-foreground">{t('programs.create.privateHint')}</p>
             </div>
             <Switch
               checked={form.isPrivate}
@@ -156,10 +158,10 @@ function CreateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={create.isPending}>
-            Cancel
+            {t('programs.create.cancel')}
           </Button>
           <Button variant="gradient" onClick={save} disabled={create.isPending || !form.title.trim()}>
-            {create.isPending ? 'Creating…' : 'Create program'}
+            {create.isPending ? t('programs.create.creating') : t('programs.create.create')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -176,6 +178,7 @@ function AssignDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const t = useT();
   const { data: clientsData } = useClients({ status: 'ACTIVE', limit: 100 });
   const assign = useAssignProgram();
   const [clientId, setClientId] = useState('');
@@ -196,9 +199,9 @@ function AssignDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Assign program</DialogTitle>
+          <DialogTitle>{t('programs.assign.title')}</DialogTitle>
           <DialogDescription>
-            Assigning <span className="font-medium text-foreground">{program.title}</span>
+            <span className="font-medium text-foreground">{t('programs.assign.description', { title: program.title })}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -207,16 +210,16 @@ function AssignDialog({
             <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-success/15 text-success text-2xl">
               ✓
             </div>
-            <p className="font-medium text-foreground">Program assigned!</p>
+            <p className="font-medium text-foreground">{t('programs.assign.success')}</p>
           </div>
         ) : (
           <>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label>Client</Label>
+                <Label>{t('programs.assign.clientLabel')}</Label>
                 <Select value={clientId} onValueChange={setClientId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select client…" />
+                    <SelectValue placeholder={t('programs.assign.clientPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {(clientsData?.items ?? []).map((c) => (
@@ -228,7 +231,7 @@ function AssignDialog({
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="startDate">Start date</Label>
+                <Label htmlFor="startDate">{t('programs.assign.startDateLabel')}</Label>
                 <Input
                   id="startDate"
                   type="date"
@@ -239,14 +242,14 @@ function AssignDialog({
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={assign.isPending}>
-                Cancel
+                {t('programs.assign.cancel')}
               </Button>
               <Button
                 variant="gradient"
                 onClick={save}
                 disabled={assign.isPending || !clientId || !startDate}
               >
-                {assign.isPending ? 'Assigning…' : 'Assign'}
+                {assign.isPending ? t('programs.assign.assigning') : t('programs.assign.assign')}
               </Button>
             </DialogFooter>
           </>
@@ -257,6 +260,7 @@ function AssignDialog({
 }
 
 export default function ProgramsPage() {
+  const t = useT();
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [assigning, setAssigning] = useState<Program | null>(null);
@@ -270,12 +274,12 @@ export default function ProgramsPage() {
   return (
     <div className="p-6 lg:p-8 space-y-6">
       <PageHeader
-        title="Programs"
-        description="Reusable training templates. Build once, assign to many."
+        title={t('programs.title')}
+        description={t('programs.description')}
         actions={
           <Button variant="gradient" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            New program
+            {t('programs.newProgram')}
           </Button>
         }
       />
@@ -284,7 +288,7 @@ export default function ProgramsPage() {
         <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           className="ps-9"
-          placeholder="Search programs…"
+          placeholder={t('programs.searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -299,13 +303,13 @@ export default function ProgramsPage() {
       ) : programs.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
-          title="No programs yet"
-          description={search ? 'Try a different search.' : 'Build your first reusable program.'}
+          title={t('programs.emptyTitle')}
+          description={search ? t('programs.emptySearch') : t('programs.emptyHint')}
           action={
             !search && (
               <Button variant="gradient" onClick={() => setCreateOpen(true)}>
                 <Plus className="size-4" />
-                New program
+                {t('programs.newProgram')}
               </Button>
             )
           }
@@ -326,7 +330,7 @@ export default function ProgramsPage() {
                     <DropdownMenuTrigger asChild>
                       <button
                         className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 focus:opacity-100"
-                        aria-label="Program options"
+                        aria-label={t('programs.options')}
                       >
                         <MoreVertical className="size-4" />
                       </button>
@@ -334,21 +338,21 @@ export default function ProgramsPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setAssigning(p)}>
                         <UserPlus className="me-2 size-4" />
-                        Assign to client
+                        {t('programs.assignToClient')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => dup.mutate(p.id)}>
                         <Copy className="me-2 size-4" />
-                        Duplicate
+                        {t('programs.duplicate')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => {
-                          if (confirm('Delete this program?')) del.mutate(p.id);
+                          if (confirm(t('programs.confirmDelete'))) del.mutate(p.id);
                         }}
                       >
                         <Trash2 className="me-2 size-4" />
-                        Delete
+                        {t('programs.delete')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -361,12 +365,12 @@ export default function ProgramsPage() {
                 <div className="mb-3 flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
                     <CalendarDays className="size-3.5" />
-                    {p.weeks?.length ?? 0} week{(p.weeks?.length ?? 0) === 1 ? '' : 's'}
+                    {t((p.weeks?.length ?? 0) === 1 ? 'programs.weekCount_one' : 'programs.weekCount_other', { n: p.weeks?.length ?? 0 })}
                   </span>
                   {p.isPrivate && (
                     <span className="inline-flex items-center gap-1">
                       <Lock className="size-3.5" />
-                      Private
+                      {t('programs.private')}
                     </span>
                   )}
                 </div>

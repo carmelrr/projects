@@ -2,10 +2,17 @@ import { initializeApp, getApps } from 'firebase/app';
 import {
   initializeAuth,
   getAuth,
-  getReactNativePersistence,
   type Auth,
+  type Persistence,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Firebase v12 removed `getReactNativePersistence` from the public type
+// surface but keeps it available at runtime. See firebase-js-sdk#8466. Cast
+// through `unknown` so TypeScript stops complaining without touching runtime.
+const { getReactNativePersistence } = require('firebase/auth') as {
+  getReactNativePersistence: (storage: unknown) => Persistence;
+};
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCSaWcnV4gXxeAn0YWw961W_JJjvEmmMPs',

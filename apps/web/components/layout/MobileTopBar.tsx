@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { OwlLogo } from '@/components/brand/OwlLogo';
 import { useThreads } from '@/hooks/useMessaging';
 import { useT } from '@/lib/i18n/client';
@@ -25,7 +25,8 @@ export function MobileTopBar() {
             <Menu className="size-5" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="start" className="w-72 p-0">
+        <SheetContent side="start" className="w-72 p-0" aria-describedby={undefined}>
+          <SheetTitle className="sr-only">{t('common.openMenu')}</SheetTitle>
           <Sidebar onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>

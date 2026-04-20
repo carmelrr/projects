@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { Smartphone, Apple, Play, MessageSquare, Activity, LineChart } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useT } from '@/lib/i18n/client';
@@ -78,9 +77,16 @@ export default function ClientHomePage() {
               <p className="mt-1 text-sm text-muted-foreground">{t('client.mobileHint.desc')}</p>
             </div>
           </div>
-          <Button asChild variant="outline">
-            <Link href="/messages">{t('client.openMessages')}</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline">
+              <Apple className="size-4" />
+              {t('client.downloadIOS')}
+            </Button>
+            <Button variant="outline">
+              <Play className="size-4" />
+              {t('client.downloadAndroid')}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

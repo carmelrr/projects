@@ -1,0 +1,53 @@
+# .easignore — controls what gets uploaded to EAS Build.
+# If this file exists, it REPLACES .gitignore, so we re-list everything.
+
+# --- Mirror of .gitignore ---
+node_modules/
+dist/
+.next/
+.expo/
+.turbo/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+coverage/
+npm-debug.log*
+pnpm-debug.log*
+.expo-shared/
+web-build/
+apps/*/.expo/
+**/.gradle/
+**/.cxx/
+**/*.keystore
+!**/debug.keystore
+**/local.properties
+Android/
+.android/
+
+# Expo prebuild output (managed workflow; regenerated remotely)
+apps/mobile/android/
+apps/mobile/ios/
+
+# Build artifacts we never want uploaded
+apps/web/.next/
+apps/web/out/
+apps/api/dist/
+packages/database/prisma/migrations/
+*.log
+*.tmp
+_tmp_*
+
+# Docs / non-code folders not needed for the build
+plan/
+infrastructure/
+assets/store-listing/
+.github/

@@ -1,5 +1,6 @@
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useMetricHistory } from '@/hooks/useMetrics';
+import { useTheme } from '@/lib/theme';
 
 interface Props {
   metricId: string;
@@ -13,8 +14,10 @@ export function Sparkline({
   metricId,
   width = 80,
   height = 32,
-  color = '#2563eb',
+  color,
 }: Props) {
+  const theme = useTheme();
+  const strokeColor = color ?? theme.colors.primary;
   const { data } = useMetricHistory(metricId, 14);
   const points = (data ?? [])
     .slice()
@@ -42,15 +45,15 @@ export function Sparkline({
     <Svg width={width} height={height}>
       <Defs>
         <LinearGradient id={`sl-${metricId}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity={0.25} />
-          <Stop offset="1" stopColor={color} stopOpacity={0} />
+          <Stop offset="0" stopColor={strokeColor} stopOpacity={0.25} />
+          <Stop offset="1" stopColor={strokeColor} stopOpacity={0} />
         </LinearGradient>
       </Defs>
       <Path d={area} fill={`url(#sl-${metricId})`} />
       <Path
         d={path}
         fill="none"
-        stroke={color}
+        stroke={strokeColor}
         strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"

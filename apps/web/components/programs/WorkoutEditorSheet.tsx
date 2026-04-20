@@ -262,11 +262,12 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl lg:max-w-2xl">
-          <SheetHeader className="mb-4">
-            <SheetTitle>{workout?.title ?? 'Workout'}</SheetTitle>
+        <SheetContent className="flex w-full flex-col sm:max-w-xl lg:max-w-2xl">
+          <SheetHeader className="mb-4 shrink-0">
+            <SheetTitle>{workout?.title || meta.title || 'Workout'}</SheetTitle>
           </SheetHeader>
 
+          <div className="-mx-6 flex-1 overflow-y-auto px-6">
           {isLoading || !workout ? (
             <div className="space-y-3">
               <Skeleton className="h-8" />
@@ -274,7 +275,7 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
               <Skeleton className="h-48" />
             </div>
           ) : (
-            <div className="space-y-6 pb-24">
+            <div className="space-y-6 pb-6">
               {/* Meta */}
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -518,9 +519,10 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
               </div>
             </div>
           )}
+          </div>
 
           {/* Sticky footer */}
-          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-6 py-3 backdrop-blur">
+          <div className="-mx-6 -mb-6 mt-auto flex shrink-0 items-center justify-between gap-3 border-t border-border bg-background/95 px-6 py-3 backdrop-blur">
             <span className="text-xs text-muted-foreground">
               {pending
                 ? 'Saving…'

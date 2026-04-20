@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth.store';
 import { OwlLogo } from '@/components/brand/OwlLogo';
+import { BrandWatermark } from '@/components/brand/BrandWatermark';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="relative flex min-h-screen flex-col bg-background">
+      <BrandWatermark />
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 lg:px-6">
           <Link href="/client" className="flex items-center gap-2">
@@ -50,7 +52,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
       </header>
-      <main className="flex-1">{children}</main>
+      <main className="relative z-[2] flex-1">{children}</main>
     </div>
   );
 }

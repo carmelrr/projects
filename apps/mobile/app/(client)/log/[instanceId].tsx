@@ -1,19 +1,36 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   Pressable,
   TextInput,
-  StyleSheet,
   Alert,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useWorkoutInstance, useSubmitLog, type LogItem, type LogSet } from '@/hooks/useWorkouts';
+import { X, Play, Check, Plus } from 'lucide-react-native';
+import {
+  useWorkoutInstance,
+  useSubmitLog,
+  type LogItem,
+  type LogSet,
+} from '@/hooks/useWorkouts';
 import { ExerciseVideoModal } from '@/components/ExerciseVideoModal';
+import { useTheme, withAlpha } from '@/lib/theme';
+import {
+  Screen,
+  Text,
+  Card,
+  Button,
+  Badge,
+  ProgressBar,
+  Icon,
+  Input,
+  Skeleton,
+} from '@/components/ui';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -36,14 +53,22 @@ interface ExerciseState {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function buildInitialState(items: ReturnType<typeof useWorkoutInstance>['data'] extends { template?: infer T } ? (T extends { items?: infer I } ? I : never[]) : never[]): ExerciseState[] {
+function prescStr(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  return String(v);
+}
+
+function buildInitialState(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (items as any[] ?? []).map((item: any) => {
+  items: any[] | undefined,
+): ExerciseState[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (items ?? []).map((item: any) => {
     const setCount = item.prescription?.sets ?? 3;
     const sets: SetState[] = Array.from({ length: setCount }, () => ({
-      reps: item.prescription?.reps?.toString() ?? '',
-      weight: item.prescription?.weight?.toString() ?? '',
-      duration: item.prescription?.duration?.toString() ?? '',
+      reps: prescStr(item.prescription?.reps),
+      weight: prescStr(item.prescription?.weight),
+      duration: prescStr(item.prescription?.duration),
       rpe: '',
       completed: false,
     }));
@@ -70,10 +95,15 @@ function useTimer(running: boolean) {
     } else {
       if (ref.current) clearInterval(ref.current);
     }
-    return () => { if (ref.current) clearInterval(ref.current); };
+    return () => {
+      if (ref.current) clearInterval(ref.current);
+    };
   }, [running]);
 
-  const formatted = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  const formatted = `${String(Math.floor(seconds / 60)).padStart(
+    2,
+    '0',
+  )}:${String(seconds % 60).padStart(2, '0')}`;
   return { seconds, formatted };
 }
 
@@ -90,72 +120,138 @@ function SetRow({
   prescription: Record<string, unknown>;
   onChange: (updated: Partial<SetState>) => void;
 }) {
+  const theme = useTheme();
   const hasReps = !!prescription.reps;
   const hasWeight = !!prescription.weight;
   const hasDuration = !!prescription.duration;
 
+  const inputStyle = {
+    borderWidth: 1,
+    borderColor: theme.colors.input,
+    borderRadius: theme.radii.sm,
+    paddingVertical: theme.spacing[1.5],
+    paddingHorizontal: theme.spacing[1.5],
+    fontSize: 14,
+    color: theme.colors.foreground,
+    textAlign: 'center' as const,
+    width: '100%' as const,
+    backgroundColor: theme.colors.background,
+    fontVariant: ['tabular-nums'] as ('tabular-nums')[],
+  };
+  const inputCompletedStyle = {
+    backgroundColor: withAlpha(theme.colors.success, 0.15),
+    borderColor: withAlpha(theme.colors.success, 0.5),
+  };
+  const placeholderColor = withAlpha(theme.colors.mutedForeground, 0.5);
+
   return (
-    <View style={[styles.setRow, set.completed && styles.setRowCompleted]}>
-      <Text style={styles.setIndex}>{setIndex + 1}</Text>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[1.5],
+        paddingVertical: theme.spacing[1],
+        borderRadius: theme.radii.sm,
+        paddingHorizontal: theme.spacing[0.5],
+        backgroundColor: set.completed
+          ? withAlpha(theme.colors.success, 0.08)
+          : 'transparent',
+      }}
+    >
+      <Text
+        variant="captionMedium"
+        color="mutedForeground"
+        tabular
+        style={{ width: 24, textAlign: 'center' }}
+      >
+        {setIndex + 1}
+      </Text>
 
       {hasReps && (
-        <View style={styles.setField}>
-          <Text style={styles.setFieldLabel}>Reps</Text>
+        <View style={{ flex: 1, alignItems: 'center' }}>
           <TextInput
-            style={[styles.setInput, set.completed && styles.setInputCompleted]}
+            style={[inputStyle, set.completed ? inputCompletedStyle : null]}
             value={set.reps}
             onChangeText={(v) => onChange({ reps: v })}
             keyboardType="numeric"
-            placeholder={prescription.reps?.toString() ?? '—'}
-            placeholderTextColor="#d1d5db"
+            placeholder={prescStr(prescription.reps) || '—'}
+            placeholderTextColor={placeholderColor}
+            accessibilityLabel={`Reps for set ${setIndex + 1}`}
           />
         </View>
       )}
 
       {hasWeight && (
-        <View style={styles.setField}>
-          <Text style={styles.setFieldLabel}>kg</Text>
+        <View style={{ flex: 1, alignItems: 'center' }}>
           <TextInput
-            style={[styles.setInput, set.completed && styles.setInputCompleted]}
+            style={[inputStyle, set.completed ? inputCompletedStyle : null]}
             value={set.weight}
             onChangeText={(v) => onChange({ weight: v })}
             keyboardType="decimal-pad"
-            placeholder={prescription.weight?.toString() ?? '—'}
-            placeholderTextColor="#d1d5db"
+            placeholder={prescStr(prescription.weight) || '—'}
+            placeholderTextColor={placeholderColor}
+            accessibilityLabel={`Weight for set ${setIndex + 1}`}
           />
         </View>
       )}
 
       {hasDuration && (
-        <View style={styles.setField}>
-          <Text style={styles.setFieldLabel}>Time</Text>
+        <View style={{ flex: 1, alignItems: 'center' }}>
           <TextInput
-            style={[styles.setInput, set.completed && styles.setInputCompleted]}
+            style={[inputStyle, set.completed ? inputCompletedStyle : null]}
             value={set.duration}
             onChangeText={(v) => onChange({ duration: v })}
-            placeholder={prescription.duration?.toString() ?? '—'}
-            placeholderTextColor="#d1d5db"
+            placeholder={prescStr(prescription.duration) || '—'}
+            placeholderTextColor={placeholderColor}
+            accessibilityLabel={`Duration for set ${setIndex + 1}`}
           />
         </View>
       )}
 
-      <View style={styles.setField}>
-        <Text style={styles.setFieldLabel}>RPE</Text>
+      <View style={{ flex: 1, alignItems: 'center' }}>
         <TextInput
-          style={[styles.setInput, set.completed && styles.setInputCompleted]}
+          style={[inputStyle, set.completed ? inputCompletedStyle : null]}
           value={set.rpe}
           onChangeText={(v) => onChange({ rpe: v })}
           keyboardType="numeric"
           placeholder="—"
-          placeholderTextColor="#d1d5db"
+          placeholderTextColor={placeholderColor}
+          accessibilityLabel={`RPE for set ${setIndex + 1}`}
         />
       </View>
 
       <Pressable
         onPress={() => onChange({ completed: !set.completed })}
-        style={[styles.checkButton, set.completed && styles.checkButtonDone]}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: set.completed }}
+        accessibilityLabel={`Set ${setIndex + 1}`}
+        accessibilityHint={
+          set.completed ? 'Marks set incomplete' : 'Marks set complete'
+        }
+        style={({ pressed }) => ({
+          width: 36,
+          height: 36,
+          borderRadius: theme.radii.sm,
+          borderWidth: 2,
+          borderColor: set.completed
+            ? theme.colors.success
+            : theme.colors.border,
+          backgroundColor: set.completed
+            ? theme.colors.success
+            : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.6 : 1,
+        })}
       >
-        <Text style={styles.checkIcon}>{set.completed ? '✓' : ''}</Text>
+        {set.completed ? (
+          <Icon
+            icon={Check}
+            size={16}
+            color={theme.colors.primaryForeground}
+            accessible={false}
+          />
+        ) : null}
       </Pressable>
     </View>
   );
@@ -172,70 +268,176 @@ function ExerciseBlock({
 }: {
   exercise: ExerciseState;
   index: number;
-  onUpdateSet: (exIndex: number, setIndex: number, updated: Partial<SetState>) => void;
+  onUpdateSet: (
+    exIndex: number,
+    setIndex: number,
+    updated: Partial<SetState>,
+  ) => void;
   onAddSet: (exIndex: number) => void;
   onWatchVideo: (exIndex: number) => void;
 }) {
+  const theme = useTheme();
   const completedSets = exercise.sets.filter((s) => s.completed).length;
+  const p = exercise.prescription;
+
+  const columnHeaderStyle = {
+    flex: 1,
+    textAlign: 'center' as const,
+  };
 
   return (
-    <View style={styles.exerciseBlock}>
-      <View style={styles.exerciseHeader}>
-        <View style={styles.exerciseIndexBadge}>
-          <Text style={styles.exerciseIndexText}>{index + 1}</Text>
+    <Card style={{ marginBottom: theme.spacing[3] }}>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing[2.5],
+          marginBottom: theme.spacing[2.5],
+        }}
+      >
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: theme.radii.full,
+            backgroundColor: withAlpha(theme.colors.primary, 0.12),
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text variant="captionMedium" color="primary" weight="700">
+            {index + 1}
+          </Text>
         </View>
-        <View style={styles.exerciseTitleCol}>
-          <Text style={styles.exerciseName}>{exercise.name}</Text>
-          <Text style={styles.exerciseMeta}>
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyMedium">{exercise.name}</Text>
+          <Text
+            variant="caption"
+            color="mutedForeground"
+            style={{ marginTop: theme.spacing[0.5] }}
+          >
             {completedSets}/{exercise.sets.length} sets complete
           </Text>
         </View>
         {exercise.videoUrl ? (
-          <Pressable onPress={() => onWatchVideo(index)} style={styles.videoBtn} hitSlop={8}>
-            <Text style={styles.videoBtnText}>▶ Demo</Text>
-          </Pressable>
+          <Button
+            onPress={() => onWatchVideo(index)}
+            variant="outline"
+            size="sm"
+            accessibilityLabel={`Watch demo for ${exercise.name}`}
+            iconLeft={<Icon icon={Play} size={12} color="primary" accessible={false} />}
+          >
+            Demo
+          </Button>
         ) : null}
       </View>
 
+      {/* Coach note */}
       {exercise.coachNotes ? (
-        <View style={styles.coachNote}>
-          <Text style={styles.coachNoteLabel}>Coach note:</Text>
-          <Text style={styles.coachNoteText}>{exercise.coachNotes}</Text>
+        <View
+          style={{
+            backgroundColor: withAlpha(theme.colors.warning, 0.12),
+            borderRadius: theme.radii.md,
+            padding: theme.spacing[2.5],
+            marginBottom: theme.spacing[2.5],
+            flexDirection: 'row',
+            gap: theme.spacing[1],
+          }}
+        >
+          <Text variant="captionMedium" color="warning">
+            Coach note:
+          </Text>
+          <Text
+            variant="caption"
+            color="foreground"
+            style={{ flex: 1, lineHeight: 16 }}
+          >
+            {exercise.coachNotes}
+          </Text>
         </View>
       ) : null}
 
-      {/* Prescription summary */}
-      {Object.keys(exercise.prescription).length > 0 && (
-        <View style={styles.prescriptionRow}>
-          {exercise.prescription.sets ? (
-            <Text style={styles.prescTag}>{exercise.prescription.sets} sets</Text>
+      {/* Prescription badges */}
+      {Object.keys(p).length > 0 && (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: theme.spacing[1.5],
+            marginBottom: theme.spacing[3],
+          }}
+        >
+          {p.sets ? <Badge variant="info">{prescStr(p.sets)} sets</Badge> : null}
+          {p.reps ? <Badge variant="info">{prescStr(p.reps)} reps</Badge> : null}
+          {p.weight ? (
+            <Badge variant="info">{prescStr(p.weight)} kg</Badge>
           ) : null}
-          {exercise.prescription.reps ? (
-            <Text style={styles.prescTag}>{exercise.prescription.reps} reps</Text>
-          ) : null}
-          {exercise.prescription.weight ? (
-            <Text style={styles.prescTag}>{exercise.prescription.weight} kg</Text>
-          ) : null}
-          {exercise.prescription.duration ? (
-            <Text style={styles.prescTag}>{exercise.prescription.duration}</Text>
-          ) : null}
-          {exercise.prescription.rpe ? (
-            <Text style={styles.prescTag}>RPE {exercise.prescription.rpe}</Text>
-          ) : null}
-          {exercise.prescription.rest ? (
-            <Text style={styles.prescTag}>Rest {exercise.prescription.rest}</Text>
+          {p.duration ? <Badge variant="info">{prescStr(p.duration)}</Badge> : null}
+          {p.rpe ? <Badge variant="info">RPE {prescStr(p.rpe)}</Badge> : null}
+          {p.rest ? (
+            <Badge variant="muted">Rest {prescStr(p.rest)}</Badge>
           ) : null}
         </View>
       )}
 
-      {/* Set header */}
-      <View style={styles.setHeader}>
-        <Text style={[styles.setHeaderLabel, { width: 24 }]}>#</Text>
-        {!!exercise.prescription.reps && <Text style={[styles.setHeaderLabel, styles.setHeaderFlex]}>Reps</Text>}
-        {!!exercise.prescription.weight && <Text style={[styles.setHeaderLabel, styles.setHeaderFlex]}>kg</Text>}
-        {!!exercise.prescription.duration && <Text style={[styles.setHeaderLabel, styles.setHeaderFlex]}>Time</Text>}
-        <Text style={[styles.setHeaderLabel, styles.setHeaderFlex]}>RPE</Text>
-        <Text style={[styles.setHeaderLabel, { width: 36 }]}>✓</Text>
+      {/* Set column headers */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: theme.spacing[1],
+          marginBottom: theme.spacing[1],
+          gap: theme.spacing[1.5],
+        }}
+      >
+        <Text
+          variant="caption"
+          color="mutedForeground"
+          weight="600"
+          style={{ width: 24, textAlign: 'center' }}
+        >
+          #
+        </Text>
+        {!!p.reps && (
+          <Text
+            variant="caption"
+            color="mutedForeground"
+            weight="600"
+            style={columnHeaderStyle}
+          >
+            Reps
+          </Text>
+        )}
+        {!!p.weight && (
+          <Text
+            variant="caption"
+            color="mutedForeground"
+            weight="600"
+            style={columnHeaderStyle}
+          >
+            kg
+          </Text>
+        )}
+        {!!p.duration && (
+          <Text
+            variant="caption"
+            color="mutedForeground"
+            weight="600"
+            style={columnHeaderStyle}
+          >
+            Time
+          </Text>
+        )}
+        <Text
+          variant="caption"
+          color="mutedForeground"
+          weight="600"
+          style={columnHeaderStyle}
+        >
+          RPE
+        </Text>
+        <View style={{ width: 36 }} />
       </View>
 
       {exercise.sets.map((set, si) => (
@@ -243,15 +445,31 @@ function ExerciseBlock({
           key={si}
           setIndex={si}
           set={set}
-          prescription={exercise.prescription}
+          prescription={p}
           onChange={(updated) => onUpdateSet(index, si, updated)}
         />
       ))}
 
-      <Pressable onPress={() => onAddSet(index)} style={styles.addSetBtn}>
-        <Text style={styles.addSetText}>+ Add set</Text>
+      <Pressable
+        onPress={() => onAddSet(index)}
+        accessibilityRole="button"
+        accessibilityLabel="Add set"
+        style={({ pressed }) => ({
+          marginTop: theme.spacing[2.5],
+          alignItems: 'center',
+          paddingVertical: theme.spacing[2],
+          flexDirection: 'row',
+          justifyContent: 'center',
+          gap: theme.spacing[1],
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        <Icon icon={Plus} size={14} color="primary" accessible={false} />
+        <Text variant="captionMedium" color="primary">
+          Add set
+        </Text>
       </Pressable>
-    </View>
+    </Card>
   );
 }
 
@@ -260,68 +478,110 @@ function ExerciseBlock({
 function FinishModal({
   visible,
   durationSeconds,
+  submitting,
   onSubmit,
   onClose,
 }: {
   visible: boolean;
   durationSeconds: number;
+  submitting: boolean;
   onSubmit: (notes: string, rpe: number | null) => void;
   onClose: () => void;
 }) {
+  const theme = useTheme();
   const [notes, setNotes] = useState('');
   const [rpe, setRpe] = useState('');
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalSheet}>
-          <Text style={styles.modalTitle}>Finish Workout 🎉</Text>
+      <KeyboardAvoidingView
+        style={{
+          flex: 1,
+          backgroundColor: withAlpha(theme.colors.foreground, 0.4),
+          justifyContent: 'flex-end',
+        }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View
+          style={{
+            backgroundColor: theme.colors.card,
+            borderTopLeftRadius: theme.radii['2xl'],
+            borderTopRightRadius: theme.radii['2xl'],
+            padding: theme.spacing[6],
+            paddingBottom: theme.spacing[10],
+            gap: theme.spacing[4],
+          }}
+        >
+          <Text variant="h2">Finish Workout 🎉</Text>
 
-          <View style={styles.modalDuration}>
-            <Text style={styles.modalDurationLabel}>Duration</Text>
-            <Text style={styles.modalDurationValue}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: withAlpha(theme.colors.primary, 0.1),
+              borderRadius: theme.radii.lg,
+              padding: theme.spacing[4],
+            }}
+          >
+            <Text variant="body" color="mutedForeground">
+              Duration
+            </Text>
+            <Text variant="h2" color="primary" tabular>
               {Math.floor(durationSeconds / 60)} min
             </Text>
           </View>
 
-          <View style={styles.modalField}>
-            <Text style={styles.modalLabel}>Overall RPE (1–10)</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={rpe}
-              onChangeText={setRpe}
-              keyboardType="numeric"
-              placeholder="How hard was it?"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
+          <Input
+            label="Overall RPE (1–10)"
+            value={rpe}
+            onChangeText={setRpe}
+            keyboardType="numeric"
+            placeholder="How hard was it?"
+          />
 
-          <View style={styles.modalField}>
-            <Text style={styles.modalLabel}>Notes</Text>
-            <TextInput
-              style={[styles.modalInput, styles.modalTextarea]}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              numberOfLines={3}
-              placeholder="How did it feel? Any PRs?"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
+          <Input
+            label="Notes"
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            numberOfLines={3}
+            placeholder="How did it feel? Any PRs?"
+            inputStyle={{
+              minHeight: 80,
+              textAlignVertical: 'top',
+              paddingTop: theme.spacing[2],
+            }}
+          />
 
-          <View style={styles.modalButtons}>
-            <Pressable onPress={onClose} style={styles.modalCancelBtn}>
-              <Text style={styles.modalCancelText}>Back</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => onSubmit(notes, rpe ? Number(rpe) : null)}
-              style={styles.modalSubmitBtn}
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: theme.spacing[3],
+              marginTop: theme.spacing[2],
+            }}
+          >
+            <Button
+              onPress={onClose}
+              variant="outline"
+              disabled={submitting}
+              style={{ flex: 1 }}
             >
-              <Text style={styles.modalSubmitText}>Save & Finish</Text>
-            </Pressable>
+              Back
+            </Button>
+            <Button
+              onPress={() => onSubmit(notes, rpe ? Number(rpe) : null)}
+              loading={submitting}
+              style={{
+                flex: 2,
+                backgroundColor: theme.colors.success,
+              }}
+            >
+              Save & Finish
+            </Button>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -329,6 +589,7 @@ function FinishModal({
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function WorkoutLogScreen() {
+  const theme = useTheme();
   const { instanceId } = useLocalSearchParams<{ instanceId: string }>();
   const { data: instance, isLoading } = useWorkoutInstance(instanceId);
   const submitLog = useSubmitLog(instanceId);
@@ -340,16 +601,20 @@ export default function WorkoutLogScreen() {
   const [videoForIndex, setVideoForIndex] = useState<number | null>(null);
   const { seconds, formatted } = useTimer(timerRunning);
 
-  // Initialize exercise state when instance loads
   useEffect(() => {
     if (instance?.template?.items && !initialized) {
-      setExercises(buildInitialState(instance.template.items as never));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setExercises(buildInitialState(instance.template.items as any));
       setInitialized(true);
       setTimerRunning(true);
     }
   }, [instance, initialized]);
 
-  const updateSet = (exIndex: number, setIndex: number, updated: Partial<SetState>) => {
+  const updateSet = (
+    exIndex: number,
+    setIndex: number,
+    updated: Partial<SetState>,
+  ) => {
     setExercises((prev) =>
       prev.map((ex, ei) =>
         ei !== exIndex
@@ -374,9 +639,9 @@ export default function WorkoutLogScreen() {
               sets: [
                 ...ex.sets,
                 {
-                  reps: ex.prescription.reps?.toString() ?? '',
-                  weight: ex.prescription.weight?.toString() ?? '',
-                  duration: ex.prescription.duration?.toString() ?? '',
+                  reps: prescStr(ex.prescription.reps),
+                  weight: prescStr(ex.prescription.weight),
+                  duration: prescStr(ex.prescription.duration),
                   rpe: '',
                   completed: false,
                 },
@@ -424,11 +689,28 @@ export default function WorkoutLogScreen() {
 
   if (isLoading || !initialized) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.loadingCenter}>
-          <ActivityIndicator color="#2563eb" size="large" />
+      <Screen edges={['top']}>
+        <View
+          style={{
+            padding: theme.spacing[4],
+            gap: theme.spacing[3],
+          }}
+        >
+          <Skeleton height={28} width="55%" />
+          <Skeleton height={14} width="35%" />
+          <Skeleton height={8} radius={theme.radii.full} />
+          {[0, 1, 2].map((i) => (
+            <Card key={i} style={{ marginTop: theme.spacing[2] }}>
+              <View style={{ gap: theme.spacing[2] }}>
+                <Skeleton height={18} width="60%" />
+                <Skeleton height={12} width="30%" />
+                <Skeleton height={36} radius={theme.radii.md} />
+                <Skeleton height={36} radius={theme.radii.md} />
+              </View>
+            </Card>
+          ))}
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -439,48 +721,98 @@ export default function WorkoutLogScreen() {
     0,
   );
 
+  const handleLeave = () => {
+    Alert.alert('Leave workout?', 'Progress will be lost.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: () => router.back(),
+      },
+    ]);
+  };
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.topBar}>
-        <Pressable onPress={() => {
-          Alert.alert('Leave workout?', 'Progress will be lost.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Leave', style: 'destructive', onPress: () => router.back() },
-          ]);
-        }}>
-          <Text style={styles.backBtn}>✕</Text>
+    <Screen edges={['top']}>
+      {/* Top bar */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: theme.spacing[4],
+          paddingVertical: theme.spacing[3],
+          backgroundColor: theme.colors.card,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+          gap: theme.spacing[3],
+        }}
+      >
+        <Pressable
+          onPress={handleLeave}
+          accessibilityRole="button"
+          accessibilityLabel="Close workout"
+          accessibilityHint="Leaves the workout. Progress will be lost."
+          hitSlop={8}
+          style={({ pressed }) => ({
+            opacity: pressed ? 0.6 : 1,
+            padding: theme.spacing[1],
+          })}
+        >
+          <Icon icon={X} size={22} color="mutedForeground" accessible={false} />
         </Pressable>
 
-        <View style={styles.topBarCenter}>
-          <Text style={styles.topTitle} numberOfLines={1}>{title}</Text>
-          <Text style={styles.topTimer}>{formatted}</Text>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="bodyMedium" numberOfLines={1}>
+            {title}
+          </Text>
+          <Text
+            variant="caption"
+            color="primary"
+            weight="600"
+            tabular
+            accessibilityLabel={`Elapsed time ${formatted}`}
+            style={{ marginTop: theme.spacing[0.5] }}
+          >
+            {formatted}
+          </Text>
         </View>
 
-        <Pressable onPress={() => setShowFinish(true)} style={styles.finishBtn}>
-          <Text style={styles.finishBtnText}>Finish</Text>
-        </Pressable>
+        <Button
+          onPress={() => setShowFinish(true)}
+          size="sm"
+          style={{ backgroundColor: theme.colors.success }}
+        >
+          Finish
+        </Button>
       </View>
 
       {/* Progress bar */}
-      <View style={styles.progressBarOuter}>
-        <View
-          style={[
-            styles.progressBarInner,
-            { width: totalSets > 0 ? `${(completedSets / totalSets) * 100}%` : '0%' },
-          ]}
-        />
-      </View>
+      <ProgressBar
+        value={totalSets > 0 ? completedSets / totalSets : 0}
+        height={3}
+        tone="primary"
+        style={{ borderRadius: 0 }}
+      />
 
       {/* Exercise list */}
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: theme.spacing[4],
+          paddingBottom: theme.spacing[10],
+        }}
         keyboardShouldPersistTaps="handled"
       >
         {exercises.length === 0 ? (
-          <View style={styles.emptyCenter}>
-            <Text style={styles.emptyText}>No exercises in this workout.</Text>
+          <View
+            style={{
+              padding: theme.spacing[10],
+              alignItems: 'center',
+            }}
+          >
+            <Text variant="body" color="mutedForeground">
+              No exercises in this workout.
+            </Text>
           </View>
         ) : (
           exercises.map((ex, i) => (
@@ -494,248 +826,57 @@ export default function WorkoutLogScreen() {
             />
           ))
         )}
-
-        <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Finish modal */}
       <FinishModal
         visible={showFinish}
         durationSeconds={seconds}
+        submitting={submitLog.isPending}
         onSubmit={handleSubmit}
         onClose={() => setShowFinish(false)}
       />
 
-      {/* Exercise demo video */}
       <ExerciseVideoModal
         visible={videoForIndex !== null}
-        videoUrl={videoForIndex !== null ? exercises[videoForIndex]?.videoUrl : null}
-        title={videoForIndex !== null ? exercises[videoForIndex]?.name : undefined}
+        videoUrl={
+          videoForIndex !== null ? exercises[videoForIndex]?.videoUrl : null
+        }
+        title={
+          videoForIndex !== null ? exercises[videoForIndex]?.name : undefined
+        }
         onClose={() => setVideoForIndex(null)}
       />
 
-      {/* Submitting overlay */}
       {submitLog.isPending && (
-        <View style={styles.submittingOverlay}>
-          <ActivityIndicator color="#fff" size="large" />
-          <Text style={styles.submittingText}>Saving…</Text>
+        <View
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel="Saving workout"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: withAlpha(theme.colors.foreground, 0.6),
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing[3],
+          }}
+        >
+          <ActivityIndicator
+            color={theme.colors.primaryForeground}
+            size="large"
+          />
+          <Text
+            variant="bodyMedium"
+            color="inherit"
+            style={{ color: theme.colors.primaryForeground }}
+          >
+            Saving…
+          </Text>
         </View>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
-  loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    gap: 12,
-  },
-  backBtn: { fontSize: 18, color: '#6b7280', paddingHorizontal: 4 },
-  topBarCenter: { flex: 1, alignItems: 'center' },
-  topTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  topTimer: { fontSize: 13, color: '#2563eb', fontWeight: '600', marginTop: 1 },
-  finishBtn: {
-    backgroundColor: '#16a34a',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  finishBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-
-  progressBarOuter: { height: 3, backgroundColor: '#e5e7eb' },
-  progressBarInner: { height: '100%', backgroundColor: '#2563eb' },
-
-  scroll: { flex: 1 },
-  scrollContent: { padding: 16 },
-
-  exerciseBlock: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  exerciseHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  exerciseIndexBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#eff6ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exerciseIndexText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
-  exerciseTitleCol: { flex: 1 },
-  exerciseName: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  exerciseMeta: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
-
-  coachNote: {
-    backgroundColor: '#fefce8',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  coachNoteLabel: { fontSize: 12, fontWeight: '600', color: '#ca8a04' },
-  coachNoteText: { flex: 1, fontSize: 12, color: '#854d0e', lineHeight: 16 },
-
-  prescriptionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
-  },
-  prescTag: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    fontSize: 12,
-    color: '#1d4ed8',
-    fontWeight: '500',
-  },
-
-  setHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    marginBottom: 4,
-    gap: 6,
-  },
-  setHeaderLabel: { fontSize: 11, fontWeight: '600', color: '#9ca3af', textAlign: 'center' },
-  setHeaderFlex: { flex: 1, textAlign: 'center' },
-
-  setRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 5,
-    borderRadius: 8,
-    paddingHorizontal: 2,
-  },
-  setRowCompleted: { backgroundColor: '#f0fdf4' },
-  setIndex: { width: 24, fontSize: 13, fontWeight: '600', color: '#6b7280', textAlign: 'center' },
-  setField: { flex: 1, alignItems: 'center' },
-  setFieldLabel: { fontSize: 10, color: '#d1d5db', marginBottom: 2 },
-  setInput: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 7,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    fontSize: 14,
-    color: '#111827',
-    textAlign: 'center',
-    width: '100%',
-    backgroundColor: '#fff',
-  },
-  setInputCompleted: { backgroundColor: '#dcfce7', borderColor: '#86efac' },
-  checkButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkButtonDone: { backgroundColor: '#16a34a', borderColor: '#16a34a' },
-  checkIcon: { color: '#fff', fontWeight: '700', fontSize: 15 },
-
-  addSetBtn: { marginTop: 10, alignItems: 'center', paddingVertical: 8 },
-  addSetText: { color: '#2563eb', fontSize: 13, fontWeight: '600' },
-
-  videoBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  videoBtnText: { color: '#1d4ed8', fontSize: 12, fontWeight: '600' },
-
-  bottomSpacer: { height: 40 },
-  emptyCenter: { padding: 40, alignItems: 'center' },
-  emptyText: { color: '#9ca3af', fontSize: 15 },
-
-  // Finish modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 16 },
-  modalDuration: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  modalDurationLabel: { fontSize: 14, color: '#6b7280' },
-  modalDurationValue: { fontSize: 22, fontWeight: '700', color: '#2563eb' },
-  modalField: { marginBottom: 14 },
-  modalLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: '#111827',
-  },
-  modalTextarea: { height: 80, textAlignVertical: 'top' },
-  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  modalCancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  modalCancelText: { fontSize: 15, fontWeight: '600', color: '#6b7280' },
-  modalSubmitBtn: {
-    flex: 2,
-    backgroundColor: '#16a34a',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  modalSubmitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-
-  // Submitting overlay
-  submittingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  submittingText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-});

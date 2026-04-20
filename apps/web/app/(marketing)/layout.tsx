@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { OwlLogo } from '@/components/brand/OwlLogo';
+import { BrandWatermark } from '@/components/brand/BrandWatermark';
 import { MarketingNav } from './_components/MarketingNav';
 import { MarketingFooter } from './_components/MarketingFooter';
 
@@ -12,16 +12,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   return (
     <div className="relative min-h-screen">
       {/* Fixed logo watermark — sits between body bg and content */}
-      <div className="pointer-events-none fixed inset-0 z-[1] flex items-center justify-center" aria-hidden="true">
-        <Image
-          src="/images/op-logo-transparent.png"
-          alt=""
-          width={800}
-          height={800}
-          className="size-[70vmin] max-w-[900px] opacity-[0.06] blur-[2px] dark:invert dark:opacity-[0.08]"
-          priority
-        />
-      </div>
+      <BrandWatermark />
 
       <div className="relative z-[2] flex min-h-screen flex-col">
         <MarketingNav />

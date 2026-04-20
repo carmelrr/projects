@@ -1,21 +1,20 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   Pressable,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { ChevronLeft } from 'lucide-react-native';
+import { Screen, Card, Text, Input, Button, Icon, OwlLogo, FadeInUp } from '@/components/ui';
+import { useTheme, withAlpha } from '@/lib/theme';
 import { useAuthStore } from '@/stores/auth.store';
 
 export default function AcceptInviteScreen() {
+  const theme = useTheme();
   const params = useLocalSearchParams<{ token?: string }>();
   const { acceptInvite, loginWithGoogle, loginWithApple } = useAuthStore();
   const [socialBusy, setSocialBusy] = useState<'google' | 'apple' | null>(null);
@@ -73,8 +72,6 @@ export default function AcceptInviteScreen() {
     try {
       if (provider === 'google') await loginWithGoogle();
       else await loginWithApple();
-      // After social login, syncProfile auto-links the PENDING user doc
-      // (created by the coach invite) by email. The user is now ACTIVE.
       const state = useAuthStore.getState();
       if (state.user) {
         router.replace('/(client)/today');
@@ -83,11 +80,7 @@ export default function AcceptInviteScreen() {
       }
     } catch (err) {
       const code = (err as { code?: string } | undefined)?.code;
-      if (
-        code === '12501' ||
-        code === '-5' ||
-        code === 'ERR_REQUEST_CANCELED'
-      ) {
+      if (code === '12501' || code === '-5' || code === 'ERR_REQUEST_CANCELED') {
         // user cancelled
       } else {
         setError((err as Error)?.message || 'Sign-in failed. Please try again.');
@@ -98,45 +91,78 @@ export default function AcceptInviteScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={{ padding: theme.spacing[6] }}
           keyboardShouldPersistTaps="handled"
         >
-          <Pressable onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>← Back</Text>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={8}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: theme.spacing[2],
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            accessibilityHint="Returns to the previous screen"
+          >
+            <Icon icon={ChevronLeft} size={18} color="primary" accessible={false} />
+            <Text variant="body" color="primary" weight="500">
+              Back
+            </Text>
           </Pressable>
 
-          <Text style={styles.title}>Create your account</Text>
-          <Text style={styles.subtitle}>
-            You&apos;ve been invited by your coach. Finish setting up your account to
-            get started.
-          </Text>
+          <OwlLogo size={48} framed style={{ marginTop: theme.spacing[4] }} />
+          <FadeInUp>
+            <Text variant="h1" weight="700" style={{ marginTop: theme.spacing[4] }}>
+              Create your account
+            </Text>
+            <Text
+              variant="body"
+              color="mutedForeground"
+              style={{ marginTop: 6, lineHeight: 20 }}
+            >
+              You&apos;ve been invited by your coach. Finish setting up your account to
+              get started.
+            </Text>
+          </FadeInUp>
 
-          <View style={styles.form}>
+          <FadeInUp delay={120}>
+          <Card style={{ marginTop: theme.spacing[6] }}>
             {error ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite"
+                style={{
+                  backgroundColor: withAlpha(theme.colors.destructive, 0.1),
+                  borderRadius: theme.radii.sm,
+                  padding: theme.spacing[3],
+                  marginBottom: theme.spacing[4],
+                }}
+              >
+                <Text variant="body" color="destructive">
+                  {error}
+                </Text>
               </View>
             ) : null}
 
-            {/* Social signup — works when coach pre-created the invite for
-                the same email. Otherwise the user is sent to /needs-invite. */}
-            <Pressable
-              style={[styles.socialBtn, socialBusy && styles.buttonDisabled]}
+            <Button
+              variant="outline"
+              size="lg"
+              fullWidth
               onPress={() => handleSocial('google')}
               disabled={!!socialBusy || busy}
+              loading={socialBusy === 'google'}
+              style={{ marginBottom: theme.spacing[2.5] }}
             >
-              {socialBusy === 'google' ? (
-                <ActivityIndicator color="#111827" size="small" />
-              ) : (
-                <Text style={styles.socialText}>Continue with Google</Text>
-              )}
-            </Pressable>
+              Continue with Google
+            </Button>
 
             {Platform.OS === 'ios' && (
               <AppleAuthentication.AppleAuthenticationButton
@@ -147,183 +173,104 @@ export default function AcceptInviteScreen() {
                   AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
                 }
                 cornerRadius={10}
-                style={styles.appleBtn}
+                style={{ width: '100%', height: 46, marginBottom: theme.spacing[2.5] }}
                 onPress={() => handleSocial('apple')}
               />
             )}
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or sign up with email</Text>
-              <View style={styles.dividerLine} />
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginVertical: theme.spacing[4],
+              }}
+            >
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.colors.border }} />
+              <Text
+                variant="caption"
+                color="mutedForeground"
+                style={{ marginHorizontal: theme.spacing[3] }}
+              >
+                or sign up with email
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.colors.border }} />
             </View>
 
             {!params.token && (
-              <View style={styles.field}>
-                <Text style={styles.label}>Invite token</Text>
-                <TextInput
-                  style={styles.input}
-                  value={form.token}
-                  onChangeText={(token) => setForm({ ...form, token })}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  placeholder="Paste from your invite email"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-            )}
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={form.email}
-                onChangeText={(email) => setForm({ ...form, email })}
-                placeholder="you@example.com"
-                placeholderTextColor="#9ca3af"
+              <Input
+                label="Invite token"
+                value={form.token}
+                onChangeText={(token) => setForm({ ...form, token })}
                 autoCapitalize="none"
                 autoCorrect={false}
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                autoComplete="email"
+                placeholder="Paste from your invite email"
+                containerStyle={{ marginBottom: theme.spacing[4] }}
+              />
+            )}
+
+            <Input
+              label="Email"
+              value={form.email}
+              onChangeText={(email) => setForm({ ...form, email })}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              autoComplete="email"
+              containerStyle={{ marginBottom: theme.spacing[4] }}
+            />
+
+            <View style={{ flexDirection: 'row', gap: theme.spacing[3] }}>
+              <Input
+                label="First name"
+                value={form.firstName}
+                onChangeText={(firstName) => setForm({ ...form, firstName })}
+                containerStyle={{ flex: 1, marginBottom: theme.spacing[4] }}
+              />
+              <Input
+                label="Last name"
+                value={form.lastName}
+                onChangeText={(lastName) => setForm({ ...form, lastName })}
+                containerStyle={{ flex: 1, marginBottom: theme.spacing[4] }}
               />
             </View>
 
-            <View style={styles.row}>
-              <View style={[styles.field, styles.flex1]}>
-                <Text style={styles.label}>First name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={form.firstName}
-                  onChangeText={(firstName) => setForm({ ...form, firstName })}
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-              <View style={[styles.field, styles.flex1]}>
-                <Text style={styles.label}>Last name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={form.lastName}
-                  onChangeText={(lastName) => setForm({ ...form, lastName })}
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-            </View>
+            <Input
+              label="Password"
+              value={form.password}
+              onChangeText={(password) => setForm({ ...form, password })}
+              placeholder="At least 8 characters"
+              secureTextEntry
+              textContentType="newPassword"
+              autoComplete="new-password"
+              containerStyle={{ marginBottom: theme.spacing[4] }}
+            />
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={form.password}
-                onChangeText={(password) => setForm({ ...form, password })}
-                placeholder="At least 8 characters"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                textContentType="newPassword"
-                autoComplete="new-password"
-              />
-            </View>
+            <Input
+              label="Confirm password"
+              value={form.confirm}
+              onChangeText={(confirm) => setForm({ ...form, confirm })}
+              secureTextEntry
+              textContentType="newPassword"
+              containerStyle={{ marginBottom: theme.spacing[4] }}
+            />
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Confirm password</Text>
-              <TextInput
-                style={styles.input}
-                value={form.confirm}
-                onChangeText={(confirm) => setForm({ ...form, confirm })}
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                textContentType="newPassword"
-              />
-            </View>
-
-            <Pressable
-              style={[styles.button, busy && styles.buttonDisabled]}
+            <Button
+              variant="default"
+              size="lg"
+              fullWidth
               onPress={submit}
               disabled={busy}
+              loading={busy}
+              accessibilityHint="Creates your account and signs you in"
             >
-              {busy ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.buttonText}>Create account</Text>
-              )}
-            </Pressable>
-          </View>
+              Create account
+            </Button>
+          </Card>
+          </FadeInUp>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
-  flex: { flex: 1 },
-  flex1: { flex: 1 },
-  container: { padding: 24 },
-  back: { paddingVertical: 8 },
-  backText: { color: '#2563eb', fontSize: 15, fontWeight: '500' },
-  title: { fontSize: 26, fontWeight: '700', color: '#111827', marginTop: 16 },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 6,
-    lineHeight: 20,
-  },
-  form: {
-    marginTop: 24,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-  },
-  errorBanner: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#dc2626', fontSize: 14 },
-  socialBtn: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
-  socialText: { color: '#111827', fontSize: 15, fontWeight: '600' },
-  appleBtn: { width: '100%', height: 46, marginBottom: 10 },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#9ca3af',
-    fontSize: 12,
-  },
-  field: { marginBottom: 16 },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#fff',
-  },
-  row: { flexDirection: 'row', gap: 12 },
-  button: {
-    backgroundColor: '#2563eb',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-});

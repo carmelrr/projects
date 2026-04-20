@@ -1,14 +1,23 @@
 import {
   View,
-  Text,
   FlatList,
   Pressable,
-  StyleSheet,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import {
+  MessageSquare,
+  Dumbbell,
+  LineChart,
+  CalendarDays,
+  ClipboardList,
+  Bell,
+  ChevronLeft,
+} from 'lucide-react-native';
+import type { ComponentType } from 'react';
+import type { LucideProps } from 'lucide-react-native';
+import { Screen, Text, Icon, Skeleton } from '@/components/ui';
+import { useTheme, withAlpha } from '@/lib/theme';
 import {
   useNotifications,
   useMarkNotificationRead,
@@ -29,13 +38,15 @@ function relativeTime(iso?: string) {
   return new Date(iso).toLocaleDateString();
 }
 
-function emojiFor(type: string): string {
-  if (type.startsWith('message')) return '💬';
-  if (type.startsWith('workout')) return '💪';
-  if (type.startsWith('metric')) return '📊';
-  if (type.startsWith('program')) return '📅';
-  if (type.startsWith('assignment')) return '📋';
-  return '🔔';
+type LucideIcon = ComponentType<LucideProps>;
+
+function iconFor(type: string): LucideIcon {
+  if (type.startsWith('message')) return MessageSquare;
+  if (type.startsWith('workout')) return Dumbbell;
+  if (type.startsWith('metric')) return LineChart;
+  if (type.startsWith('program')) return CalendarDays;
+  if (type.startsWith('assignment')) return ClipboardList;
+  return Bell;
 }
 
 function NotificationRow({
@@ -45,36 +56,81 @@ function NotificationRow({
   n: Notification;
   onPress: (n: Notification) => void;
 }) {
+  const theme = useTheme();
   const unread = !n.readAt;
+  const IconCmp = iconFor(n.type);
+
   return (
     <Pressable
       onPress={() => onPress(n)}
-      style={({ pressed }) => [
-        styles.row,
-        unread && styles.rowUnread,
-        pressed && styles.rowPressed,
-      ]}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: theme.spacing[4],
+        backgroundColor: unread
+          ? withAlpha(theme.colors.primary, 0.06)
+          : theme.colors.card,
+        gap: theme.spacing[3],
+        opacity: pressed ? 0.7 : 1,
+      })}
     >
-      <View style={[styles.iconBox, unread && styles.iconBoxUnread]}>
-        <Text style={styles.icon}>{emojiFor(n.type)}</Text>
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: unread
+            ? withAlpha(theme.colors.primary, 0.12)
+            : theme.colors.muted,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon icon={IconCmp} size={18} color={unread ? 'primary' : 'mutedForeground'} />
       </View>
-      <View style={styles.rowBody}>
-        <Text style={[styles.title, unread && styles.titleUnread]} numberOfLines={1}>
+      <View style={{ flex: 1 }}>
+        <Text
+          variant={unread ? 'bodyMedium' : 'body'}
+          weight={unread ? '700' : '400'}
+          color={unread ? 'foreground' : 'mutedForeground'}
+          numberOfLines={1}
+        >
           {n.title}
         </Text>
         {n.body ? (
-          <Text style={styles.body} numberOfLines={2}>
+          <Text
+            variant="caption"
+            color="mutedForeground"
+            numberOfLines={2}
+            style={{ marginTop: 2 }}
+          >
             {n.body}
           </Text>
         ) : null}
-        <Text style={styles.timestamp}>{relativeTime(n.createdAt)}</Text>
+        <Text
+          variant="caption"
+          color="mutedForeground"
+          style={{ marginTop: 4, fontSize: 11 }}
+        >
+          {relativeTime(n.createdAt)}
+        </Text>
       </View>
-      {unread && <View style={styles.dot} />}
+      {unread && (
+        <View
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: theme.colors.primary,
+          }}
+        />
+      )}
     </Pressable>
   );
 }
 
 export default function NotificationsScreen() {
+  const theme = useTheme();
   const { data, isLoading, refetch, isRefetching } = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
@@ -85,27 +141,50 @@ export default function NotificationsScreen() {
   const handlePress = (n: Notification) => {
     if (!n.readAt) markRead.mutate(n.id);
     if (n.linkUrl?.startsWith('/')) {
-      router.push(n.linkUrl as any);
+      router.push(n.linkUrl as never);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
+    <Screen>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: theme.spacing[4],
+          paddingVertical: theme.spacing[3],
+          backgroundColor: theme.colors.card,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+        }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={{ minWidth: 70, flexDirection: 'row', alignItems: 'center' }}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Icon icon={ChevronLeft} size={18} color="primary" />
+          <Text variant="body" color="primary" weight="500">
+            Back
+          </Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text variant="body" weight="700">
+          Notifications
+        </Text>
         <Pressable
           onPress={() => markAllRead.mutate()}
           disabled={unreadCount === 0 || markAllRead.isPending}
-          style={styles.markAllBtn}
+          hitSlop={8}
+          style={{ minWidth: 70, alignItems: 'flex-end' }}
+          accessibilityRole="button"
         >
           <Text
-            style={[
-              styles.markAllText,
-              unreadCount === 0 && styles.markAllTextDisabled,
-            ]}
+            variant="caption"
+            weight="600"
+            color={unreadCount === 0 ? 'mutedForeground' : 'primary'}
           >
             Mark all
           </Text>
@@ -113,8 +192,23 @@ export default function NotificationsScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#2563eb" size="large" />
+        <View style={{ padding: theme.spacing[4], gap: theme.spacing[3] }}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View
+              key={i}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing[3],
+              }}
+            >
+              <Skeleton width={36} height={36} radius={theme.radii.full} />
+              <View style={{ flex: 1, gap: theme.spacing[1.5] }}>
+                <Skeleton width="70%" height={13} />
+                <Skeleton width="95%" height={11} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : (
         <FlatList
@@ -123,82 +217,57 @@ export default function NotificationsScreen() {
           renderItem={({ item }) => (
             <NotificationRow n={item} onPress={handlePress} />
           )}
-          ItemSeparatorComponent={() => <View style={styles.divider} />}
+          ItemSeparatorComponent={() => (
+            <View
+              style={{
+                height: 1,
+                backgroundColor: theme.colors.border,
+                marginStart: 66,
+              }}
+            />
+          )}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor="#2563eb"
+              tintColor={theme.colors.primary}
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>🔔</Text>
-              <Text style={styles.emptyTitle}>You're all caught up</Text>
-              <Text style={styles.emptySub}>No notifications yet.</Text>
+            <View
+              style={{
+                paddingVertical: 80,
+                alignItems: 'center',
+                paddingHorizontal: theme.spacing[10],
+              }}
+            >
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: withAlpha(theme.colors.primary, 0.1),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: theme.spacing[4],
+                }}
+              >
+                <Icon icon={Bell} size={28} color="primary" />
+              </View>
+              <Text variant="h3" weight="700">
+                You&apos;re all caught up
+              </Text>
+              <Text
+                variant="body"
+                color="mutedForeground"
+                style={{ textAlign: 'center', marginTop: theme.spacing[1.5] }}
+              >
+                No notifications yet.
+              </Text>
             </View>
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  backBtn: { minWidth: 70 },
-  backText: { color: '#2563eb', fontSize: 15, fontWeight: '500' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  markAllBtn: { minWidth: 70, alignItems: 'flex-end' },
-  markAllText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
-  markAllTextDisabled: { color: '#d1d5db' },
-
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    backgroundColor: '#fff',
-    gap: 12,
-  },
-  rowUnread: { backgroundColor: '#f0f9ff' },
-  rowPressed: { opacity: 0.7 },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBoxUnread: { backgroundColor: '#dbeafe' },
-  icon: { fontSize: 18 },
-  rowBody: { flex: 1 },
-  title: { fontSize: 14, color: '#374151' },
-  titleUnread: { color: '#111827', fontWeight: '700' },
-  body: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  timestamp: { fontSize: 11, color: '#9ca3af', marginTop: 4 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#2563eb',
-  },
-  divider: { height: 1, backgroundColor: '#f3f4f6', marginLeft: 66 },
-
-  emptyState: { paddingVertical: 80, alignItems: 'center', paddingHorizontal: 40 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  emptySub: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginTop: 6 },
-});

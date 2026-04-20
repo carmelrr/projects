@@ -1,14 +1,11 @@
 import { useMemo } from 'react';
 import {
   View,
-  Text,
   FlatList,
-  Pressable,
-  StyleSheet,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Check, Leaf } from 'lucide-react-native';
 import {
   useHabitDefinitions,
   useHabitLogs,
@@ -16,6 +13,16 @@ import {
   type HabitDefinition,
   type HabitLog,
 } from '@/hooks/useHabits';
+import { useTheme, withAlpha } from '@/lib/theme';
+import {
+  Screen,
+  Text,
+  Card,
+  Button,
+  Badge,
+  ProgressBar,
+  Icon,
+} from '@/components/ui';
 
 function todayStr() {
   const d = new Date();
@@ -38,77 +45,122 @@ function HabitRow({
   onIncrement: () => void;
   pending: boolean;
 }) {
+  const theme = useTheme();
   const value = log?.value ?? 0;
   const completed = log?.completed ?? false;
   const target = def.target ?? 1;
-
   const isSimple = target <= 1;
 
   return (
-    <View style={[styles.habitRow, completed && styles.habitRowDone]}>
-      <View style={styles.habitBody}>
-        <Text style={[styles.habitName, completed && styles.habitNameDone]}>
-          {def.name}
-        </Text>
-        {def.description ? (
-          <Text style={styles.habitDesc} numberOfLines={2}>
-            {def.description}
+    <Card tone={completed ? 'success' : 'default'}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing[3],
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text
+            variant="bodyMedium"
+            color={completed ? 'success' : 'foreground'}
+            style={
+              completed ? { textDecorationLine: 'line-through' } : undefined
+            }
+          >
+            {def.name}
           </Text>
-        ) : null}
-
-        {!isSimple && (
-          <View style={styles.progressWrap}>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${Math.min(100, (value / target) * 100)}%` },
-                ]}
-              />
-            </View>
-            <Text style={styles.progressText}>
-              {value} / {target} {def.unit ?? ''}
+          {def.description ? (
+            <Text
+              variant="caption"
+              color="mutedForeground"
+              numberOfLines={2}
+              style={{ marginTop: theme.spacing[0.5] }}
+            >
+              {def.description}
             </Text>
-          </View>
+          ) : null}
+
+          {!isSimple && (
+            <View
+              style={{
+                marginTop: theme.spacing[2],
+                gap: theme.spacing[1],
+              }}
+            >
+              <ProgressBar
+                value={value / target}
+                tone={completed ? 'success' : 'primary'}
+                height={5}
+              />
+              <Text variant="caption" color="mutedForeground" tabular>
+                {value} / {target} {def.unit ?? ''}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {isSimple ? (
+          <Button
+            onPress={onToggle}
+            loading={pending}
+            size="icon"
+            variant={completed ? 'default' : 'outline'}
+            style={{
+              borderRadius: theme.radii.full,
+              ...(completed
+                ? {
+                    backgroundColor: theme.colors.success,
+                    borderColor: theme.colors.success,
+                  }
+                : null),
+            }}
+            accessibilityLabel={
+              completed ? 'Mark habit incomplete' : 'Mark habit complete'
+            }
+            iconLeft={
+              completed ? (
+                <Icon
+                  icon={Check}
+                  size={18}
+                  color={theme.colors.primaryForeground}
+                />
+              ) : null
+            }
+          />
+        ) : (
+          <Button
+            onPress={onIncrement}
+            loading={pending}
+            size="sm"
+            variant="default"
+            style={{
+              minWidth: 56,
+              borderRadius: theme.radii.full,
+              ...(completed
+                ? { backgroundColor: theme.colors.success }
+                : null),
+            }}
+          >
+            {completed ? '✓' : '+1'}
+          </Button>
         )}
       </View>
-
-      {isSimple ? (
-        <Pressable
-          onPress={onToggle}
-          disabled={pending}
-          style={[styles.check, completed && styles.checkDone]}
-        >
-          {pending ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={[styles.checkMark, completed && styles.checkMarkDone]}>
-              {completed ? '✓' : ''}
-            </Text>
-          )}
-        </Pressable>
-      ) : (
-        <Pressable
-          onPress={onIncrement}
-          disabled={pending}
-          style={[styles.plusBtn, completed && styles.plusBtnDone]}
-        >
-          {pending ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.plusText}>{completed ? '✓' : '+1'}</Text>
-          )}
-        </Pressable>
-      )}
-    </View>
+    </Card>
   );
 }
 
 export default function HabitsScreen() {
+  const theme = useTheme();
   const date = useMemo(() => todayStr(), []);
-  const { data: defs, isLoading: loadingDefs, refetch: refetchDefs } = useHabitDefinitions();
-  const { data: logs, isLoading: loadingLogs, refetch: refetchLogs, isRefetching } =
-    useHabitLogs(date);
+  const { data: defs, isLoading: loadingDefs, refetch: refetchDefs } =
+    useHabitDefinitions();
+  const {
+    data: logs,
+    isLoading: loadingLogs,
+    refetch: refetchLogs,
+    isRefetching,
+  } = useHabitLogs(date);
   const logMutation = useLogHabit();
 
   const logMap = new Map<string, HabitLog>();
@@ -144,158 +196,128 @@ export default function HabitsScreen() {
   };
 
   const isLoading = loadingDefs || loadingLogs;
-  const pendingId =
-    logMutation.isPending ? (logMutation.variables as any)?.habitId : null;
+  const pendingId = logMutation.isPending
+    ? (logMutation.variables as { habitId?: string } | undefined)?.habitId ??
+      null
+    : null;
+
+  const subtitle = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Habits</Text>
-        <Text style={styles.subtitle}>
-          {new Date().toLocaleDateString(undefined, {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-          })}
-        </Text>
-        {totalCount > 0 && (
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryBar}>
-              <View
-                style={[
-                  styles.summaryFill,
-                  {
-                    width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.summaryText}>
-              {completedCount}/{totalCount} done
-            </Text>
-          </View>
+    <Screen edges={['top']}>
+      <FlatList
+        data={defs ?? []}
+        keyExtractor={(d) => d.id}
+        contentContainerStyle={{
+          padding: theme.spacing[5],
+          paddingBottom: theme.spacing[10],
+        }}
+        ItemSeparatorComponent={() => (
+          <View style={{ height: theme.spacing[2.5] }} />
         )}
-      </View>
-
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#2563eb" size="large" />
-        </View>
-      ) : (
-        <FlatList
-          data={defs ?? []}
-          keyExtractor={(d) => d.id}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={() => {
-                refetchDefs();
-                refetchLogs();
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => {
+              refetchDefs();
+              refetchLogs();
+            }}
+            tintColor={theme.colors.primary}
+          />
+        }
+        ListHeaderComponent={
+          <View style={{ marginBottom: theme.spacing[5] }}>
+            <Text variant="eyebrow" color="mutedForeground">
+              {subtitle}
+            </Text>
+            <Text variant="h1" style={{ marginTop: theme.spacing[1] }}>
+              Habits
+            </Text>
+            {totalCount > 0 && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing[2.5],
+                  marginTop: theme.spacing[4],
+                }}
+              >
+                <ProgressBar
+                  value={completedCount / totalCount}
+                  tone={
+                    completedCount === totalCount ? 'success' : 'primary'
+                  }
+                  style={{ flex: 1 }}
+                />
+                <Badge
+                  variant={
+                    completedCount === totalCount ? 'success' : 'muted'
+                  }
+                >
+                  {completedCount}/{totalCount} done
+                </Badge>
+              </View>
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View
+              style={{
+                paddingVertical: theme.spacing[16],
+                alignItems: 'center',
               }}
-              tintColor="#2563eb"
-            />
-          }
-          renderItem={({ item }) => (
-            <HabitRow
-              def={item}
-              log={logMap.get(item.id)}
-              onToggle={() => handleToggle(item)}
-              onIncrement={() => handleIncrement(item)}
-              pending={pendingId === item.id}
-            />
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🌱</Text>
-              <Text style={styles.emptyTitle}>No habits yet</Text>
-              <Text style={styles.emptySub}>
+            >
+              <ActivityIndicator color={theme.colors.primary} size="large" />
+            </View>
+          ) : (
+            <View
+              style={{
+                paddingVertical: theme.spacing[16],
+                alignItems: 'center',
+                gap: theme.spacing[3],
+              }}
+            >
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: theme.radii.full,
+                  backgroundColor: withAlpha(theme.colors.success, 0.12),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon icon={Leaf} size={28} color="success" />
+              </View>
+              <Text variant="h2">No habits yet</Text>
+              <Text
+                variant="body"
+                color="mutedForeground"
+                style={{
+                  textAlign: 'center',
+                  paddingHorizontal: theme.spacing[6],
+                }}
+              >
                 Your coach can set up daily habits for you from the web app.
               </Text>
             </View>
-          }
-        />
-      )}
-    </SafeAreaView>
+          )
+        }
+        renderItem={({ item }) => (
+          <HabitRow
+            def={item}
+            log={logMap.get(item.id)}
+            onToggle={() => handleToggle(item)}
+            onIncrement={() => handleIncrement(item)}
+            pending={pendingId === item.id}
+          />
+        )}
+      />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
-  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 14, color: '#6b7280', marginTop: 2 },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  summaryBar: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#e5e7eb',
-    overflow: 'hidden',
-  },
-  summaryFill: { height: '100%', backgroundColor: '#16a34a', borderRadius: 3 },
-  summaryText: { fontSize: 12, color: '#6b7280', fontWeight: '600' },
-
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 20, paddingTop: 0, paddingBottom: 40 },
-
-  habitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  habitRowDone: { backgroundColor: '#f0fdf4' },
-  habitBody: { flex: 1 },
-  habitName: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  habitNameDone: { color: '#16a34a', textDecorationLine: 'line-through' },
-  habitDesc: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-
-  progressWrap: { marginTop: 8, gap: 4 },
-  progressBar: {
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#e5e7eb',
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', backgroundColor: '#2563eb', borderRadius: 3 },
-  progressText: { fontSize: 11, color: '#6b7280', fontWeight: '500' },
-
-  check: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkDone: { backgroundColor: '#16a34a', borderColor: '#16a34a' },
-  checkMark: { color: 'transparent', fontSize: 16 },
-  checkMarkDone: { color: '#fff', fontWeight: '700' },
-
-  plusBtn: {
-    minWidth: 48,
-    paddingHorizontal: 12,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  plusBtnDone: { backgroundColor: '#16a34a' },
-  plusText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-
-  empty: { paddingVertical: 60, alignItems: 'center', paddingHorizontal: 40 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  emptySub: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginTop: 6 },
-});

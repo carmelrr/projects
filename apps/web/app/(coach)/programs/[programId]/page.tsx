@@ -44,6 +44,7 @@ import {
 } from '@/hooks/usePrograms';
 import { useWorkouts, useWorkout, type Workout } from '@/hooks/useWorkouts';
 import { useClients } from '@/hooks/useClients';
+import { useT } from '@/lib/i18n/client';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { PickWorkoutDialog } from '@/components/programs/PickWorkoutDialog';
@@ -94,6 +95,7 @@ function WorkoutChip({
   onRemove: () => void;
 }) {
   const { data: w } = useWorkout(workoutId);
+  const t = useT();
   const {
     attributes,
     listeners,
@@ -118,7 +120,7 @@ function WorkoutChip({
       <button
         type="button"
         className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
-        aria-label="Drag to reorder"
+        aria-label={t('programs.detail.dragReorder')}
         {...attributes}
         {...listeners}
       >
@@ -128,9 +130,9 @@ function WorkoutChip({
         type="button"
         onClick={onEdit}
         className="min-w-0 flex-1 truncate text-start font-medium text-foreground hover:underline"
-        title={w?.title ?? 'Workout'}
+        title={w?.title ?? t('programs.detail.workoutPlaceholder')}
       >
-        {w?.title ?? <span className="text-muted-foreground">Workout…</span>}
+        {w?.title ?? <span className="text-muted-foreground">{t('programs.detail.workoutPlaceholder')}</span>}
         {w?.items && w.items.length > 0 && (
           <span className="ms-1 font-normal text-muted-foreground">
             · {w.items.length}
@@ -142,7 +144,7 @@ function WorkoutChip({
         variant="ghost"
         className="size-6 shrink-0 text-destructive opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
         onClick={onRemove}
-        aria-label="Remove"
+        aria-label={t('programs.detail.removeWorkout')}
       >
         <X className="size-3.5" />
       </Button>
@@ -162,6 +164,7 @@ function EditProgramDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const t = useT();
   const update = useUpdateProgram();
   const [form, setForm] = useState({
     title: initial.title,
@@ -188,12 +191,12 @@ function EditProgramDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit program</DialogTitle>
-          <DialogDescription>Update the program details.</DialogDescription>
+          <DialogTitle>{t('programs.detail.editProgram.title')}</DialogTitle>
+          <DialogDescription>{t('programs.detail.editProgram.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title">{t('programs.detail.editProgram.titleLabel')}</Label>
             <Input
               id="title"
               value={form.title}
@@ -201,7 +204,7 @@ function EditProgramDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="desc">Description</Label>
+            <Label htmlFor="desc">{t('programs.detail.editProgram.descLabel')}</Label>
             <Textarea
               id="desc"
               rows={3}
@@ -210,18 +213,18 @@ function EditProgramDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="tags">Tags</Label>
+            <Label htmlFor="tags">{t('programs.detail.editProgram.tagsLabel')}</Label>
             <Input
               id="tags"
               value={form.tagsRaw}
               onChange={(e) => setForm({ ...form, tagsRaw: e.target.value })}
-              placeholder="strength, hypertrophy"
+              placeholder={t('programs.detail.editProgram.tagsPlaceholder')}
             />
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
             <div>
-              <p className="text-sm font-medium text-foreground">Private</p>
-              <p className="text-xs text-muted-foreground">Only visible to you</p>
+              <p className="text-sm font-medium text-foreground">{t('programs.detail.editProgram.privateLabel')}</p>
+              <p className="text-xs text-muted-foreground">{t('programs.detail.editProgram.privateHint')}</p>
             </div>
             <Switch
               checked={form.isPrivate}
@@ -235,10 +238,10 @@ function EditProgramDialog({
             onClick={() => onOpenChange(false)}
             disabled={update.isPending}
           >
-            Cancel
+            {t('programs.detail.editProgram.cancel')}
           </Button>
           <Button variant="gradient" onClick={save} disabled={update.isPending}>
-            {update.isPending ? 'Saving…' : 'Save changes'}
+            {update.isPending ? t('programs.detail.editProgram.saving') : t('programs.detail.editProgram.save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -258,6 +261,7 @@ function EditWeekDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const t = useT();
   const update = useUpdateProgramWeek();
   const [form, setForm] = useState({ title: '', notes: '' });
 
@@ -281,11 +285,11 @@ function EditWeekDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit week</DialogTitle>
+          <DialogTitle>{t('programs.detail.editWeekDialog.title')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="wk-title">Title</Label>
+            <Label htmlFor="wk-title">{t('programs.detail.editWeekDialog.titleLabel')}</Label>
             <Input
               id="wk-title"
               value={form.title}
@@ -293,13 +297,13 @@ function EditWeekDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="wk-notes">Notes</Label>
+            <Label htmlFor="wk-notes">{t('programs.detail.editWeekDialog.notesLabel')}</Label>
             <Textarea
               id="wk-notes"
               rows={3}
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Deload week, focus on form…"
+              placeholder={t('programs.detail.editWeekDialog.notesPlaceholder')}
             />
           </div>
         </div>
@@ -309,10 +313,10 @@ function EditWeekDialog({
             onClick={() => onOpenChange(false)}
             disabled={update.isPending}
           >
-            Cancel
+            {t('programs.detail.editWeekDialog.cancel')}
           </Button>
           <Button variant="gradient" onClick={save} disabled={update.isPending}>
-            {update.isPending ? 'Saving…' : 'Save'}
+            {update.isPending ? t('programs.detail.editWeekDialog.saving') : t('programs.detail.editWeekDialog.save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -330,6 +334,7 @@ function AssignProgramDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const t = useT();
   const { data: clients } = useClients({ status: 'ACTIVE', limit: 200 });
   const assign = useAssignProgram();
   const [clientId, setClientId] = useState<string>('');
@@ -349,7 +354,7 @@ function AssignProgramDialog({
         onOpenChange(false);
       }, 1200);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not assign');
+      setErr(e instanceof Error ? e.message : t('programs.assign.error'));
     }
   };
 
@@ -357,17 +362,17 @@ function AssignProgramDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Assign program</DialogTitle>
+          <DialogTitle>{t('programs.assign.title')}</DialogTitle>
           <DialogDescription>
-            Schedule all workouts starting from the selected date.
+            {t('programs.assign.descriptionGeneric')}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Client</Label>
+            <Label>{t('programs.assign.clientLabel')}</Label>
             <Select value={clientId} onValueChange={setClientId}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a client…" />
+                <SelectValue placeholder={t('programs.assign.clientPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {(clients?.items ?? []).map((c) => (
@@ -379,7 +384,7 @@ function AssignProgramDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="start">Start date</Label>
+            <Label htmlFor="start">{t('programs.assign.startDateLabel')}</Label>
             <Input
               id="start"
               type="date"
@@ -388,7 +393,7 @@ function AssignProgramDialog({
             />
           </div>
           {err && <p className="text-xs text-destructive">{err}</p>}
-          {done && <p className="text-xs text-success">Program assigned!</p>}
+          {done && <p className="text-xs text-success">{t('programs.assign.success')}</p>}
         </div>
         <DialogFooter>
           <Button
@@ -396,14 +401,14 @@ function AssignProgramDialog({
             onClick={() => onOpenChange(false)}
             disabled={assign.isPending}
           >
-            Cancel
+            {t('programs.assign.cancel')}
           </Button>
           <Button
             variant="gradient"
             onClick={submit}
             disabled={!clientId || assign.isPending}
           >
-            {assign.isPending ? 'Assigning…' : 'Assign'}
+            {assign.isPending ? t('programs.assign.assigning') : t('programs.assign.assign')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -448,6 +453,7 @@ export default function ProgramDetailPage({
 }: {
   params: Promise<{ programId: string }>;
 }) {
+  const t = useT();
   const { programId } = use(params);
   const { data: program, isLoading } = useProgram(programId);
   const addWeek = useAddProgramWeek();
@@ -468,6 +474,16 @@ export default function ProgramDetailPage({
   const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(null);
   const [workoutSheetOpen, setWorkoutSheetOpen] = useState(false);
 
+  const weeks = useMemo(
+    () => [...(program?.weeks ?? [])].sort((a, b) => a.weekIndex - b.weekIndex),
+    [program?.weeks],
+  );
+
+  const excludeForPicker = useMemo(() => {
+    const wk = weeks.find((w) => w.id === pickFor);
+    return wk?.workoutIds ?? [];
+  }, [weeks, pickFor]);
+
   if (isLoading) {
     return (
       <div className="p-6 lg:p-8 space-y-6">
@@ -486,13 +502,13 @@ export default function ProgramDetailPage({
     return (
       <div className="p-6 lg:p-8">
         <EmptyState
-          title="Program not found"
-          description="The program may have been deleted."
+          title={t('programs.detail.notFoundTitle')}
+          description={t('programs.detail.notFoundDesc')}
           action={
             <Button asChild variant="outline">
               <Link href="/programs">
                 <ArrowLeft className="size-4 rtl:rotate-180" />
-                Back to programs
+                {t('programs.detail.backToPrograms')}
               </Link>
             </Button>
           }
@@ -501,7 +517,6 @@ export default function ProgramDetailPage({
     );
   }
 
-  const weeks = [...(program.weeks ?? [])].sort((a, b) => a.weekIndex - b.weekIndex);
   const totalWorkouts = weeks.reduce((n, w) => n + (w.workoutIds?.length ?? 0), 0);
 
   const setWeekWorkouts = (weekId: string, workoutIds: string[]) =>
@@ -519,11 +534,6 @@ export default function ProgramDetailPage({
     setOpenWorkoutId(id);
     setWorkoutSheetOpen(true);
   };
-
-  const excludeForPicker = useMemo(() => {
-    const wk = weeks.find((w) => w.id === pickFor);
-    return wk?.workoutIds ?? [];
-  }, [weeks, pickFor]);
 
   const handleWeeksDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -556,27 +566,27 @@ export default function ProgramDetailPage({
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4 rtl:rotate-180" />
-        All programs
+        {t('programs.detail.back')}
       </Link>
 
       <PageHeader
         title={program.title}
-        description={program.description ?? 'No description.'}
+        description={program.description ?? t('programs.detail.noDescription')}
         actions={
           <div className="flex items-center gap-2">
             {program.isPrivate && (
               <Badge variant="muted" className="gap-1">
                 <Lock className="size-3" />
-                Private
+                {t('programs.private')}
               </Badge>
             )}
             <Button variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil className="size-4" />
-              Edit
+              {t('programs.detail.edit')}
             </Button>
             <Button variant="outline" onClick={() => setAssignOpen(true)}>
               <UserPlus className="size-4" />
-              Assign
+              {t('programs.detail.assign')}
             </Button>
             <Button
               variant="gradient"
@@ -589,7 +599,7 @@ export default function ProgramDetailPage({
               disabled={addWeek.isPending}
             >
               <Plus className="size-4" />
-              Add week
+              {t('programs.detail.addWeek')}
             </Button>
           </div>
         }
@@ -597,14 +607,15 @@ export default function ProgramDetailPage({
 
       {/* Meta row */}
       <div className="flex flex-wrap items-center gap-3">
-        {(program.tags ?? []).map((t) => (
-          <Badge key={t} variant="muted">
-            {t}
+        {(program.tags ?? []).map((tag) => (
+          <Badge key={tag} variant="muted">
+            {tag}
           </Badge>
         ))}
         <span className="text-xs text-muted-foreground">
-          {weeks.length} week{weeks.length === 1 ? '' : 's'} · {totalWorkouts} workout
-          {totalWorkouts === 1 ? '' : 's'}
+          {t(weeks.length === 1 ? 'programs.detail.weeksCount_one' : 'programs.detail.weeksCount_other', { n: weeks.length })}
+          {' · '}
+          {t(totalWorkouts === 1 ? 'programs.detail.workoutsCount_one' : 'programs.detail.workoutsCount_other', { n: totalWorkouts })}
         </span>
       </div>
 
@@ -612,8 +623,8 @@ export default function ProgramDetailPage({
       {weeks.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
-          title="No weeks yet"
-          description="Add your first week to start building the program."
+          title={t('programs.detail.noWeeksTitle')}
+          description={t('programs.detail.noWeeksDesc')}
           action={
             <Button
               variant="gradient"
@@ -625,7 +636,7 @@ export default function ProgramDetailPage({
               ) : (
                 <Plus className="size-4" />
               )}
-              Add first week
+              {t('programs.detail.addFirstWeek')}
             </Button>
           }
         />
@@ -649,7 +660,7 @@ export default function ProgramDetailPage({
                           <button
                             type="button"
                             className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
-                            aria-label="Drag week to reorder"
+                            aria-label={t('programs.detail.dragReorderWeek')}
                             {...dragAttributes}
                             {...dragListeners}
                           >
@@ -657,10 +668,10 @@ export default function ProgramDetailPage({
                           </button>
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              Week {w.weekIndex + 1}
+                              {t('programs.detail.weekLabel', { n: w.weekIndex + 1 })}
                             </p>
                             <h3 className="mt-0.5 truncate text-base font-semibold text-foreground">
-                              {w.title ?? `Week ${w.weekIndex + 1}`}
+                              {w.title ?? t('programs.detail.weekLabel', { n: w.weekIndex + 1 })}
                             </h3>
                           </div>
                           <DropdownMenu>
@@ -669,7 +680,7 @@ export default function ProgramDetailPage({
                                 size="icon"
                                 variant="ghost"
                                 className="size-7 shrink-0"
-                                aria-label="Week actions"
+                                aria-label={t('programs.detail.weekActions')}
                               >
                                 <MoreVertical className="size-4" />
                               </Button>
@@ -685,19 +696,19 @@ export default function ProgramDetailPage({
                                 }
                               >
                                 <Pencil className="size-4" />
-                                Edit week
+                                {t('programs.detail.editWeek')}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => {
-                                  if (confirm(`Delete Week ${w.weekIndex + 1}?`)) {
+                                  if (confirm(t('programs.detail.confirmDeleteWeek', { n: w.weekIndex + 1 }))) {
                                     deleteWeek.mutate({ programId, weekId: w.id });
                                   }
                                 }}
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="size-4" />
-                                Delete week
+                                {t('programs.detail.deleteWeek')}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -721,7 +732,7 @@ export default function ProgramDetailPage({
                             <div className="space-y-1.5">
                               {(w.workoutIds ?? []).length === 0 ? (
                                 <p className="py-4 text-center text-xs text-muted-foreground">
-                                  No workouts yet
+                                  {t('programs.detail.noWorkouts')}
                                 </p>
                               ) : (
                                 (w.workoutIds ?? []).map((id, i) => (
@@ -746,7 +757,7 @@ export default function ProgramDetailPage({
                                 onClick={() => setPickFor(w.id)}
                               >
                                 <Plus className="size-3.5" />
-                                Add workout
+                                {t('programs.detail.addWorkout')}
                               </Button>
                             </div>
                           </SortableContext>

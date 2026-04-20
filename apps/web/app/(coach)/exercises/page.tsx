@@ -11,6 +11,8 @@ import {
 } from '@/hooks/useExercises';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { useT } from '@/lib/i18n/client';
+import { useT } from '@/lib/i18n/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -78,7 +80,9 @@ function ExerciseDialog({
   open: boolean;
   initial?: Exercise;
   onOpenChange: (open: boolean) => void;
-}) {
+}) {t = useT();
+  const 
+  const t = useT();
   const create = useCreateExercise();
   const update = useUpdateExercise();
 
@@ -110,44 +114,42 @@ function ExerciseDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{initial ? 'Edit exercise' : 'New exercise'}</DialogTitle>
-          <DialogDescription>Add cues, equipment and difficulty for reuse across programs.</DialogDescription>
+      <DialogContent className="mat('exercises.dialog.titleEdit') : t('exercises.dialog.titleNew')}</DialogTitle>
+          <DialogDescription>{t('exercises.dialog.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="name">Name *</Label>
+            <Label htmlFor="name">{t('exercises.dialog.nameLabel')} *</Label>
             <Input
               id="name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Barbell Back Squat"
+              placeholder={t('exercises.dialog.namePlaceholder')}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Category</Label>
+              <Label>{t('exercises.dialog.categoryLabel')}</Label>
               <Select
                 value={form.category || undefined}
                 onValueChange={(v) => setForm({ ...form, category: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select…" />
+                  <SelectValue placeholder={t('exercises.dialog.categoryPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => (
                     <SelectItem key={c} value={c}>
-                      {c}
+                      {t(`exercises.categories.${c}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Difficulty</Label>
+              <Label>{t('exercises.dialog.difficultyLabel')}</Label>
               <Select
                 value={form.difficulty}
                 onValueChange={(v) => setForm({ ...form, difficulty: v as typeof form.difficulty })}
@@ -156,21 +158,21 @@ function ExerciseDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="BEGINNER">Beginner</SelectItem>
-                  <SelectItem value="INTERMEDIATE">Intermediate</SelectItem>
-                  <SelectItem value="ADVANCED">Advanced</SelectItem>
+                  <SelectItem value="BEGINNER">{t('exercises.dialog.difficultyBeginner')}</SelectItem>
+                  <SelectItem value="INTERMEDIATE">{t('exercises.dialog.difficultyIntermediate')}</SelectItem>
+                  <SelectItem value="ADVANCED">{t('exercises.dialog.difficultyAdvanced')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Muscle groups</Label>
+            <Label>{t('exercises.dialog.muscleGroups')}</Label>
             <div className="flex flex-wrap gap-1.5">
               {MUSCLE_GROUPS.map((m) => (
                 <ChipToggle
                   key={m}
-                  label={m}
+                  label={t(`exercises.muscleGroupNames.${m}`)}
                   active={form.muscleGroups.includes(m)}
                   onClick={() => toggleArr('muscleGroups', m)}
                 />
@@ -179,12 +181,12 @@ function ExerciseDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Equipment</Label>
+            <Label>{t('exercises.dialog.equipment')}</Label>
             <div className="flex flex-wrap gap-1.5">
               {EQUIPMENT.map((e) => (
                 <ChipToggle
                   key={e}
-                  label={e}
+                  label={t(`exercises.equipmentNames.${e}`)}
                   active={form.equipment.includes(e)}
                   onClick={() => toggleArr('equipment', e)}
                 />
@@ -193,52 +195,56 @@ function ExerciseDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="desc">Description</Label>
+            <Label htmlFor="desc">{t('exercises.dialog.descLabel')}</Label>
             <Textarea
               id="desc"
               rows={2}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Short description…"
+              placeholder={t('exercises.dialog.descPlaceholder')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="inst">Coaching cues</Label>
+            <Label htmlFor="inst">{t('exercises.dialog.cuesLabel')}</Label>
             <Textarea
               id="inst"
               rows={3}
               value={form.instructions}
               onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-              placeholder="Step-by-step cues…"
+              placeholder={t('exercises.dialog.cuesPlaceholder')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="video">Video URL</Label>
+            <Label htmlFor="video">{t('exercises.dialog.videoLabel')}</Label>
             <Input
               id="video"
               value={form.videoUrl}
               onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-              placeholder="https://youtube.com/…"
+              placeholder={t('exercises.dialog.videoPlaceholder')}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
+            {t('exercises.dialog.cancel')}
           </Button>
           <Button variant="gradient" onClick={save} disabled={isPending || !form.name.trim()}>
-            {isPending ? 'Saving…' : initial ? 'Save changes' : 'Create exercise'}
+            {isPending ? t('exercises.dialog.saving') : initial ? t('exercises.dialog.save') : t('exercises.dialog.create')
+          <Button variant="gradient" onClick={save} disabled={isPending || !form.name.trim()}>
+            {isPending ? t('exercises.dialog.saving') : initial ? t('exercises.dialog.save') : t('exercises.dialog.create')}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
+t = useT();
+  const 
 export default function ExercisesPage() {
+  const t = useT();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('');
   const [muscleGroup, setMuscleGroup] = useState<string>('');
@@ -262,10 +268,10 @@ export default function ExercisesPage() {
   };
   const openEdit = (ex: Exercise) => {
     setEditing(ex);
-    setDialogOpen(true);
+    setDialogOpet('exercises.confirmDelete')
   };
   const remove = async (id: string) => {
-    if (confirm('Delete this exercise?')) await del.mutateAsync(id);
+    if (confirm(t('exercises.confirmDelete'))) await del.mutateAsync(id);
   };
 
   const hasFilters = !!(search || category || muscleGroup || equipment);
@@ -276,15 +282,12 @@ export default function ExercisesPage() {
     setEquipment('');
   };
 
-  return (
-    <div className="p-6 lg:p-8 space-y-6">
-      <PageHeader
-        title="Exercises"
-        description="Reusable exercise library with cues, equipment and videos."
+  return ({t('exercises.title')}
+        description={t('exercises.description')}
         actions={
           <Button variant="gradient" onClick={openCreate}>
             <Plus className="size-4" />
-            New exercise
+            {t('exercises.newExercise')}
           </Button>
         }
       />
@@ -297,20 +300,20 @@ export default function ExercisesPage() {
               <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="ps-9"
-                placeholder="Search exercises…"
+                placeholder={t('exercises.searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <Select value={category || 'all'} onValueChange={(v) => setCategory(v === 'all' ? '' : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Category" />
+                <SelectValue placeholder={t('exercises.filter.category')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="all">{t('exercises.filter.allCategories')}</SelectItem>
                 {CATEGORIES.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {c}
+                    {t(`exercises.categories.${c}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -320,32 +323,35 @@ export default function ExercisesPage() {
               onValueChange={(v) => setMuscleGroup(v === 'all' ? '' : v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Muscle group" />
+                <SelectValue placeholder={t('exercises.filter.muscleGroup')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All muscle groups</SelectItem>
+                <SelectItem value="all">{t('exercises.filter.allMuscleGroups')}</SelectItem>
                 {MUSCLE_GROUPS.map((m) => (
                   <SelectItem key={m} value={m}>
-                    {m}
+                    {t(`exercises.muscleGroupNames.${m}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Equipment:</span>
-            <ChipToggle label="All" active={!equipment} onClick={() => setEquipment('')} />
+            <span className="text-xs font-medium text-muted-foreground">{t('exercises.filter.equipment')}</span>
+            <ChipToggle label={t('exercises.filter.all')} active={!equipment} onClick={() => setEquipment('')} />
             {EQUIPMENT.map((e) => (
               <ChipToggle
                 key={e}
-                label={e}
+                label={t(`exercises.equipmentNames.${e}`)}
                 active={equipment === e}
                 onClick={() => setEquipment(equipment === e ? '' : e)}
               />
             ))}
             {hasFilters && (
               <Button variant="ghost" size="sm" onClick={resetFilters} className="ms-auto">
-                Clear filters
+                {t('exercises.filter.clear')}
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="ms-auto">
+                {t('exercises.filter.clear')}
               </Button>
             )}
           </div>
@@ -359,20 +365,20 @@ export default function ExercisesPage() {
             <Skeleton key={i} className="h-40" />
           ))}
         </div>
-      ) : exercises.length === 0 ? (
-        <EmptyState
-          icon={Dumbbell}
-          title="No exercises found"
-          description={hasFilters ? 'Try adjusting your filters.' : 'Start your exercise library.'}
+      ) : exerci{t('exercises.emptyTitle')}
+          description={hasFilters ? t('exercises.emptyFilters') : t('exercises.emptyHint')}
           action={
             hasFilters ? (
               <Button variant="outline" onClick={resetFilters}>
-                Clear filters
+                {t('exercises.filter.clear')}
               </Button>
             ) : (
               <Button variant="gradient" onClick={openCreate}>
                 <Plus className="size-4" />
-                New exercise
+                {t('exercises.newExercise')}
+              <Button variant="gradient" onClick={openCreate}>
+                <Plus className="size-4" />
+                {t('exercises.newExercise')}
               </Button>
             )
           }
@@ -383,25 +389,26 @@ export default function ExercisesPage() {
             <Card key={ex.id} className="card-interactive group">
               <CardContent className="flex h-full flex-col p-4">
                 <div className="mb-3 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="truncate font-semibold text-foreground">{ex.name}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {ex.category ?? 'Uncategorized'}
+                  <div className="mi t(`exercises.categories.${ex.category}`) : t('exercises.uncategorized')}
                       {ex.difficulty && (
                         <span className="ms-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-                          {ex.difficulty}
+                          {ex.difficulty === 'BEGINNER'
+                            ? t('exercises.dialog.difficultyBeginner')
+                            : ex.difficulty === 'INTERMEDIATE'
+                              ? t('exercises.dialog.difficultyIntermediate')
+                              : t('exercises.dialog.difficultyAdvanced')exercises.categories.${ex.category}`) : t('exercises.uncategorized')}
+                      {ex.difficulty && (
+                        <span className="ms-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                          {ex.difficulty === 'BEGINNER'
+                            ? t('exercises.dialog.difficultyBeginner')
+                            : ex.difficulty === 'INTERMEDIATE'
+                              ? t('exercises.dialog.difficultyIntermediate')
+                              : t('exercises.dialog.difficultyAdvanced')}
                         </span>
                       )}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                    {ex.videoUrl && (
-                      <a
-                        href={ex.videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                        aria-label="Play video"
+                  <div className="f{t('exercises.playVideo')}
                       >
                         <Play className="size-4" />
                       </a>
@@ -411,14 +418,21 @@ export default function ExercisesPage() {
                         <button
                           onClick={() => openEdit(ex)}
                           className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                          aria-label="Edit"
+                          aria-label={t('exercises.edit')}
                         >
                           <Pencil className="size-4" />
                         </button>
                         <button
                           onClick={() => remove(ex.id)}
                           className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          aria-label="Delete"
+                          aria-label={t('exercises.delete')}cises.edit')}
+                        >
+                          <Pencil className="size-4" />
+                        </button>
+                        <button
+                          onClick={() => remove(ex.id)}
+                          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={t('exercises.delete')}
                         >
                           <Trash2 className="size-4" />
                         </button>
@@ -429,14 +443,7 @@ export default function ExercisesPage() {
 
                 {ex.description && (
                   <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">{ex.description}</p>
-                )}
-
-                <div className="mt-auto space-y-2">
-                  {ex.muscleGroups && ex.muscleGroups.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {ex.muscleGroups.slice(0, 4).map((m) => (
-                        <Badge key={m} variant="muted" className="text-[10px]">
-                          {m}
+                )}t(`exercises.muscleGroupNames.${m}`)}
                         </Badge>
                       ))}
                       {ex.muscleGroups.length > 4 && (
@@ -448,7 +455,14 @@ export default function ExercisesPage() {
                   )}
                   {ex.isSystem && (
                     <Badge variant="default" className="text-[10px]">
-                      System
+                      {t('exercises.system')}ex.muscleGroups.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {ex.isSystem && (
+                    <Badge variant="default" className="text-[10px]">
+                      {t('exercises.system')}
                     </Badge>
                   )}
                 </div>

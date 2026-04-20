@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useColorScheme } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import NetInfo from '@react-native-community/netinfo';
 import { useAuthStore } from '@/stores/auth.store';
 import { drainQueue } from '@/lib/offline-queue';
+import { ThemeProvider } from '@/lib/theme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +20,7 @@ const queryClient = new QueryClient({
 
 function RootNavigator() {
   const { hydrate, isHydrated } = useAuthStore();
+  const scheme = useColorScheme();
 
   useEffect(() => {
     hydrate();
@@ -57,11 +60,12 @@ function RootNavigator() {
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(client)" options={{ headerShown: false }} />
+        {__DEV__ ? <Stack.Screen name="dev/ui" options={{ title: 'UI Gallery' }} /> : null}
       </Stack>
     </>
   );
@@ -70,7 +74,9 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RootNavigator />
+      <ThemeProvider>
+        <RootNavigator />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
