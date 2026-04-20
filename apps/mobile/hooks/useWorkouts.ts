@@ -46,7 +46,8 @@ export interface WorkoutInstance {
   clientUserId: string;
   templateId?: string;
   scheduledDate: string;
-  status: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED' | 'MISSED';
+  movedFromDate?: string;
+  status: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED' | 'MISSED' | 'MOVED';
   completedAt?: string;
   title?: string;
   notes?: string;
@@ -89,6 +90,28 @@ export function useTodayWorkouts() {
     queryFn: () =>
       api.get<WorkoutInstance[]>(
         `/workouts/calendar/${user!.id}?startDate=${today}&endDate=${today}`,
+      ),
+    enabled: !!user?.id,
+  });
+}
+
+/**
+ * Scheduled workouts for the current user from today through `days` ahead
+ * (inclusive). Useful for "Today / Tomorrow / Upcoming" sections.
+ */
+export function useUpcomingWorkouts(days = 7) {
+  const { user } = useAuthStore();
+  const today = new Date();
+  const end = new Date(today);
+  end.setDate(end.getDate() + days);
+  const startDate = today.toISOString().split('T')[0];
+  const endDate = end.toISOString().split('T')[0];
+
+  return useQuery<WorkoutInstance[]>({
+    queryKey: ['upcoming-workouts', user?.id, startDate, endDate],
+    queryFn: () =>
+      api.get<WorkoutInstance[]>(
+        `/workouts/calendar/${user!.id}?startDate=${startDate}&endDate=${endDate}`,
       ),
     enabled: !!user?.id,
   });
@@ -144,6 +167,7 @@ export function useSubmitLog(instanceId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['today-workouts', user?.id, today] });
+      qc.invalidateQueries({ queryKey: ['upcoming-workouts', user?.id] });
       qc.invalidateQueries({ queryKey: ['workout-instance', instanceId] });
     },
   });

@@ -1,13 +1,13 @@
 import {
   View,
-  FlatList,
+  SectionList,
   Pressable,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Bell, ChevronRight, Clock, Gauge, PartyPopper } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
-import { useTodayWorkouts, type WorkoutInstance } from '@/hooks/useWorkouts';
+import { useUpcomingWorkouts, type WorkoutInstance } from '@/hooks/useWorkouts';
 import { useUnreadCount } from '@/hooks/useNotifications';
 import { useTheme, withAlpha } from '@/lib/theme';
 import { Screen, Text, Card, Badge, ProgressBar, Icon, Skeleton } from '@/components/ui';
@@ -21,14 +21,6 @@ function greeting(name: string) {
   return name ? `${time}, ${name}` : time;
 }
 
-function formatDate(iso: string) {
-  return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-}
-
 const STATUS_MAP: Record<
   WorkoutInstance['status'],
   { tone: CardTone; badge: BadgeVariant; label: string }
@@ -37,6 +29,7 @@ const STATUS_MAP: Record<
   COMPLETED: { tone: 'success', badge: 'success', label: 'Completed' },
   SKIPPED: { tone: 'muted', badge: 'muted', label: 'Skipped' },
   MISSED: { tone: 'destructive', badge: 'destructive', label: 'Missed' },
+  MOVED: { tone: 'muted', badge: 'muted', label: 'Moved' },
 };
 
 // ── Workout Card ───────────────────────────────────────────────────────────
@@ -251,20 +244,84 @@ function BellButton() {
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDayHeader(iso: string) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+interface Section {
+  key: 'today' | 'tomorrow' | string; // 'day-YYYY-MM-DD' for upcoming days
+  title: string;
+  emphasis?: boolean;
+  data: WorkoutInstance[];
+}
+
 export default function TodayScreen() {
   const theme = useTheme();
   const { user } = useAuthStore();
-  const { data: instances, isLoading, refetch, isRefetching } = useTodayWorkouts();
+  const { data: instances, isLoading, refetch, isRefetching } =
+    useUpcomingWorkouts(7);
 
-  const today = formatDate(new Date().toISOString().split('T')[0]);
-  const completed = (instances ?? []).filter((i) => i.status === 'COMPLETED').length;
-  const total = (instances ?? []).length;
+  const today = new Date();
+  const todayKey = toISODate(today);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowKey = toISODate(tomorrow);
+
+  const sections: Section[] = (() => {
+    const items = instances ?? [];
+    const byDay = new Map<string, WorkoutInstance[]>();
+    for (const i of items) {
+      const key = (i.scheduledDate || '').split('T')[0];
+      const arr = byDay.get(key) ?? [];
+      arr.push(i);
+      byDay.set(key, arr);
+    }
+    const todaySection: Section = {
+      key: 'today',
+      title: 'Today',
+      emphasis: true,
+      data: byDay.get(todayKey) ?? [],
+    };
+    const tomorrowSection: Section = {
+      key: 'tomorrow',
+      title: 'Tomorrow',
+      data: byDay.get(tomorrowKey) ?? [],
+    };
+    const upcomingDays: Section[] = [];
+    const sortedKeys = Array.from(byDay.keys()).sort();
+    for (const k of sortedKeys) {
+      if (k === todayKey || k === tomorrowKey) continue;
+      if (k < todayKey) continue;
+      upcomingDays.push({
+        key: `day-${k}`,
+        title: formatDayHeader(k),
+        data: byDay.get(k) ?? [],
+      });
+    }
+    return [todaySection, tomorrowSection, ...upcomingDays];
+  })();
+
+  const todayItems = sections[0]?.data ?? [];
+  const completed = todayItems.filter((i) => i.status === 'COMPLETED').length;
+  const total = todayItems.length;
 
   return (
     <Screen edges={['top']}>
-      <FlatList
-        data={instances ?? []}
+      <SectionList<WorkoutInstance, Section>
+        sections={sections}
         keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
         contentContainerStyle={{
           padding: theme.spacing[5],
           paddingBottom: theme.spacing[10],
@@ -288,7 +345,11 @@ export default function TodayScreen() {
             >
               <View style={{ flex: 1 }}>
                 <Text variant="eyebrow" color="mutedForeground">
-                  {today}
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
                 </Text>
                 <Text variant="h1" style={{ marginTop: theme.spacing[1] }}>
                   {greeting(user?.firstName ?? '')}
@@ -318,6 +379,27 @@ export default function TodayScreen() {
             )}
           </View>
         }
+        renderSectionHeader={({ section }) => (
+          <View
+            style={{
+              marginTop: section.key === 'today' ? 0 : theme.spacing[6],
+              marginBottom: theme.spacing[3],
+            }}
+          >
+            <Text
+              variant={section.emphasis ? 'h2' : 'h3'}
+              color={section.emphasis ? 'foreground' : 'mutedForeground'}
+            >
+              {section.title}
+            </Text>
+          </View>
+        )}
+        renderSectionFooter={({ section }) =>
+          section.data.length === 0 ? (
+            <SectionEmpty kind={section.key as string} />
+          ) : null
+        }
+        renderItem={({ item }) => <WorkoutCard instance={item} />}
         ListEmptyComponent={
           isLoading ? (
             <View style={{ gap: theme.spacing[3], paddingTop: theme.spacing[2] }}>
@@ -332,13 +414,28 @@ export default function TodayScreen() {
                 </Card>
               ))}
             </View>
-          ) : (
-            <EmptyState />
-          )
+          ) : null
         }
-        renderItem={({ item }) => <WorkoutCard instance={item} />}
       />
     </Screen>
+  );
+}
+
+function SectionEmpty({ kind }: { kind: string }) {
+  const theme = useTheme();
+  if (kind === 'today') {
+    return <EmptyState />;
+  }
+  const message =
+    kind === 'tomorrow' ? 'Nothing scheduled for tomorrow.' : 'No workouts this day.';
+  return (
+    <Text
+      variant="body"
+      color="mutedForeground"
+      style={{ paddingVertical: theme.spacing[2] }}
+    >
+      {message}
+    </Text>
   );
 }
 
@@ -347,7 +444,7 @@ function EmptyState() {
   return (
     <View
       style={{
-        paddingVertical: theme.spacing[16],
+        paddingVertical: theme.spacing[10],
         alignItems: 'center',
         gap: theme.spacing[3],
       }}

@@ -116,6 +116,18 @@ export class WorkoutInstancesService {
     return { id, ...doc.data(), status: 'SKIPPED' };
   }
 
+  async deleteInstance(id: string, orgId: string): Promise<void> {
+    const doc = await this.firebase.workoutInstances(orgId).doc(id).get();
+    if (!doc.exists) throw new NotFoundException('Workout instance not found');
+
+    const instance = doc.data()!;
+    if (instance.status === 'COMPLETED') {
+      throw new ForbiddenException('Cannot delete a completed workout');
+    }
+
+    await this.firebase.workoutInstances(orgId).doc(id).delete();
+  }
+
   async submitLog(
     instanceId: string,
     orgId: string,

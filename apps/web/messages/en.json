@@ -289,6 +289,17 @@
       "noWorkouts": "No workouts yet",
       "addWorkout": "Add workout",
       "removeWorkout": "Remove",
+      "workoutDay": {
+        "label": "Day",
+        "any": "Sequential",
+        "0": "Sun",
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat"
+      },
       "editProgram": {
         "title": "Edit program",
         "description": "Update the program details.",
@@ -445,12 +456,44 @@
     "calendar": {
       "emptyTitle": "No scheduled workouts",
       "emptyDesc": "Assign a program or schedule individual workouts.",
+      "emptyDayTitle": "Nothing scheduled for this day.",
+      "scheduleCta": "Schedule",
+      "scheduleOnDay": "Schedule on this day",
+      "today": "Today",
+      "prev": "Previous",
+      "next": "Next",
+      "monthView": "Month",
+      "weekView": "Week",
+      "dayView": "Day",
+      "loading": "Loading…",
       "status": {
         "COMPLETED": "Completed",
         "SCHEDULED": "Scheduled",
         "IN_PROGRESS": "In progress",
         "SKIPPED": "Skipped",
-        "MISSED": "Missed"
+        "MISSED": "Missed",
+        "MOVED": "Moved"
+      },
+      "schedule": {
+        "title": "Schedule workout",
+        "description": "Pick a template and date for this client.",
+        "templateLabel": "Workout template",
+        "templatePlaceholder": "Select template…",
+        "dateLabel": "Date",
+        "titleLabel": "Custom title (optional)",
+        "titlePlaceholder": "e.g. Push day A",
+        "notesLabel": "Notes (optional)",
+        "submit": "Schedule",
+        "cancel": "Cancel"
+      },
+      "details": {
+        "defaultTitle": "Workout",
+        "moveLabel": "Move to date",
+        "move": "Move",
+        "skip": "Skip",
+        "delete": "Delete",
+        "close": "Close",
+        "confirmDelete": "Delete this scheduled workout?"
       }
     },
     "metrics": {

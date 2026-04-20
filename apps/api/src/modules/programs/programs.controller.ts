@@ -36,7 +36,7 @@ export class ProgramsController {
   @Roles('OWNER', 'ADMIN_COACH', 'COACH')
   async create(
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: { title: string; description?: string; isPrivate?: boolean; tags?: string[]; weeks?: { title?: string; notes?: string; workoutIds?: string[] }[] },
+    @Body() body: { title: string; description?: string; isPrivate?: boolean; tags?: string[]; weeks?: { title?: string; notes?: string; workoutIds?: string[]; workoutDays?: (number | null)[] }[] },
   ) {
     return this.programsService.createProgram(user.orgId, user.sub, body);
   }
@@ -77,9 +77,9 @@ export class ProgramsController {
     @Param('id') id: string,
     @Param('weekId') weekId: string,
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: { title?: string; notes?: string; workoutIds?: string[] },
+    @Body() body: { title?: string; notes?: string; workoutIds?: string[]; workoutDays?: (number | null)[] },
   ) {
-    return this.programsService.updateWeek(id, weekId, user.orgId, body);
+    return this.programsService.updateWeek(id, weekId, user.orgId, body as never);
   }
 
   @Delete(':id/weeks/:weekId')

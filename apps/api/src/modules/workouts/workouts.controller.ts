@@ -141,6 +141,16 @@ export class WorkoutsController {
     return this.instancesService.skipInstance(id, user.orgId);
   }
 
+  @Delete('instances/:id')
+  @Roles('OWNER', 'ADMIN_COACH', 'COACH')
+  async deleteInstance(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    await this.instancesService.deleteInstance(id, user.orgId);
+    return { success: true };
+  }
+
   @Post('instances/:id/log')
   async submitLog(
     @Param('id') id: string,

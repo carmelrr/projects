@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useEffect, useMemo, useState } from 'react';
+import type { JSX } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -86,13 +87,17 @@ import { cn } from '@/lib/utils';
 function WorkoutChip({
   sortId,
   workoutId,
+  dayOfWeek,
   onEdit,
   onRemove,
+  onChangeDay,
 }: {
   sortId: string;
   workoutId: string;
+  dayOfWeek: number | null;
   onEdit: () => void;
   onRemove: () => void;
+  onChangeDay: (next: number | null) => void;
 }) {
   const { data: w } = useWorkout(workoutId);
   const t = useT();
@@ -139,6 +144,25 @@ function WorkoutChip({
           </span>
         )}
       </button>
+      <Select
+        value={dayOfWeek === null ? 'any' : String(dayOfWeek)}
+        onValueChange={(v) => onChangeDay(v === 'any' ? null : Number(v))}
+      >
+        <SelectTrigger
+          className="h-7 w-[84px] shrink-0 text-[11px]"
+          aria-label={t('programs.detail.workoutDay.label')}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="any">{t('programs.detail.workoutDay.any')}</SelectItem>
+          {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+            <SelectItem key={d} value={String(d)}>
+              {t(`programs.detail.workoutDay.${d}`)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Button
         size="icon"
         variant="ghost"
@@ -452,7 +476,7 @@ export default function ProgramDetailPage({
   params,
 }: {
   params: Promise<{ programId: string }>;
-}) {
+}): JSX.Element {
   const t = useT();
   const { programId } = use(params);
   const { data: program, isLoading } = useProgram(programId);
@@ -519,14 +543,27 @@ export default function ProgramDetailPage({
 
   const totalWorkouts = weeks.reduce((n, w) => n + (w.workoutIds?.length ?? 0), 0);
 
-  const setWeekWorkouts = (weekId: string, workoutIds: string[]) =>
-    updateWeek.mutate({ programId, weekId, workoutIds });
+  type DayOrNull = 0 | 1 | 2 | 3 | 4 | 5 | 6 | null;
+
+  const getWeekDays = (w: typeof weeks[number]): DayOrNull[] => {
+    const ids = w.workoutIds ?? [];
+    const existing = (w.workoutDays ?? []) as DayOrNull[];
+    return ids.map((_, i) => (existing[i] ?? null) as DayOrNull);
+  };
+
+  const setWeekWorkouts = (
+    weekId: string,
+    workoutIds: string[],
+    workoutDays: DayOrNull[],
+  ) => updateWeek.mutate({ programId, weekId, workoutIds, workoutDays });
 
   const onPickWorkout = (w: Workout) => {
     if (!pickFor) return;
     const wk = weeks.find((x) => x.id === pickFor);
     if (!wk) return;
-    setWeekWorkouts(pickFor, [...(wk.workoutIds ?? []), w.id]);
+    const ids = [...(wk.workoutIds ?? []), w.id];
+    const days = [...getWeekDays(wk), null as DayOrNull];
+    setWeekWorkouts(pickFor, ids, days);
     setPickFor(null);
   };
 
@@ -555,8 +592,9 @@ export default function ProgramDetailPage({
     const oldIndex = ids.indexOf(active.id as string);
     const newIndex = ids.indexOf(over.id as string);
     if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove([...(wk.workoutIds ?? [])], oldIndex, newIndex);
-    setWeekWorkouts(weekId, next);
+    const nextIds = arrayMove([...(wk.workoutIds ?? [])], oldIndex, newIndex);
+    const nextDays = arrayMove(getWeekDays(wk), oldIndex, newIndex);
+    setWeekWorkouts(weekId, nextIds, nextDays);
   };
 
   return (
@@ -740,12 +778,25 @@ export default function ProgramDetailPage({
                                     key={`${id}-${i}`}
                                     sortId={`${id}__${i}`}
                                     workoutId={id}
+                                    dayOfWeek={getWeekDays(w)[i] ?? null}
                                     onEdit={() => openWorkout(id)}
                                     onRemove={() => {
-                                      const next = (w.workoutIds ?? []).filter(
+                                      const ids = (w.workoutIds ?? []).filter(
                                         (_, j) => j !== i,
                                       );
-                                      setWeekWorkouts(w.id, next);
+                                      const days = getWeekDays(w).filter(
+                                        (_, j) => j !== i,
+                                      );
+                                      setWeekWorkouts(w.id, ids, days);
+                                    }}
+                                    onChangeDay={(next) => {
+                                      const days = getWeekDays(w);
+                                      days[i] = next as DayOrNull;
+                                      setWeekWorkouts(
+                                        w.id,
+                                        [...(w.workoutIds ?? [])],
+                                        days,
+                                      );
                                     }}
                                   />
                                 ))

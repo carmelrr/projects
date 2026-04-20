@@ -2,12 +2,20 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { FirebaseService } from '../firebase/firebase.service';
 import { parsePagination, paginatedResponse } from '../../common/utils/pagination';
 
+type DayOfWeekOrNull = 0 | 1 | 2 | 3 | 4 | 5 | 6 | null;
+
 interface CreateProgramInput {
   title: string;
   description?: string;
   isPrivate?: boolean;
   tags?: string[];
-  weeks?: { title?: string; notes?: string; workoutIds?: string[] }[];
+  weeks?: {
+    title?: string;
+    notes?: string;
+    workoutIds?: string[];
+    /** Parallel array with `workoutIds`. 0=Sun … 6=Sat; null = sequential. */
+    workoutDays?: (number | null)[];
+  }[];
 }
 
 interface AssignProgramInput {
@@ -53,6 +61,7 @@ export class ProgramsService {
       title: week.title || null,
       notes: week.notes || null,
       workoutIds: week.workoutIds || [],
+      workoutDays: week.workoutDays ?? null,
     }));
 
     const data = {
@@ -99,6 +108,7 @@ export class ProgramsService {
       title: input.title || null,
       notes: input.notes || null,
       workoutIds: [],
+      workoutDays: [] as DayOfWeekOrNull[],
     };
 
     weeks.push(newWeek);
@@ -114,7 +124,12 @@ export class ProgramsService {
     programId: string,
     weekId: string,
     orgId: string,
-    input: { title?: string; notes?: string; workoutIds?: string[] },
+    input: {
+      title?: string;
+      notes?: string;
+      workoutIds?: string[];
+      workoutDays?: (number | null)[];
+    },
   ) {
     const doc = await this.firebase.programs(orgId).doc(programId).get();
     if (!doc.exists) throw new NotFoundException('Program not found');
@@ -127,6 +142,7 @@ export class ProgramsService {
         ...(input.title !== undefined ? { title: input.title || null } : {}),
         ...(input.notes !== undefined ? { notes: input.notes || null } : {}),
         ...(input.workoutIds !== undefined ? { workoutIds: input.workoutIds } : {}),
+        ...(input.workoutDays !== undefined ? { workoutDays: input.workoutDays } : {}),
       };
     });
 
@@ -212,27 +228,41 @@ export class ProgramsService {
       createdAt: new Date().toISOString(),
     });
 
-    // Create workout instances for each week/workout
+    // Create workout instances for each week/workout. Respect the week's
+    // per-workout `workoutDays` (0=Sun..6=Sat) when provided; otherwise place
+    // workouts on sequential days starting from the week's anchor.
     const weeks = (program.weeks as Array<Record<string, unknown>>) || [];
+    const startDow = startDate.getUTCDay(); // 0..6 relative to startDate
     for (const week of weeks) {
       const workoutIds = (week.workoutIds as string[]) || [];
-      for (const workoutId of workoutIds) {
-        const instanceId = this.firebase.generateId();
-        const scheduledDate = new Date(startDate);
-        scheduledDate.setDate(scheduledDate.getDate() + ((week.weekIndex as number) || 0) * 7);
+      const workoutDays = (week.workoutDays as DayOfWeekOrNull[] | undefined) || [];
+      const weekAnchor = new Date(startDate);
+      weekAnchor.setUTCDate(weekAnchor.getUTCDate() + ((week.weekIndex as number) || 0) * 7);
 
+      workoutIds.forEach((workoutId, i) => {
+        const dow = workoutDays[i];
+        const scheduledDate = new Date(weekAnchor);
+        if (dow !== null && dow !== undefined) {
+          // Shift forward so that `dow` is hit within the same 7-day window.
+          const offset = (dow - startDow + 7) % 7;
+          scheduledDate.setUTCDate(scheduledDate.getUTCDate() + offset);
+        } else {
+          // Fallback: one per consecutive day.
+          scheduledDate.setUTCDate(scheduledDate.getUTCDate() + i);
+        }
+        const instanceId = this.firebase.generateId();
         const instanceRef = this.firebase.workoutInstances(orgId).doc(instanceId);
         batch.set(instanceRef, {
           clientUserId: input.clientId,
           templateId: workoutId,
-          scheduledDate: scheduledDate.toISOString(),
+          scheduledDate: scheduledDate.toISOString().split('T')[0],
           title: '',
           status: 'SCHEDULED',
           programAssignmentId: assignId,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-      }
+      });
     }
 
     await batch.commit();

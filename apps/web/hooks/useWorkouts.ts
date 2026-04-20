@@ -44,19 +44,23 @@ export interface Workout {
 
 export interface WorkoutInstance {
   id: string;
-  workoutId: string;
-  clientId: string;
+  templateId?: string;
+  clientUserId: string;
   scheduledDate: string;
-  status: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED' | 'MISSED';
+  movedFromDate?: string;
+  status: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED' | 'MISSED' | 'MOVED';
+  title?: string;
+  notes?: string;
   completedAt?: string;
-  workout?: Workout;
+  programAssignmentId?: string;
+  template?: Workout;
   log?: WorkoutLog;
 }
 
 export interface WorkoutLog {
   id: string;
   instanceId: string;
-  clientId: string;
+  clientUserId: string;
   completedAt: string;
   durationMinutes?: number;
   overallRpe?: number;
@@ -117,10 +121,11 @@ export function useScheduleWorkout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: {
-      workoutId: string;
+      templateId: string;
       clientId: string;
       scheduledDate: string;
-      note?: string;
+      title?: string;
+      notes?: string;
     }) => api.post<WorkoutInstance>('/workouts/schedule', body),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['calendar', vars.clientId] });
@@ -142,8 +147,18 @@ export function useMoveInstance() {
 export function useSkipInstance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; reason?: string }) =>
-      api.patch(`/workouts/instances/${id}/skip`, body),
+    mutationFn: ({ id }: { id: string }) =>
+      api.patch(`/workouts/instances/${id}/skip`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
+export function useDeleteInstance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/workouts/instances/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar'] });
     },

@@ -27,3 +27,35 @@ export interface WorkoutItemDTO {
   prescription: WorkoutPrescription;
   coachNotes?: string;
 }
+
+// ── Workout scheduling (calendar) ──────────────────────────────────────────
+
+/**
+ * Lifecycle of a scheduled workout for a client.
+ *  SCHEDULED  — planned, not yet started.
+ *  COMPLETED  — logged by the client.
+ *  SKIPPED    — explicitly skipped.
+ *  MISSED     — past-date & unlogged (derived/auto).
+ *  MOVED      — legacy marker for an instance whose date was changed.
+ */
+export type WorkoutInstanceStatus =
+  | 'SCHEDULED'
+  | 'COMPLETED'
+  | 'SKIPPED'
+  | 'MISSED'
+  | 'MOVED';
+
+export interface WorkoutInstanceDTO {
+  id: string;
+  clientUserId: string;
+  templateId?: string;
+  /** ISO date (YYYY-MM-DD) or full ISO datetime. */
+  scheduledDate: string;
+  /** Previous scheduled date if the instance was moved. */
+  movedFromDate?: string;
+  status: WorkoutInstanceStatus;
+  title?: string;
+  notes?: string;
+  completedAt?: string;
+  programAssignmentId?: string;
+}

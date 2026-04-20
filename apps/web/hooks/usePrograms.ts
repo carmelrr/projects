@@ -1,12 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface ProgramWeek {
   id: string;
   weekIndex: number;
   title?: string;
   notes?: string;
   workoutIds: string[];
+  /** Parallel array with `workoutIds`. null = sequential fallback. */
+  workoutDays?: (DayOfWeek | null)[];
 }
 
 export interface Program {
@@ -120,6 +124,7 @@ export function useUpdateProgramWeek() {
       title?: string;
       notes?: string;
       workoutIds?: string[];
+      workoutDays?: (DayOfWeek | null)[];
     }) => api.patch(`/programs/${programId}/weeks/${weekId}`, body),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['program', vars.programId] });

@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useState } from 'react';
+import type { JSX } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -27,6 +28,7 @@ import { useClientMetrics, useMetricHistory } from '@/hooks/useMetrics';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { ManageAssignmentsDialog } from '@/components/clients/ManageAssignmentsDialog';
+import { WorkoutCalendar } from '@/components/calendar/WorkoutCalendar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -355,7 +357,7 @@ export default function ClientDetailPage({
   params,
 }: {
   params: Promise<{ clientId: string }>;
-}) {
+}): JSX.Element {
   const { clientId } = use(params);
   const { data: client, isLoading } = useClient(clientId);
   const [editOpen, setEditOpen] = useState(false);
@@ -702,7 +704,7 @@ export default function ClientDetailPage({
                         >
                           <div>
                             <p className="font-medium text-foreground">
-                              {i.workout?.title ?? 'Workout'}
+                              {i.template?.title ?? i.title ?? 'Workout'}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {new Date(i.scheduledDate).toLocaleDateString()}
@@ -718,46 +720,7 @@ export default function ClientDetailPage({
             </TabsContent>
 
             <TabsContent value="calendar" className="mt-4">
-              <Card>
-                <CardContent className="p-5">
-                  {(calendar ?? []).length === 0 ? (
-                    <EmptyState
-                      icon={CalendarIcon}
-                      title="No scheduled workouts"
-                      description="Assign a program or schedule individual workouts."
-                    />
-                  ) : (
-                    <ul className="space-y-2">
-                      {(calendar ?? []).map((i) => (
-                        <li
-                          key={i.id}
-                          className="flex items-center justify-between rounded-md border border-border bg-card/50 px-3 py-2.5 text-sm"
-                        >
-                          <div>
-                            <p className="font-medium text-foreground">
-                              {i.workout?.title ?? 'Workout'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(i.scheduledDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={
-                              i.status === 'COMPLETED'
-                                ? 'success'
-                                : i.status === 'SKIPPED' || i.status === 'MISSED'
-                                  ? 'destructive'
-                                  : 'muted'
-                            }
-                          >
-                            {i.status}
-                          </Badge>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
+              <WorkoutCalendar clientId={client.user.id} />
             </TabsContent>
 
             <TabsContent value="metrics" className="mt-4">

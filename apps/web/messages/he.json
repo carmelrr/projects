@@ -289,6 +289,17 @@
       "noWorkouts": "אין עדיין אימונים",
       "addWorkout": "הוסף אימון",
       "removeWorkout": "הסר",
+      "workoutDay": {
+        "label": "יום",
+        "any": "רציף",
+        "0": "א׳",
+        "1": "ב׳",
+        "2": "ג׳",
+        "3": "ד׳",
+        "4": "ה׳",
+        "5": "ו׳",
+        "6": "ש׳"
+      },
       "editProgram": {
         "title": "עריכת תוכנית",
         "description": "עדכן את פרטי התוכנית.",
@@ -445,12 +456,44 @@
     "calendar": {
       "emptyTitle": "אין אימונים מתוזמנים",
       "emptyDesc": "שייך תוכנית או תזמן אימונים בודדים.",
+      "emptyDayTitle": "אין אימונים ביום זה.",
+      "scheduleCta": "תזמון",
+      "scheduleOnDay": "תזמון ביום זה",
+      "today": "היום",
+      "prev": "הקודם",
+      "next": "הבא",
+      "monthView": "חודש",
+      "weekView": "שבוע",
+      "dayView": "יום",
+      "loading": "טוען…",
       "status": {
         "COMPLETED": "הושלם",
         "SCHEDULED": "מתוזמן",
         "IN_PROGRESS": "בביצוע",
         "SKIPPED": "דולג",
-        "MISSED": "פספוס"
+        "MISSED": "פספוס",
+        "MOVED": "הועבר"
+      },
+      "schedule": {
+        "title": "תזמון אימון",
+        "description": "בחר תבנית ותאריך עבור המתאמן.",
+        "templateLabel": "תבנית אימון",
+        "templatePlaceholder": "בחר תבנית…",
+        "dateLabel": "תאריך",
+        "titleLabel": "כותרת מותאמת (רשות)",
+        "titlePlaceholder": "למשל: יום דחיפה A",
+        "notesLabel": "הערות (רשות)",
+        "submit": "תזמן",
+        "cancel": "ביטול"
+      },
+      "details": {
+        "defaultTitle": "אימון",
+        "moveLabel": "העברה לתאריך",
+        "move": "העבר",
+        "skip": "דלג",
+        "delete": "מחק",
+        "close": "סגור",
+        "confirmDelete": "למחוק את האימון המתוזמן?"
       }
     },
     "metrics": {
