@@ -184,6 +184,7 @@
     "signUpSubtitle": "Start coaching with Owl Performance.",
     "noAccount": "Don't have an account?",
     "haveAccount": "Already have an account?",
+    "forgotPassword": "Forgot password?",
     "invalidCredentials": "Invalid email or password.",
     "genericError": "Something went wrong. Please try again.",
     "firstName": "First name",
@@ -440,6 +441,11 @@
       "manage": "Manage",
       "noCoaches": "No coaches assigned.",
       "compliance": "Compliance ({period})",
+      "compliancePeriod": {
+        "SEVEN_DAY": "7 days",
+        "THIRTY_DAY": "30 days",
+        "NINETY_DAY": "90 days"
+      },
       "workoutsRatio": "{done}/{total} workouts"
     },
     "tabs": {

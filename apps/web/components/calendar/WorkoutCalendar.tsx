@@ -33,7 +33,12 @@ import {
   useWorkout,
   type WorkoutInstance,
 } from '@/hooks/useWorkouts';
-import { useT } from '@/lib/i18n/client';
+import { useI18n, useT } from '@/lib/i18n/client';
+
+const LOCALE_TO_BCP47: Record<string, string> = { he: 'he-IL', en: 'en-US' };
+function bcp47(locale: string): string {
+  return LOCALE_TO_BCP47[locale] ?? locale;
+}
 import { PickWorkoutDialog } from '@/components/programs/PickWorkoutDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -119,6 +124,7 @@ function WorkoutChip({
   instance: WorkoutInstance;
   onClick: () => void;
 }) {
+  const t = useT();
   const { data: tpl } = useWorkout(instance.templateId ?? '');
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: instance.id,
@@ -126,7 +132,7 @@ function WorkoutChip({
     disabled: instance.status !== 'SCHEDULED',
   });
   const style = STATUS_STYLES[instance.status] ?? STATUS_STYLES.SCHEDULED;
-  const title = tpl?.title ?? instance.title ?? 'Workout';
+  const title = tpl?.title ?? instance.title ?? t('clientDetail.calendar.details.defaultTitle');
 
   return (
     <button
@@ -369,6 +375,8 @@ function InstanceDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const t = useT();
+  const { locale } = useI18n();
+  const lc = bcp47(locale);
   const { data: tpl } = useWorkout(instance?.templateId ?? '');
   const move = useMoveInstance();
   const skip = useSkipInstance();
@@ -411,7 +419,7 @@ function InstanceDialog({
               </Badge>
               <span className="inline-flex items-center gap-1">
                 <CalendarIcon className="size-3" />
-                {parseISODate(instance.scheduledDate).toLocaleDateString()}
+                {parseISODate(instance.scheduledDate).toLocaleDateString(lc)}
               </span>
               {tpl?.estimatedDuration ? (
                 <span className="inline-flex items-center gap-1">
@@ -484,6 +492,8 @@ type View = 'month' | 'week' | 'day';
 
 export function WorkoutCalendar({ clientId }: { clientId: string }): JSX.Element {
   const t = useT();
+  const { locale } = useI18n();
+  const lc = bcp47(locale);
   const [view, setView] = useState<View>('month');
   const [focus, setFocus] = useState<Date>(() => new Date());
   const [selectedInstance, setSelectedInstance] = useState<WorkoutInstance | null>(null);
@@ -569,20 +579,20 @@ export function WorkoutCalendar({ clientId }: { clientId: string }): JSX.Element
 
   const headerLabel = useMemo(() => {
     if (view === 'month') {
-      return focus.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      return focus.toLocaleDateString(lc, { month: 'long', year: 'numeric' });
     }
     if (view === 'week') {
       const s = startOfWeek(focus);
       const e = addDays(s, 6);
-      return `${s.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${e.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      return `${s.toLocaleDateString(lc, { month: 'short', day: 'numeric' })} – ${e.toLocaleDateString(lc, { month: 'short', day: 'numeric', year: 'numeric' })}`;
     }
-    return focus.toLocaleDateString(undefined, {
+    return focus.toLocaleDateString(lc, {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
       year: 'numeric',
     });
-  }, [view, focus]);
+  }, [view, focus, lc]);
 
   const handleAddClick = (date: Date) => {
     setScheduleDate(toISODate(date));
@@ -593,9 +603,9 @@ export function WorkoutCalendar({ clientId }: { clientId: string }): JSX.Element
     // Sunday-start week.
     const base = startOfWeek(new Date());
     return Array.from({ length: 7 }, (_, i) =>
-      addDays(base, i).toLocaleDateString(undefined, { weekday: 'short' }),
+      addDays(base, i).toLocaleDateString(lc, { weekday: 'short' }),
     );
-  }, []);
+  }, [lc]);
 
   return (
     <Card>
@@ -762,6 +772,7 @@ export function WorkoutCalendar({ clientId }: { clientId: string }): JSX.Element
 }
 
 function DragChip({ instance }: { instance: WorkoutInstance }) {
+  const t = useT();
   const { data: tpl } = useWorkout(instance.templateId ?? '');
   const style = STATUS_STYLES[instance.status] ?? STATUS_STYLES.SCHEDULED;
   return (
@@ -771,7 +782,7 @@ function DragChip({ instance }: { instance: WorkoutInstance }) {
         style.chip,
       )}
     >
-      {tpl?.title ?? instance.title ?? 'Workout'}
+      {tpl?.title ?? instance.title ?? t('clientDetail.calendar.details.defaultTitle')}
     </div>
   );
 }
@@ -836,7 +847,7 @@ function DayListRow({
       >
         <div className="min-w-0">
           <p className="truncate font-medium text-foreground">
-            {tpl?.title ?? instance.title ?? 'Workout'}
+            {tpl?.title ?? instance.title ?? t('clientDetail.calendar.details.defaultTitle')}
           </p>
           {(tpl?.estimatedDuration || instance.notes) && (
             <p className="mt-0.5 truncate text-xs text-muted-foreground">

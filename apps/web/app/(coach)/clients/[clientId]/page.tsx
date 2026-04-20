@@ -60,6 +60,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useI18n, useT } from '@/lib/i18n/client';
+
+const LOCALE_TO_BCP47: Record<string, string> = { he: 'he-IL', en: 'en-US' };
+function bcp47(locale: string): string {
+  return LOCALE_TO_BCP47[locale] ?? locale;
+}
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'muted'> = {
   ACTIVE: 'success',
@@ -87,6 +93,9 @@ function MetricCardWithChart({
   latestValue: number;
   latestAt: string;
 }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const lc = bcp47(locale);
   const { data: history } = useMetricHistory(clientId, metricId, 30);
   const points = (history ?? [])
     .slice()
@@ -157,11 +166,11 @@ function MetricCardWithChart({
         </svg>
       ) : (
         <p className="pt-2 text-[11px] text-muted-foreground">
-          Need more data for a trend chart.
+          {t('clientDetail.metrics.needMoreData')}
         </p>
       )}
       <p className="mt-1 text-[11px] text-muted-foreground">
-        Last: {new Date(latestAt).toLocaleDateString()}
+        {t('clientDetail.metrics.last', { date: new Date(latestAt).toLocaleDateString(lc) })}
       </p>
     </div>
   );
@@ -176,6 +185,7 @@ function EditDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const t = useT();
   const update = useUpdateClient();
   const [form, setForm] = useState({
     status: client?.status ?? 'ACTIVE',
@@ -201,34 +211,34 @@ function EditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit client</DialogTitle>
+          <DialogTitle>{t('clientDetail.edit.title')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Status</Label>
+            <Label>{t('clientDetail.edit.statusLabel')}</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as typeof form.status })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="PAUSED">Paused</SelectItem>
-                <SelectItem value="ARCHIVED">Archived</SelectItem>
+                <SelectItem value="ACTIVE">{t('clientDetail.status.ACTIVE')}</SelectItem>
+                <SelectItem value="PAUSED">{t('clientDetail.status.PAUSED')}</SelectItem>
+                <SelectItem value="ARCHIVED">{t('clientDetail.status.ARCHIVED')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="goals">Goals</Label>
+            <Label htmlFor="goals">{t('clientDetail.edit.goalsLabel')}</Label>
             <Textarea
               id="goals"
               rows={3}
               value={form.goals}
               onChange={(e) => setForm({ ...form, goals: e.target.value })}
-              placeholder="What is the client working towards?"
+              placeholder={t('clientDetail.edit.goalsPlaceholder')}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="height">Height (cm)</Label>
+            <Label htmlFor="height">{t('clientDetail.edit.heightLabel')}</Label>
             <Input
               id="height"
               type="number"
@@ -239,22 +249,22 @@ function EditDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="medical">Medical notes</Label>
+            <Label htmlFor="medical">{t('clientDetail.edit.medicalLabel')}</Label>
             <Textarea
               id="medical"
               rows={3}
               value={form.medicalNotes}
               onChange={(e) => setForm({ ...form, medicalNotes: e.target.value })}
-              placeholder="Injuries, conditions, etc."
+              placeholder={t('clientDetail.edit.medicalPlaceholder')}
             />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={update.isPending}>
-            Cancel
+            {t('clientDetail.edit.cancel')}
           </Button>
           <Button variant="gradient" onClick={save} disabled={update.isPending}>
-            {update.isPending ? 'Saving…' : 'Save'}
+            {update.isPending ? t('clientDetail.edit.saving') : t('clientDetail.edit.save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -264,6 +274,9 @@ function EditDialog({
 
 // ── Programs tab content ────────────────────────────────────────────────
 function ProgramsTab({ clientUserId }: { clientUserId: string }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const lc = bcp47(locale);
   const { data: programs, isLoading } = useClientPrograms(clientUserId);
   const items = programs ?? [];
   const active = items.filter((p) => p.status === 'ACTIVE');
@@ -286,11 +299,11 @@ function ProgramsTab({ clientUserId }: { clientUserId: string }) {
         <CardContent className="p-5">
           <EmptyState
             icon={Activity}
-            title="No programs assigned"
-            description="Assign a program from the Programs page."
+            title={t('clientDetail.programs.emptyTitle')}
+            description={t('clientDetail.programs.emptyDesc')}
             action={
               <Button asChild variant="outline">
-                <Link href="/programs">Browse programs</Link>
+                <Link href="/programs">{t('clientDetail.programs.browse')}</Link>
               </Button>
             }
           />
@@ -312,20 +325,27 @@ function ProgramsTab({ clientUserId }: { clientUserId: string }) {
           href={`/programs/${p.programId}`}
           className="font-medium text-foreground hover:underline"
         >
-          {p.program?.title ?? 'Program'}
+          {p.program?.title ?? t('clientDetail.programs.programFallback')}
         </Link>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {p.program?.weekCount != null && (
             <>
-              {p.program.weekCount} week{p.program.weekCount === 1 ? '' : 's'}
+              {t(
+                p.program.weekCount === 1
+                  ? 'programs.detail.weeksCount_one'
+                  : 'programs.detail.weeksCount_other',
+                { n: p.program.weekCount },
+              )}
               {' · '}
             </>
           )}
-          {p.startDate ? `Start ${new Date(p.startDate).toLocaleDateString()}` : 'No start date'}
-          {p.endDate ? ` · End ${new Date(p.endDate).toLocaleDateString()}` : ''}
+          {p.startDate
+            ? t('clientDetail.programs.startPrefix', { date: new Date(p.startDate).toLocaleDateString(lc) })
+            : t('clientDetail.programs.noStart')}
+          {p.endDate ? ` · ${t('clientDetail.programs.endPrefix', { date: new Date(p.endDate).toLocaleDateString(lc) })}` : ''}
         </p>
       </div>
-      <Badge variant={variant}>{p.status}</Badge>
+      <Badge variant={variant}>{t(`clientDetail.programs.statusBadge.${p.status}`)}</Badge>
     </li>
   );
 
@@ -335,7 +355,7 @@ function ProgramsTab({ clientUserId }: { clientUserId: string }) {
         {active.length > 0 && (
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Active
+              {t('clientDetail.programs.active')}
             </p>
             <ul className="space-y-2">{active.map((p) => renderRow(p, 'success'))}</ul>
           </div>
@@ -343,7 +363,7 @@ function ProgramsTab({ clientUserId }: { clientUserId: string }) {
         {past.length > 0 && (
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Past
+              {t('clientDetail.programs.past')}
             </p>
             <ul className="space-y-2">{past.map((p) => renderRow(p, 'muted'))}</ul>
           </div>
@@ -359,6 +379,9 @@ export default function ClientDetailPage({
   params: Promise<{ clientId: string }>;
 }): JSX.Element {
   const { clientId } = use(params);
+  const t = useT();
+  const { locale } = useI18n();
+  const lc = bcp47(locale);
   const { data: client, isLoading } = useClient(clientId);
   const [editOpen, setEditOpen] = useState(false);
   const [assignmentsOpen, setAssignmentsOpen] = useState(false);
@@ -372,7 +395,7 @@ export default function ClientDetailPage({
     try {
       await updateClient.mutateAsync({ id: client.id, status });
     } catch (err) {
-      setStatusError(err instanceof Error ? err.message : 'Could not update status');
+      setStatusError(err instanceof Error ? err.message : t('clientDetail.alerts.updateError'));
     }
   }
 
@@ -397,13 +420,13 @@ export default function ClientDetailPage({
     return (
       <div className="p-6 lg:p-8">
         <EmptyState
-          title="Client not found"
-          description="This client may have been removed."
+          title={t('clientDetail.notFoundTitle')}
+          description={t('clientDetail.notFoundDesc')}
           action={
             <Button asChild variant="outline">
               <Link href="/clients">
                 <ArrowLeft className="size-4 rtl:rotate-180" />
-                Back to clients
+                {t('clientDetail.backToClients')}
               </Link>
             </Button>
           }
@@ -422,7 +445,7 @@ export default function ClientDetailPage({
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4 rtl:rotate-180" />
-        All clients
+        {t('clientDetail.back')}
       </Link>
 
       <PageHeader
@@ -430,27 +453,27 @@ export default function ClientDetailPage({
         description={client.user.email}
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant={STATUS_VARIANT[client.status] ?? 'muted'}>{client.status}</Badge>
+            <Badge variant={STATUS_VARIANT[client.status] ?? 'muted'}>{t(`clientDetail.status.${client.status}`)}</Badge>
             <Button variant="outline" asChild>
               <Link href={`/messages?clientId=${client.user.id}`}>
                 <MessageSquare className="size-4" />
-                Message
+                {t('clientDetail.actions.message')}
               </Link>
             </Button>
             <Button variant="outline" onClick={() => setAssignmentsOpen(true)}>
               <UsersIcon className="size-4" />
-              Coaches
+              {t('clientDetail.actions.coaches')}
             </Button>
             <Button variant="gradient" onClick={() => setEditOpen(true)}>
               <Pencil className="size-4" />
-              Edit
+              {t('clientDetail.actions.edit')}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   size="icon"
-                  aria-label="More actions"
+                  aria-label={t('clientDetail.actions.more')}
                   disabled={updateClient.isPending}
                 >
                   {updateClient.isPending ? (
@@ -464,19 +487,19 @@ export default function ClientDetailPage({
                 {client.status === 'ACTIVE' && (
                   <DropdownMenuItem onClick={() => changeStatus('PAUSED')}>
                     <Pause className="size-4" />
-                    Pause client
+                    {t('clientDetail.actions.pause')}
                   </DropdownMenuItem>
                 )}
                 {client.status === 'PAUSED' && (
                   <DropdownMenuItem onClick={() => changeStatus('ACTIVE')}>
                     <Play className="size-4" />
-                    Reactivate client
+                    {t('clientDetail.actions.reactivate')}
                   </DropdownMenuItem>
                 )}
                 {client.status === 'ARCHIVED' ? (
                   <DropdownMenuItem onClick={() => changeStatus('ACTIVE')}>
                     <ArchiveRestore className="size-4" />
-                    Unarchive client
+                    {t('clientDetail.actions.unarchive')}
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem
@@ -484,7 +507,7 @@ export default function ClientDetailPage({
                     className="text-destructive focus:text-destructive"
                   >
                     <Archive className="size-4" />
-                    Archive client
+                    {t('clientDetail.actions.archive')}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -498,7 +521,7 @@ export default function ClientDetailPage({
           <CardContent className="flex items-center gap-3 p-4 text-sm">
             <AlertTriangle className="size-5 shrink-0 text-warning" />
             <span className="text-foreground">
-              Needs attention — compliance is low this period.
+              {t('clientDetail.alerts.needsAttention')}
             </span>
           </CardContent>
         </Card>
@@ -509,7 +532,7 @@ export default function ClientDetailPage({
           <CardContent className="flex items-center justify-between gap-3 p-4 text-sm">
             <span className="text-destructive">{statusError}</span>
             <Button variant="ghost" size="sm" onClick={() => setStatusError(null)}>
-              Dismiss
+              {t('clientDetail.alerts.dismiss')}
             </Button>
           </CardContent>
         </Card>
@@ -532,7 +555,7 @@ export default function ClientDetailPage({
                     {client.user.firstName} {client.user.lastName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Joined {new Date(client.createdAt).toLocaleDateString()}
+                    {t('clientDetail.profile.joined', { date: new Date(client.createdAt).toLocaleDateString(lc) })}
                   </p>
                 </div>
               </div>
@@ -548,7 +571,7 @@ export default function ClientDetailPage({
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <CalendarIcon className="size-3.5 shrink-0" />
                     <span className="text-foreground">
-                      {new Date(client.clientProfile.dob).toLocaleDateString()}
+                      {new Date(client.clientProfile.dob).toLocaleDateString(lc)}
                     </span>
                   </div>
                 )}
@@ -566,7 +589,7 @@ export default function ClientDetailPage({
                   <div>
                     <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       <Target className="size-3.5" />
-                      Goals
+                      {t('clientDetail.profile.goals')}
                     </p>
                     <p className="text-sm text-foreground">{client.clientProfile.goals}</p>
                   </div>
@@ -578,7 +601,7 @@ export default function ClientDetailPage({
                   <Separator />
                   <div>
                     <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Medical notes
+                      {t('clientDetail.profile.medicalNotes')}
                     </p>
                     <p className="text-sm text-foreground">{client.clientProfile.medicalNotes}</p>
                   </div>
@@ -595,7 +618,7 @@ export default function ClientDetailPage({
                   <div className="flex items-center justify-between">
                     <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       <UsersIcon className="size-3.5" />
-                      Coaches
+                      {t('clientDetail.profile.coaches')}
                     </p>
                     <Button
                       variant="ghost"
@@ -603,12 +626,12 @@ export default function ClientDetailPage({
                       className="h-7 px-2 text-xs"
                       onClick={() => setAssignmentsOpen(true)}
                     >
-                      Manage
+                      {t('clientDetail.profile.manage')}
                     </Button>
                   </div>
                   {activeAssigns.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      No coaches assigned.
+                      {t('clientDetail.profile.noCoaches')}
                     </p>
                   ) : (
                     <ul className="space-y-2">
@@ -641,7 +664,7 @@ export default function ClientDetailPage({
               <CardContent className="p-5">
                 <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <TrendingUp className="size-3.5" />
-                  Compliance ({compliance.period.replace('_', ' ').toLowerCase()})                </p>
+                  {t('clientDetail.profile.compliance', { period: t(`clientDetail.profile.compliancePeriod.${compliance.period}`) })}                </p>
                 <div className="flex items-baseline gap-2">
                   <p
                     className={cn(
@@ -656,7 +679,7 @@ export default function ClientDetailPage({
                     {Math.round(compliance.complianceRate)}%
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {compliance.totalCompleted}/{compliance.totalScheduled} workouts
+                    {t('clientDetail.profile.workoutsRatio', { done: compliance.totalCompleted, total: compliance.totalScheduled })}
                   </p>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -681,19 +704,19 @@ export default function ClientDetailPage({
         <div className="min-w-0">
           <Tabs defaultValue="overview">
             <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
-              <TabsTrigger value="metrics">Metrics</TabsTrigger>
-              <TabsTrigger value="programs">Programs</TabsTrigger>
+              <TabsTrigger value="overview">{t('clientDetail.tabs.overview')}</TabsTrigger>
+              <TabsTrigger value="calendar">{t('clientDetail.tabs.calendar')}</TabsTrigger>
+              <TabsTrigger value="metrics">{t('clientDetail.tabs.metrics')}</TabsTrigger>
+              <TabsTrigger value="programs">{t('clientDetail.tabs.programs')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-4 space-y-4">
               <Card>
                 <CardContent className="p-5">
-                  <h3 className="mb-3 text-sm font-semibold text-foreground">Recent activity</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-foreground">{t('clientDetail.overview.recentTitle')}</h3>
                   {recent.length === 0 ? (
                     <p className="py-6 text-center text-sm text-muted-foreground">
-                      No completed workouts yet.
+                      {t('clientDetail.overview.noCompleted')}
                     </p>
                   ) : (
                     <ul className="space-y-2">
@@ -704,13 +727,13 @@ export default function ClientDetailPage({
                         >
                           <div>
                             <p className="font-medium text-foreground">
-                              {i.template?.title ?? i.title ?? 'Workout'}
+                              {i.template?.title ?? i.title ?? t('clientDetail.calendar.details.defaultTitle')}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(i.scheduledDate).toLocaleDateString()}
+                              {new Date(i.scheduledDate).toLocaleDateString(lc)}
                             </p>
                           </div>
-                          <Badge variant="success">Completed</Badge>
+                          <Badge variant="success">{t('clientDetail.overview.completed')}</Badge>
                         </li>
                       ))}
                     </ul>
@@ -729,8 +752,8 @@ export default function ClientDetailPage({
                   {(metrics ?? []).length === 0 ? (
                     <EmptyState
                       icon={TrendingUp}
-                      title="No metrics tracked"
-                      description="Start logging metrics to see trends over time."
+                      title={t('clientDetail.metrics.emptyTitle')}
+                      description={t('clientDetail.metrics.emptyDesc')}
                     />
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2">

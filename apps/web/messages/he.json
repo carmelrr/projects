@@ -184,6 +184,7 @@
     "signUpSubtitle": "התחל לאמן עם Owl Performance.",
     "noAccount": "אין לך חשבון?",
     "haveAccount": "כבר יש לך חשבון?",
+    "forgotPassword": "שכחת סיסמה?",
     "invalidCredentials": "אימייל או סיסמה לא נכונים.",
     "genericError": "משהו השתבש. נסה שוב.",
     "firstName": "שם פרטי",
@@ -440,6 +441,11 @@
       "manage": "ניהול",
       "noCoaches": "אין מאמנים משויכים.",
       "compliance": "עמידה ביעדים ({period})",
+      "compliancePeriod": {
+        "SEVEN_DAY": "7 ימים",
+        "THIRTY_DAY": "30 ימים",
+        "NINETY_DAY": "90 ימים"
+      },
       "workoutsRatio": "{done}/{total} אימונים"
     },
     "tabs": {
