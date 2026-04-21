@@ -1,0 +1,73 @@
+# .easignore — controls what is uploaded to EAS Build.
+# NOTE: when this file exists it REPLACES .gitignore for EAS, so we must re-list
+# every pattern we want ignored during upload.
+
+# --- Node / build output ---
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+coverage/
+
+# --- Env / secrets (EAS reads env from eas.json / secrets, not from files) ---
+.env
+.env.local
+.env.*.local
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Expo / Metro caches (regenerated on the worker) ---
+.expo/
+.expo-shared/
+web-build/
+apps/*/.expo/
+
+# --- Native prebuild output (managed workflow; regenerated remotely) ---
+apps/mobile/android/
+apps/mobile/ios/
+
+# --- Gradle / native build artifacts ---
+**/.gradle/
+**/.cxx/
+**/*.keystore
+!**/debug.keystore
+**/local.properties
+
+# --- Android SDK cruft, never in repo but guard anyway ---
+Android/
+.android/
+
+# --- EAS build artifacts ---
+*.apk
+*.aab
+*.ipa
+eas-build-*.tar.gz
+
+# --- Other apps / unrelated workspaces are not needed on the mobile build worker ---
+apps/web/.next/
+apps/web/out/
+apps/api/dist/
+packages/database/prisma/migrations/
+
+# --- Docs / non-code folders that bloat the upload ---
+plan/
+infrastructure/
+assets/store-listing/
+.github/
+
+# --- Temp / misc ---
+*.log
+tmp/
+*.tmp
+_tmp_*
+npm-debug.log*
+pnpm-debug.log*
