@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Users,
   Dumbbell,
+  FolderOpen,
   CalendarDays,
   MessageSquare,
   Settings,
@@ -68,7 +69,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       items: [
         { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
         { href: '/clients', label: t('nav.clients'), icon: Users },
-        { href: '/programs', label: t('nav.programs'), icon: CalendarDays },
+        { href: '/programs', label: t('nav.programs'), icon: FolderOpen },
+        { href: '/workouts', label: t('nav.workouts'), icon: CalendarDays },
         { href: '/exercises', label: t('nav.exercises'), icon: Dumbbell },
       ],
     },

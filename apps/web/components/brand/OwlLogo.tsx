@@ -26,7 +26,7 @@ export function OwlLogo({
   const Mark = (
     <Image
       src="/images/op-logo-transparent.png"
-      alt="OWL Performance"
+      alt="OP"
       width={px}
       height={px}
       className={cn(
@@ -44,7 +44,7 @@ export function OwlLogo({
       {Mark}
       <div className="flex flex-col leading-tight">
         <span className="font-semibold tracking-tight text-foreground">
-          {variant === 'wordmark' ? 'O.P.' : 'OWL Performance'}
+          {variant === 'wordmark' ? 'O.P.' : 'OP'}
         </span>
         {showSubtitle && (
           <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">

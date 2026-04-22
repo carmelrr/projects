@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "Owl Performance",
+    "name": "OP",
     "short": "OP",
     "tagline": "Coaching that scales with you"
   },
@@ -35,6 +35,7 @@
     "dashboard": "Dashboard",
     "clients": "Clients",
     "programs": "Programs",
+    "workouts": "Workouts",
     "exercises": "Exercises",
     "messages": "Messages",
     "notifications": "Notifications",
@@ -181,7 +182,7 @@
     "signInSubtitle": "Welcome back. Continue coaching your clients.",
     "signInSubtitleUnified": "Welcome back. Coaches and clients, sign in here.",
     "signUpTitle": "Create your account",
-    "signUpSubtitle": "Start coaching with Owl Performance.",
+    "signUpSubtitle": "Start coaching with OP.",
     "noAccount": "Don't have an account?",
     "haveAccount": "Already have an account?",
     "forgotPassword": "Forgot password?",
@@ -323,6 +324,33 @@
         "save": "Save",
         "saving": "Saving…"
       }
+    }
+  },
+  "workoutsLibrary": {
+    "title": "Workouts",
+    "description": "Manage your workout library and create new workouts directly from here.",
+    "newWorkout": "New workout",
+    "searchPlaceholder": "Search workouts...",
+    "emptyTitle": "No workouts yet",
+    "emptyHint": "Create your first workout to get started.",
+    "emptySearch": "No workouts found for this search.",
+    "exerciseCount": "{count} exercises",
+    "estimatedDuration": "~{minutes} min",
+    "create": {
+      "title": "Create workout",
+      "description": "Create a new workout and add exercises from your library.",
+      "titleLabel": "Workout title",
+      "titlePlaceholder": "Upper Body A",
+      "descLabel": "Description",
+      "durationLabel": "Estimated duration (minutes)",
+      "cancel": "Cancel",
+      "create": "Create",
+      "creating": "Creating..."
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this workout?"
     }
   },
   "exercises": {
@@ -559,7 +587,7 @@
     },
     "features": {
       "title": "Everything you need to coach with confidence",
-      "subtitle": "From programming to compliance — Owl Performance gives you a wide-eyed view of every client.",
+      "subtitle": "From programming to compliance — OP gives you a wide-eyed view of every client.",
       "items": {
         "programs": {
           "title": "Programs & workouts",
@@ -600,16 +628,16 @@
       "items": [
         { "q": "Can I import my existing clients?", "a": "Yes — invite them by email or share a single sign-up link. Their existing programs can be uploaded in bulk." },
         { "q": "Do my clients need an app?", "a": "Yes — they get a polished mobile app on iOS and Android, free of charge." },
-        { "q": "How much does it cost?", "a": "Owl Performance is completely free. No tiers, no upsells — just coaching software." }
+        { "q": "How much does it cost?", "a": "OP is completely free. No tiers, no upsells — just coaching software." }
       ]
     },
     "cta": {
       "title": "Ready to coach with clarity?",
-      "subtitle": "Join coaches using Owl Performance to keep every client on track.",
+      "subtitle": "Join coaches using OP to keep every client on track.",
       "button": "Get started"
     },
     "footer": {
-      "rights": "© {year} Owl Performance. All rights reserved.",
+      "rights": "© {year} OP. All rights reserved.",
       "product": "Product",
       "company": "Company",
       "legal": "Legal",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import {
   ChevronLeft,
@@ -239,6 +239,12 @@ function ScheduleDialog({
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setDate(defaultDate);
+    }
+  }, [defaultDate, open]);
 
   const reset = () => {
     setTemplateId('');

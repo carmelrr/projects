@@ -136,7 +136,7 @@ function AcceptInviteInner() {
             You&apos;re all set!
           </h1>
           <p className="text-sm text-muted-foreground">
-            Open the OWL Performance app on your phone to continue, or keep using
+            Open the OP app on your phone to continue, or keep using
             the web dashboard.
           </p>
         </div>

@@ -17,7 +17,7 @@ export interface OwlLogoProps {
 }
 
 /**
- * OwlLogo — brand mark for OWL Performance.
+ * OwlLogo — brand mark for OP.
  * Use `framed` for auth/marketing splash blocks (matches the web's
  * gradient-bordered logo tile); use the bare image inline.
  */
@@ -27,7 +27,7 @@ export function OwlLogo({
   radius,
   style,
   imageStyle,
-  accessibilityLabel = 'OWL Performance',
+  accessibilityLabel = 'OP',
 }: OwlLogoProps) {
   const theme = useTheme();
   const r = radius ?? Math.round(size * 0.28);

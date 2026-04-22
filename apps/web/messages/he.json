@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "Owl Performance",
+    "name": "OP",
     "short": "OP",
     "tagline": "אימון שגדל איתך"
   },
@@ -35,6 +35,7 @@
     "dashboard": "סקירה",
     "clients": "מתאמנים",
     "programs": "תוכניות",
+    "workouts": "אימונים",
     "exercises": "ספריית תרגילים",
     "messages": "הודעות",
     "notifications": "התראות",
@@ -181,7 +182,7 @@
     "signInSubtitle": "ברוך שובך. המשך לאמן את המתאמנים שלך.",
     "signInSubtitleUnified": "ברוך שובך. מאמנים ומתאמנים, התחברו כאן.",
     "signUpTitle": "יצירת חשבון חדש",
-    "signUpSubtitle": "התחל לאמן עם Owl Performance.",
+    "signUpSubtitle": "התחל לאמן עם OP.",
     "noAccount": "אין לך חשבון?",
     "haveAccount": "כבר יש לך חשבון?",
     "forgotPassword": "שכחת סיסמה?",
@@ -323,6 +324,33 @@
         "save": "שמירה",
         "saving": "שומר…"
       }
+    }
+  },
+  "workoutsLibrary": {
+    "title": "אימונים",
+    "description": "ניהול ספריית האימונים שלך ויצירה מהירה של אימונים חדשים.",
+    "newWorkout": "אימון חדש",
+    "searchPlaceholder": "חיפוש אימונים...",
+    "emptyTitle": "אין אימונים עדיין",
+    "emptyHint": "צור אימון ראשון כדי להתחיל.",
+    "emptySearch": "לא נמצאו אימונים עבור החיפוש הזה.",
+    "exerciseCount": "{count} תרגילים",
+    "estimatedDuration": "כ-{minutes} דק׳",
+    "create": {
+      "title": "יצירת אימון",
+      "description": "צור אימון חדש והוסף לו תרגילים מהספרייה.",
+      "titleLabel": "שם האימון",
+      "titlePlaceholder": "פלג גוף עליון A",
+      "descLabel": "תיאור",
+      "durationLabel": "משך משוער (דקות)",
+      "cancel": "ביטול",
+      "create": "יצירה",
+      "creating": "יוצר..."
+    },
+    "actions": {
+      "edit": "עריכה",
+      "delete": "מחיקה",
+      "deleteConfirm": "למחוק את האימון הזה?"
     }
   },
   "exercises": {
@@ -559,7 +587,7 @@
     },
     "features": {
       "title": "כל מה שצריך כדי לאמן בביטחון",
-      "subtitle": "מתכנון תוכניות ועד מעקב עמידה — Owl Performance נותנת לך מבט רחב על כל מתאמן.",
+      "subtitle": "מתכנון תוכניות ועד מעקב עמידה — OP נותנת לך מבט רחב על כל מתאמן.",
       "items": {
         "programs": {
           "title": "תוכניות ואימונים",
@@ -600,16 +628,16 @@
       "items": [
         { "q": "אפשר לייבא מתאמנים קיימים?", "a": "כן — הזמן אותם באימייל או שתף קישור הרשמה. תוכניות קיימות ניתן להעלות בכמות." },
         { "q": "המתאמנים שלי צריכים אפליקציה?", "a": "כן — הם מקבלים אפליקציה מלוטשת ל-iOS ול-Android, ללא עלות." },
-        { "q": "כמה זה עולה?", "a": "Owl Performance חינמית לחלוטין. בלי מדרגות, בלי שדרוגים — רק תוכנת אימון." }
+        { "q": "כמה זה עולה?", "a": "OP חינמית לחלוטין. בלי מדרגות, בלי שדרוגים — רק תוכנת אימון." }
       ]
     },
     "cta": {
       "title": "מוכנים לאמן בבהירות?",
-      "subtitle": "הצטרפו למאמנים שמשתמשים ב-Owl Performance כדי לשמור על כל מתאמן בקצב.",
+      "subtitle": "הצטרפו למאמנים שמשתמשים ב-OP כדי לשמור על כל מתאמן בקצב.",
       "button": "התחלה"
     },
     "footer": {
-      "rights": "© {year} Owl Performance. כל הזכויות שמורות.",
+      "rights": "© {year} OP. כל הזכויות שמורות.",
       "product": "מוצר",
       "company": "חברה",
       "legal": "משפטי",

@@ -112,7 +112,7 @@ export default function LoginScreen() {
             <FadeInUp>
               <OwlLogo size={64} framed style={{ marginBottom: theme.spacing[4], alignSelf: 'center' }} />
               <Text variant="h1" weight="700" style={{ marginBottom: 6, textAlign: 'center' }}>
-                OWL Performance
+                OP
               </Text>
               <Text variant="bodyLg" color="mutedForeground" style={{ textAlign: 'center' }}>
                 Sign in to your account

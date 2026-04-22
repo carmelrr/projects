@@ -319,7 +319,7 @@ function OrganizationSection() {
             id="orgName"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Owl Performance"
+            placeholder="OP"
             disabled={!canEdit}
           />
         </div>
