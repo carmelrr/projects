@@ -1,7 +1,7 @@
 import { Image, View, type ImageStyle, type ViewStyle } from 'react-native';
 import { useTheme, withAlpha } from '@/lib/theme';
 
-const SOURCE = require('../assets/images/owl-logo.png');
+const SOURCE = require('../../assets/images/owl-logo.png');
 
 export interface OwlLogoProps {
   /** Square size in dp. Default 56. */
