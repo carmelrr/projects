@@ -5,6 +5,7 @@ import { useColorScheme } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import NetInfo from '@react-native-community/netinfo';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
 import { drainQueue } from '@/lib/offline-queue';
 import { ThemeProvider } from '@/lib/theme';
@@ -73,10 +74,12 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <RootNavigator />
-      </ThemeProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <RootNavigator />
+        </ThemeProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }
