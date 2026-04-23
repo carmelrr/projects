@@ -1,13 +1,18 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from 'sonner';
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
-import { I18nProvider } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/server';
+import { I18nProvider } from '@/lib/i18n/client';
+
+const Toaster = dynamic(
+  () => import('sonner').then((mod) => mod.Toaster),
+  { ssr: false },
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
