@@ -9,6 +9,7 @@ import {
   User,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
 import { registerForPushNotifications } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
@@ -34,6 +35,7 @@ function TabIcon({
 
 export default function ClientLayout() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { user, isHydrated } = useAuthStore();
 
   useEffect(() => {
@@ -61,9 +63,9 @@ export default function ClientLayout() {
           backgroundColor: theme.colors.card,
           borderTopColor: theme.colors.border,
           borderTopWidth: 1,
-          height: 76,
+          height: 76 + insets.bottom,
           paddingTop: 8,
-          paddingBottom: 12,
+          paddingBottom: 12 + insets.bottom,
         },
       }}
     >

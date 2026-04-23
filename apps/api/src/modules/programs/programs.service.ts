@@ -27,6 +27,31 @@ interface AssignProgramInput {
 export class ProgramsService {
   constructor(private firebase: FirebaseService) {}
 
+  async assignProgramToClients(
+    programId: string,
+    orgId: string,
+    assignedBy: string,
+    input: { clientIds: string[]; startDate: string },
+  ) {
+    const uniqueClientIds = [...new Set(input.clientIds.filter(Boolean))];
+    const assignments = [] as Array<{ id: string; programId: string; clientUserId: string; startDate: string }>;
+
+    for (const clientId of uniqueClientIds) {
+      assignments.push(
+        await this.assignProgram(programId, orgId, assignedBy, {
+          clientId,
+          startDate: input.startDate,
+        }),
+      );
+    }
+
+    return {
+      programId,
+      assignedCount: assignments.length,
+      assignments,
+    };
+  }
+
   async listPrograms(orgId: string, query: { page?: string; limit?: string; search?: string }) {
     const pagination = parsePagination(query);
 

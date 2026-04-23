@@ -34,6 +34,7 @@
   "nav": {
     "dashboard": "סקירה",
     "clients": "מתאמנים",
+    "groups": "קבוצות",
     "programs": "תוכניות",
     "workouts": "אימונים",
     "exercises": "ספריית תרגילים",
@@ -324,6 +325,72 @@
         "save": "שמירה",
         "saving": "שומר…"
       }
+    }
+  },
+  "groups": {
+    "title": "קבוצות אימון",
+    "description": "ארגן מתאמנים תחת מאמן ושייך תוכנית אחת לכל הקבוצה.",
+    "searchPlaceholder": "חיפוש קבוצות…",
+    "emptyTitle": "אין עדיין קבוצות אימון",
+    "emptyDescription": "צור קבוצה בבעלות מאמן כדי לנהל חברים ולשייך תוכנית משותפת.",
+    "emptySearch": "נסה מונח חיפוש אחר.",
+    "noDescription": "עדיין אין תיאור.",
+    "fields": {
+      "name": "שם הקבוצה",
+      "description": "תיאור",
+      "coach": "מאמן",
+      "members": "חברים"
+    },
+    "summary": {
+      "members": "חברים",
+      "memberCount": "{n} חברים",
+      "activeProgramSet": "יש תוכנית משויכת",
+      "noActiveProgram": "עדיין אין תוכנית קבוצתית"
+    },
+    "create": {
+      "cta": "יצירת קבוצה",
+      "title": "יצירת קבוצת אימון",
+      "description": "קבע מאמן, הוסף חברים והתחל לנהל תוכנית משותפת.",
+      "namePlaceholder": "למשל: קבוצת כוח אביב",
+      "descriptionPlaceholder": "מה המיקוד של הקבוצה הזו?",
+      "coachPlaceholder": "בחירת מאמן…",
+      "noClients": "עדיין אין מתאמנים פעילים זמינים.",
+      "submit": "יצירת קבוצה",
+      "creating": "יוצר…",
+      "success": "קבוצת האימון נוצרה",
+      "error": "לא הצלחנו ליצור את הקבוצה."
+    },
+    "manage": {
+      "cta": "ניהול",
+      "title": "ניהול קבוצה",
+      "description": "עדכן חברים ושייך תוכנית משותפת.",
+      "error": "משהו השתבש. נסה שוב.",
+      "noDescription": "עדיין לא נוסף תיאור.",
+      "membersTitle": "חברי הקבוצה",
+      "membersDescription": "המתאמנים ששייכים כרגע לקבוצה.",
+      "noMembers": "עדיין אין חברים בקבוצה הזו.",
+      "removeMember": "הסר",
+      "addMembers": "הוספת חברים",
+      "addMembersHint": "הוספת מתאמן כאן גם מוודאת שהוא משויך למאמן של הקבוצה.",
+      "noAvailableClients": "אין כרגע מתאמנים פעילים נוספים זמינים.",
+      "addSelected": "הוסף נבחרים",
+      "savingMembers": "שומר…",
+      "membersAdded": "החברים נוספו",
+      "memberRemoved": "החבר הוסר",
+      "programTitle": "תוכנית משותפת",
+      "programDescription": "שייך תוכנית אחת לכל חברי הקבוצה הנוכחיים.",
+      "activeProgramSet": "מזהה התוכנית הפעילה: {id}",
+      "noProgramAssigned": "עדיין לא שויכה תוכנית.",
+      "programLabel": "תוכנית",
+      "programPlaceholder": "בחירת תוכנית…",
+      "startDate": "תאריך התחלה",
+      "assignProgram": "שייך תוכנית לקבוצה",
+      "assigningProgram": "משייך…",
+      "programAssigned": "התוכנית שויכה לקבוצה"
+    },
+    "delete": {
+      "confirm": "למחוק את {name}?",
+      "success": "קבוצת האימון נמחקה"
     }
   },
   "workoutsLibrary": {

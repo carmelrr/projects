@@ -34,6 +34,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "clients": "Clients",
+    "groups": "Groups",
     "programs": "Programs",
     "workouts": "Workouts",
     "exercises": "Exercises",
@@ -324,6 +325,72 @@
         "save": "Save",
         "saving": "Saving…"
       }
+    }
+  },
+  "groups": {
+    "title": "Training groups",
+    "description": "Organize clients under a coach and assign one program across the whole group.",
+    "searchPlaceholder": "Search groups…",
+    "emptyTitle": "No training groups yet",
+    "emptyDescription": "Create a coach-owned group to manage members and assign a shared program.",
+    "emptySearch": "Try a different search term.",
+    "noDescription": "No description yet.",
+    "fields": {
+      "name": "Group name",
+      "description": "Description",
+      "coach": "Coach",
+      "members": "Members"
+    },
+    "summary": {
+      "members": "members",
+      "memberCount": "{n} members",
+      "activeProgramSet": "Program assigned",
+      "noActiveProgram": "No shared program yet"
+    },
+    "create": {
+      "cta": "Create group",
+      "title": "Create training group",
+      "description": "Set the coach, add members, and start managing shared programming.",
+      "namePlaceholder": "e.g. Spring strength cohort",
+      "descriptionPlaceholder": "What is this group focused on?",
+      "coachPlaceholder": "Select coach…",
+      "noClients": "No active clients available yet.",
+      "submit": "Create group",
+      "creating": "Creating…",
+      "success": "Training group created",
+      "error": "Could not create the group."
+    },
+    "manage": {
+      "cta": "Manage",
+      "title": "Manage group",
+      "description": "Update membership and assign a shared program.",
+      "error": "Something went wrong. Please try again.",
+      "noDescription": "No description added yet.",
+      "membersTitle": "Members",
+      "membersDescription": "These clients currently belong to the group.",
+      "noMembers": "No members in this group yet.",
+      "removeMember": "Remove",
+      "addMembers": "Add more members",
+      "addMembersHint": "Adding a client here also ensures they are assigned to the group coach.",
+      "noAvailableClients": "No additional active clients are available.",
+      "addSelected": "Add selected members",
+      "savingMembers": "Saving…",
+      "membersAdded": "Members added",
+      "memberRemoved": "Member removed",
+      "programTitle": "Shared program",
+      "programDescription": "Assign one program across all current group members.",
+      "activeProgramSet": "Current active program ID: {id}",
+      "noProgramAssigned": "No program assigned yet.",
+      "programLabel": "Program",
+      "programPlaceholder": "Select program…",
+      "startDate": "Start date",
+      "assignProgram": "Assign program to group",
+      "assigningProgram": "Assigning…",
+      "programAssigned": "Program assigned to the group"
+    },
+    "delete": {
+      "confirm": "Delete {name}?",
+      "success": "Training group deleted"
     }
   },
   "workoutsLibrary": {

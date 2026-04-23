@@ -99,6 +99,10 @@ export class FirebaseService implements OnModuleInit {
     return this._db.collection('organizations').doc(orgId).collection('programs');
   }
 
+  trainingGroups(orgId: string) {
+    return this._db.collection('organizations').doc(orgId).collection('trainingGroups');
+  }
+
   clientAssignments(orgId: string) {
     return this._db.collection('organizations').doc(orgId).collection('clientAssignments');
   }

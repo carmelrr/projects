@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
   Users,
+  FolderKanban,
   Dumbbell,
   FolderOpen,
   CalendarDays,
@@ -69,6 +70,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       items: [
         { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
         { href: '/clients', label: t('nav.clients'), icon: Users },
+        { href: '/groups', label: t('nav.groups'), icon: FolderKanban },
         { href: '/programs', label: t('nav.programs'), icon: FolderOpen },
         { href: '/workouts', label: t('nav.workouts'), icon: CalendarDays },
         { href: '/exercises', label: t('nav.exercises'), icon: Dumbbell },

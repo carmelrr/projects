@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, ChevronRight, Lock, Building2 } from 'lucide-react';
+import { Users, ChevronRight, Lock, Building2, FolderKanban } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
@@ -19,6 +19,12 @@ const SECTIONS = [
     title: 'Users & roles',
     desc: 'Invite team members, assign roles, and manage permissions.',
     href: '/admin/users',
+  },
+  {
+    icon: FolderKanban,
+    title: 'Training groups',
+    desc: 'Build coach-owned groups, manage members, and assign shared programs.',
+    href: '/groups',
   },
 ];
 

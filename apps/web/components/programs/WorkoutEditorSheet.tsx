@@ -16,8 +16,9 @@ import {
   useUpdateWorkout,
   type WorkoutItem,
 } from '@/hooks/useWorkouts';
-import { useExercises, type Exercise } from '@/hooks/useExercises';
+import { useExercises, useCreateExercise, type Exercise } from '@/hooks/useExercises';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import {
   Sheet,
   SheetContent,
@@ -36,12 +37,26 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 type DraftItem = Omit<WorkoutItem, 'id'> & { id?: string };
+
+const EX_CATEGORIES = ['Strength', 'Cardio', 'Mobility', 'Plyometric', 'Stretching', 'Balance', 'Olympic'];
+const EX_MUSCLE_GROUPS = [
+  'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms',
+  'Core', 'Glutes', 'Quads', 'Hamstrings', 'Calves', 'Full Body',
+];
 
 function newItem(exercise: Exercise, orderIndex: number): DraftItem {
   return {
@@ -69,67 +84,198 @@ function PickExerciseDialog({
   onOpenChange: (o: boolean) => void;
   onPick: (ex: Exercise) => void;
 }) {
+  const [mode, setMode] = useState<'pick' | 'create'>('pick');
   const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ name: '', category: '', muscleGroups: [] as string[] });
+  const [creating, setCreating] = useState(false);
   const { data, isLoading } = useExercises({ search });
+  const createExercise = useCreateExercise();
 
   useEffect(() => {
-    if (!open) setSearch('');
+    if (!open) {
+      setSearch('');
+      setMode('pick');
+      setForm({ name: '', category: '', muscleGroups: [] });
+    }
   }, [open]);
+
+  const toggleMuscle = (m: string) =>
+    setForm((f) => ({
+      ...f,
+      muscleGroups: f.muscleGroups.includes(m)
+        ? f.muscleGroups.filter((v) => v !== m)
+        : [...f.muscleGroups, m],
+    }));
+
+  const handleCreate = async () => {
+    if (!form.name.trim()) return;
+    setCreating(true);
+    try {
+      const created = await createExercise.mutateAsync({
+        name: form.name.trim(),
+        category: form.category || undefined,
+        muscleGroups: form.muscleGroups.length ? form.muscleGroups : undefined,
+      });
+      onPick(created);
+      onOpenChange(false);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Add exercise</DialogTitle>
-          <DialogDescription>Pick from the exercise library.</DialogDescription>
+          <DialogDescription>Pick from the library or create a new exercise.</DialogDescription>
         </DialogHeader>
-        <div className="relative">
-          <Search className="absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search exercises…"
-            className="ps-9"
-            autoFocus
-          />
+
+        {/* Mode toggle */}
+        <div className="flex gap-1 rounded-md bg-muted p-1 text-sm">
+          <button
+            type="button"
+            className={cn(
+              'flex-1 rounded px-3 py-1.5 transition',
+              mode === 'pick' ? 'bg-background shadow-sm' : 'text-muted-foreground',
+            )}
+            onClick={() => setMode('pick')}
+          >
+            From library
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'flex-1 rounded px-3 py-1.5 transition',
+              mode === 'create' ? 'bg-background shadow-sm' : 'text-muted-foreground',
+            )}
+            onClick={() => setMode('create')}
+          >
+            Create new
+          </button>
         </div>
-        <div className="max-h-80 space-y-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12" />
-              ))}
+
+        {mode === 'pick' ? (
+          <>
+            <div className="relative">
+              <Search className="absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search exercises…"
+                className="ps-9"
+                autoFocus
+              />
             </div>
-          ) : (data?.items ?? []).length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              No exercises found.
-            </p>
-          ) : (
-            (data?.items ?? []).map((ex) => (
-              <button
-                key={ex.id}
-                type="button"
-                onClick={() => {
-                  onPick(ex);
-                  onOpenChange(false);
-                }}
-                className="flex w-full items-center justify-between gap-3 rounded-md border border-border bg-card/50 px-3 py-2 text-start text-sm hover:bg-accent"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{ex.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {(ex.muscleGroups ?? []).join(', ') || ex.category || '—'}
-                  </p>
+            <div className="max-h-80 space-y-1 overflow-y-auto">
+              {isLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12" />
+                  ))}
                 </div>
-                {ex.isSystem && (
-                  <Badge variant="muted" className="shrink-0">
-                    system
-                  </Badge>
-                )}
-              </button>
-            ))
-          )}
-        </div>
+              ) : (data?.items ?? []).length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No exercises found.{' '}
+                  <button
+                    type="button"
+                    className="text-primary underline-offset-2 hover:underline"
+                    onClick={() => setMode('create')}
+                  >
+                    Create one?
+                  </button>
+                </p>
+              ) : (
+                (data?.items ?? []).map((ex) => (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => {
+                      onPick(ex);
+                      onOpenChange(false);
+                    }}
+                    className="flex w-full items-center justify-between gap-3 rounded-md border border-border bg-card/50 px-3 py-2 text-start text-sm hover:bg-accent"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">{ex.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {(ex.muscleGroups ?? []).join(', ') || ex.category || '—'}
+                      </p>
+                    </div>
+                    {ex.isSystem && (
+                      <Badge variant="muted" className="shrink-0">
+                        system
+                      </Badge>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="ex-name">Name *</Label>
+              <Input
+                id="ex-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="e.g. Bulgarian Split Squat"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select
+                value={form.category || undefined}
+                onValueChange={(v) => setForm({ ...form, category: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EX_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Muscle groups</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {EX_MUSCLE_GROUPS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => toggleMuscle(m)}
+                    className={cn(
+                      'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                      form.muscleGroups.includes(m)
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted',
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Separator />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMode('pick')} disabled={creating}>
+                Back
+              </Button>
+              <Button
+                variant="gradient"
+                onClick={handleCreate}
+                disabled={creating || !form.name.trim()}
+              >
+                {creating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                Create &amp; add
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -28,6 +28,11 @@
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.1076962539759-6n736qtduar8d3j25r3olifhaanig554"
             ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.1076962539759-6n736qtduar8d3j25r3olifhaanig554"
+            ]
           }
         ]
       }
@@ -65,6 +70,12 @@
         "projectId": "616c7a17-6eea-4c79-8969-60793060b86b"
       }
     },
-    "owner": "carmelrr"
+    "owner": "carmelrr",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/616c7a17-6eea-4c79-8969-60793060b86b"
+    }
   }
 }
