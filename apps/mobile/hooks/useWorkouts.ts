@@ -10,6 +10,7 @@ export interface ExerciseRef {
   category?: string;
   muscleGroups?: string[];
   videoUrl?: string;
+  isPrBased?: boolean;
 }
 
 export interface WorkoutItem {
@@ -169,6 +170,49 @@ export function useSubmitLog(instanceId: string) {
       qc.invalidateQueries({ queryKey: ['today-workouts', user?.id, today] });
       qc.invalidateQueries({ queryKey: ['upcoming-workouts', user?.id] });
       qc.invalidateQueries({ queryKey: ['workout-instance', instanceId] });
+    },
+  });
+}
+
+// ── Personal Records ───────────────────────────────────────────────────────
+
+export interface PersonalRecord {
+  id: string;
+  clientUserId: string;
+  exerciseId: string;
+  exerciseName: string;
+  weight: number;
+  unit: string;
+  reps?: number;
+  recordedAt: string;
+  source: 'manual' | 'logged';
+  notes?: string;
+}
+
+export function usePersonalRecords() {
+  const { user } = useAuthStore();
+  return useQuery<PersonalRecord[]>({
+    queryKey: ['personal-records', user?.id],
+    queryFn: () => api.get<PersonalRecord[]>(`/clients/${user!.id}/personal-records`),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpsertPersonalRecord() {
+  const qc = useQueryClient();
+  const { user } = useAuthStore();
+  return useMutation({
+    mutationFn: (body: {
+      exerciseId: string;
+      exerciseName: string;
+      weight: number;
+      unit?: string;
+      reps?: number;
+      notes?: string;
+    }) => api.post<PersonalRecord>(`/clients/${user!.id}/personal-records`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['personal-records', user?.id] });
     },
   });
 }

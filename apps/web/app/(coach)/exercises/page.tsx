@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { Search, Plus, Pencil, Trash2, Dumbbell, Play } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   useExercises,
   useCreateExercise,
   useUpdateExercise,
   useDeleteExercise,
+  useExerciseCategories,
+  useCreateExerciseCategory,
   type Exercise,
 } from '@/hooks/useExercises';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -36,7 +39,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/client';
 
-const CATEGORIES = ['Strength', 'Cardio', 'Mobility', 'Plyometric', 'Stretching', 'Balance', 'Olympic'];
 const MUSCLE_GROUPS = [
   'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms',
   'Core', 'Glutes', 'Quads', 'Hamstrings', 'Calves', 'Full Body',
@@ -83,6 +85,23 @@ function ExerciseDialog({
   const t = useT();
   const create = useCreateExercise();
   const update = useUpdateExercise();
+  const { data: categories = [] } = useExerciseCategories();
+  const createCategory = useCreateExerciseCategory();
+  const [newCatInput, setNewCatInput] = useState('');
+  const [showNewCat, setShowNewCat] = useState(false);
+
+  const handleCreateCategory = async () => {
+    const name = newCatInput.trim();
+    if (!name) return;
+    try {
+      await createCategory.mutateAsync(name);
+      setForm((f) => ({ ...f, category: name }));
+      setNewCatInput('');
+      setShowNewCat(false);
+    } catch {
+      toast.error('Failed to create category');
+    }
+  };
 
   const [form, setForm] = useState({
     name: initial?.name ?? '',
@@ -93,6 +112,7 @@ function ExerciseDialog({
     equipment: (initial?.equipment ?? []) as string[],
     difficulty: (initial?.difficulty ?? 'BEGINNER') as NonNullable<Exercise['difficulty']>,
     videoUrl: initial?.videoUrl ?? '',
+    isPrBased: initial?.isPrBased ?? false,
   });
 
   const toggleArr = (field: 'muscleGroups' | 'equipment', val: string) =>
@@ -103,9 +123,13 @@ function ExerciseDialog({
 
   const save = async () => {
     if (!form.name.trim()) return;
-    if (initial) await update.mutateAsync({ id: initial.id, ...form });
-    else await create.mutateAsync(form);
-    onOpenChange(false);
+    try {
+      if (initial) await update.mutateAsync({ id: initial.id, ...form });
+      else await create.mutateAsync(form);
+      onOpenChange(false);
+    } catch {
+      toast.error('Failed to save exercise. Please try again.');
+    }
   };
 
   const isPending = create.isPending || update.isPending;
@@ -134,19 +158,47 @@ function ExerciseDialog({
               <Label>{t('exercises.dialog.categoryLabel')}</Label>
               <Select
                 value={form.category || undefined}
-                onValueChange={(v) => setForm({ ...form, category: v })}
+                onValueChange={(v) => {
+                  if (v === '__new__') { setShowNewCat(true); return; }
+                  setForm({ ...form, category: v });
+                  setShowNewCat(false);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={t('exercises.dialog.categoryPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
+                  <SelectItem value="__new__">➕ New category…</SelectItem>
                 </SelectContent>
               </Select>
+              {showNewCat && (
+                <div className="flex gap-2">
+                  <Input
+                    value={newCatInput}
+                    onChange={(e) => setNewCatInput(e.target.value)}
+                    placeholder="Category name"
+                    className="flex-1"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); }
+                      if (e.key === 'Escape') { setShowNewCat(false); setNewCatInput(''); }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleCreateCategory}
+                    disabled={!newCatInput.trim() || createCategory.isPending}
+                  >
+                    Add
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowNewCat(false); setNewCatInput(''); }}>
+                    ✕
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>{t('exercises.dialog.difficultyLabel')}</Label>
@@ -225,6 +277,32 @@ function ExerciseDialog({
               placeholder={t('exercises.dialog.videoPlaceholder')}
             />
           </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">PR-based exercise</p>
+              <p className="text-xs text-muted-foreground">
+                Clients log a personal record (1RM). Workout weights can be set as % of their PR.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.isPrBased}
+              onClick={() => setForm({ ...form, isPrBased: !form.isPrBased })}
+              className={cn(
+                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+                form.isPrBased ? 'bg-primary' : 'bg-muted',
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform',
+                  form.isPrBased ? 'translate-x-5' : 'translate-x-0',
+                )}
+              />
+            </button>
+          </div>
         </div>
 
         <DialogFooter>
@@ -248,6 +326,7 @@ export default function ExercisesPage() {
   const [equipment, setEquipment] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Exercise | undefined>();
+  const { data: allCategories = [] } = useExerciseCategories();
 
   const { data, isLoading } = useExercises({
     search: search || undefined,
@@ -311,7 +390,7 @@ export default function ExercisesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('exercises.filter.allCategories')}</SelectItem>
-                {CATEGORIES.map((c) => (
+                {allCategories.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>

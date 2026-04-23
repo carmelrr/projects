@@ -54,6 +54,7 @@ export class WorkoutsService {
           muscleGroups: ex.muscleGroups,
           equipment: ex.equipment,
           videoUrl: ex.videoUrl,
+          isPrBased: ex.isPrBased ?? false,
         },
       };
     });

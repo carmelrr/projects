@@ -15,8 +15,11 @@ import { X, Play, Check, Plus } from 'lucide-react-native';
 import {
   useWorkoutInstance,
   useSubmitLog,
+  usePersonalRecords,
+  useUpsertPersonalRecord,
   type LogItem,
   type LogSet,
+  type PersonalRecord,
 } from '@/hooks/useWorkouts';
 import { ExerciseVideoModal } from '@/components/ExerciseVideoModal';
 import { useTheme, withAlpha } from '@/lib/theme';
@@ -49,6 +52,8 @@ interface ExerciseState {
   sets: SetState[];
   prescription: Record<string, unknown>;
   coachNotes?: string;
+  isPrBased?: boolean;
+  needsPrEntry?: boolean;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -61,13 +66,30 @@ function prescStr(v: unknown): string {
 function buildInitialState(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   items: any[] | undefined,
+  prMap: Record<string, PersonalRecord> = {},
 ): ExerciseState[] {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (items ?? []).map((item: any) => {
     const setCount = item.prescription?.sets ?? 3;
+    const isPrBased = item.exercise?.isPrBased ?? false;
+    const rawWeight = item.prescription?.weight;
+    let resolvedWeight = prescStr(rawWeight);
+    let needsPrEntry = false;
+
+    if (isPrBased && typeof rawWeight === 'string' && rawWeight.trim().endsWith('%')) {
+      const pct = parseFloat(rawWeight) / 100;
+      const pr = prMap[item.exerciseId];
+      if (pr && !isNaN(pct)) {
+        resolvedWeight = String(Math.round(pr.weight * pct * 10) / 10);
+      } else {
+        resolvedWeight = '';
+        needsPrEntry = true;
+      }
+    }
+
     const sets: SetState[] = Array.from({ length: setCount }, () => ({
       reps: prescStr(item.prescription?.reps),
-      weight: prescStr(item.prescription?.weight),
+      weight: resolvedWeight,
       duration: prescStr(item.prescription?.duration),
       rpe: '',
       completed: false,
@@ -79,6 +101,8 @@ function buildInitialState(
       sets,
       prescription: item.prescription ?? {},
       coachNotes: item.coachNotes,
+      isPrBased,
+      needsPrEntry,
     };
   });
 }
@@ -473,6 +497,107 @@ function ExerciseBlock({
   );
 }
 
+// ── PR Entry Modal ─────────────────────────────────────────────────────────
+
+function PrEntryModal({
+  visible,
+  exerciseName,
+  saving,
+  onSave,
+  onSkip,
+}: {
+  visible: boolean;
+  exerciseName: string;
+  saving: boolean;
+  onSave: (weight: number, reps: number) => void;
+  onSkip: () => void;
+}) {
+  const theme = useTheme();
+  const [weight, setWeight] = useState('');
+  const [reps, setReps] = useState('1');
+
+  const inputStyle = {
+    borderWidth: 1,
+    borderColor: theme.colors.input,
+    borderRadius: theme.radii.md,
+    paddingVertical: theme.spacing[2],
+    paddingHorizontal: theme.spacing[3],
+    fontSize: 16,
+    color: theme.colors.foreground,
+    backgroundColor: theme.colors.background,
+    marginTop: theme.spacing[1],
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 }}
+      >
+        <View
+          style={{
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radii.xl,
+            padding: theme.spacing[5],
+            gap: theme.spacing[4],
+          }}
+        >
+          <View style={{ gap: theme.spacing[1] }}>
+            <Text variant="h3">Record your PR</Text>
+            <Text variant="body" color="mutedForeground">
+              {exerciseName} is a PR-based exercise. Enter your personal record so we can calculate workout weights.
+            </Text>
+          </View>
+
+          <View style={{ gap: theme.spacing[3] }}>
+            <View>
+              <Text variant="captionMedium" color="mutedForeground">Max weight (kg)</Text>
+              <TextInput
+                style={inputStyle}
+                value={weight}
+                onChangeText={setWeight}
+                keyboardType="decimal-pad"
+                placeholder="e.g. 120"
+                placeholderTextColor={theme.colors.mutedForeground}
+                autoFocus
+              />
+            </View>
+            <View>
+              <Text variant="captionMedium" color="mutedForeground">For how many reps? (default: 1)</Text>
+              <TextInput
+                style={inputStyle}
+                value={reps}
+                onChangeText={setReps}
+                keyboardType="numeric"
+                placeholder="1"
+                placeholderTextColor={theme.colors.mutedForeground}
+              />
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: theme.spacing[3] }}>
+            <Button onPress={onSkip} variant="outline" disabled={saving} style={{ flex: 1 }}>
+              Skip for now
+            </Button>
+            <Button
+              onPress={() => {
+                const w = parseFloat(weight);
+                const r = parseInt(reps, 10) || 1;
+                if (!isNaN(w) && w > 0) onSave(w, r);
+              }}
+              loading={saving}
+              disabled={!weight.trim() || saving}
+              style={{ flex: 2 }}
+            >
+              Save PR
+            </Button>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 // ── Finish Modal ───────────────────────────────────────────────────────────
 
 function FinishModal({
@@ -593,21 +718,38 @@ export default function WorkoutLogScreen() {
   const { instanceId } = useLocalSearchParams<{ instanceId: string }>();
   const { data: instance, isLoading } = useWorkoutInstance(instanceId);
   const submitLog = useSubmitLog(instanceId);
+  const { data: personalRecords } = usePersonalRecords();
+  const upsertPr = useUpsertPersonalRecord();
 
   const [exercises, setExercises] = useState<ExerciseState[]>([]);
   const [initialized, setInitialized] = useState(false);
   const [timerRunning, setTimerRunning] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
   const [videoForIndex, setVideoForIndex] = useState<number | null>(null);
+  const [prPromptQueue, setPrPromptQueue] = useState<{ exerciseId: string; name: string }[]>([]);
+  const [savingPr, setSavingPr] = useState(false);
   const { seconds, formatted } = useTimer(timerRunning);
+
+  // Build PR lookup map by exerciseId
+  const prMap = (personalRecords ?? []).reduce<Record<string, (typeof personalRecords)[number]>>(
+    (acc, pr) => { acc[pr.exerciseId] = pr; return acc; },
+    {},
+  );
 
   useEffect(() => {
     if (instance?.template?.items && !initialized) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setExercises(buildInitialState(instance.template.items as any));
+      const built = buildInitialState(instance.template.items as any, prMap);
+      setExercises(built);
       setInitialized(true);
-      setTimerRunning(true);
+      // Queue any exercises that need PR entry
+      const needPr = built
+        .filter((ex) => ex.needsPrEntry)
+        .map((ex) => ({ exerciseId: ex.exerciseId, name: ex.name }));
+      if (needPr.length > 0) setPrPromptQueue(needPr);
+      // Timer does NOT auto-start; user must tap "Start" explicitly
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instance, initialized]);
 
   const updateSet = (
@@ -765,16 +907,37 @@ export default function WorkoutLogScreen() {
           <Text variant="bodyMedium" numberOfLines={1}>
             {title}
           </Text>
-          <Text
-            variant="caption"
-            color="primary"
-            weight="600"
-            tabular
-            accessibilityLabel={`Elapsed time ${formatted}`}
-            style={{ marginTop: theme.spacing[0.5] }}
-          >
-            {formatted}
-          </Text>
+          {timerRunning || seconds > 0 ? (
+            <Text
+              variant="caption"
+              color="primary"
+              weight="600"
+              tabular
+              accessibilityLabel={`Elapsed time ${formatted}`}
+              style={{ marginTop: theme.spacing[0.5] }}
+            >
+              {formatted}
+            </Text>
+          ) : (
+            <Pressable
+              onPress={() => setTimerRunning(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Start workout timer"
+              hitSlop={8}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                marginTop: theme.spacing[0.5],
+              })}
+            >
+              <Icon icon={Play} size={12} color="primary" accessible={false} />
+              <Text variant="caption" color="primary" weight="600">
+                Start timer
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         <Button
@@ -845,6 +1008,58 @@ export default function WorkoutLogScreen() {
           videoForIndex !== null ? exercises[videoForIndex]?.name : undefined
         }
         onClose={() => setVideoForIndex(null)}
+      />
+
+      {/* PR entry modal — shown for each exercise needing a PR */}
+      <PrEntryModal
+        visible={prPromptQueue.length > 0}
+        exerciseName={prPromptQueue[0]?.name ?? ''}
+        saving={savingPr}
+        onSave={async (weight, reps) => {
+          const current = prPromptQueue[0];
+          if (!current) return;
+          setSavingPr(true);
+          try {
+            await upsertPr.mutateAsync({
+              exerciseId: current.exerciseId,
+              exerciseName: current.name,
+              weight,
+              reps,
+            });
+            // Recalculate weight for this exercise in state
+            setExercises((prev) =>
+              prev.map((ex) => {
+                if (ex.exerciseId !== current.exerciseId) return ex;
+                const rawWeight = ex.prescription?.weight;
+                if (typeof rawWeight === 'string' && rawWeight.trim().endsWith('%')) {
+                  const pct = parseFloat(rawWeight) / 100;
+                  const calculated = String(Math.round(weight * pct * 10) / 10);
+                  return {
+                    ...ex,
+                    needsPrEntry: false,
+                    sets: ex.sets.map((s) => ({ ...s, weight: calculated })),
+                  };
+                }
+                return { ...ex, needsPrEntry: false };
+              }),
+            );
+          } finally {
+            setSavingPr(false);
+            setPrPromptQueue((q) => q.slice(1));
+          }
+        }}
+        onSkip={() => {
+          // Mark this exercise as no longer needing PR entry (user will enter weight manually)
+          const current = prPromptQueue[0];
+          if (current) {
+            setExercises((prev) =>
+              prev.map((ex) =>
+                ex.exerciseId === current.exerciseId ? { ...ex, needsPrEntry: false } : ex,
+              ),
+            );
+          }
+          setPrPromptQueue((q) => q.slice(1));
+        }}
       />
 
       {submitLog.isPending && (

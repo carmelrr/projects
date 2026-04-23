@@ -594,7 +594,8 @@
         "skip": "Skip",
         "delete": "Delete",
         "close": "Close",
-        "confirmDelete": "Delete this scheduled workout?"
+        "confirmDelete": "Delete this scheduled workout?",
+        "customize": "Customize"
       }
     },
     "metrics": {
@@ -631,6 +632,25 @@
       "cancel": "Cancel",
       "save": "Save",
       "saving": "Saving…"
+    }
+  },
+  "instanceOverride": {
+    "title": "Customize workout for this athlete",
+    "description": "Changes here only affect this specific scheduled workout. The original template is not modified.",
+    "noExercises": "No exercises in this workout.",
+    "customized": "Customized",
+    "edit": "Edit",
+    "save": "Save",
+    "reset": "Reset",
+    "saved": "Prescription updated",
+    "saveFailed": "Failed to save override",
+    "fields": {
+      "sets": "Sets",
+      "reps": "Reps",
+      "weight": "Weight",
+      "rpe": "RPE",
+      "rest": "Rest",
+      "duration": "Duration"
     }
   },
   "workoutPicker": {

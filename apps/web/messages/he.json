@@ -594,7 +594,8 @@
         "skip": "דלג",
         "delete": "מחק",
         "close": "סגור",
-        "confirmDelete": "למחוק את האימון המתוזמן?"
+        "confirmDelete": "למחוק את האימון המתוזמן?",
+        "customize": "התאמה אישית"
       }
     },
     "metrics": {
@@ -631,6 +632,25 @@
       "cancel": "ביטול",
       "save": "שמירה",
       "saving": "שומר…"
+    }
+  },
+  "instanceOverride": {
+    "title": "התאמה אישית לאימון זה",
+    "description": "שינויים כאן ישפיעו רק על אימון מתוזמן זה. התבנית המקורית לא תשתנה.",
+    "noExercises": "אין תרגילים באימון זה.",
+    "customized": "מותאם",
+    "edit": "עריכה",
+    "save": "שמור",
+    "reset": "אפס",
+    "saved": "המרשם עודכן",
+    "saveFailed": "שגיאה בשמירה",
+    "fields": {
+      "sets": "סטים",
+      "reps": "חזרות",
+      "weight": "משקל",
+      "rpe": "מאמץ",
+      "rest": "מנוחה",
+      "duration": "משך"
     }
   },
   "workoutPicker": {

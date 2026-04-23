@@ -20,6 +20,10 @@ interface CreateExerciseInput {
   muscleGroups?: string[];
   defaultUnits?: string;
   tags?: string[];
+  isPrBased?: boolean;
+  difficulty?: string;
+  instructions?: string;
+  videoUrl?: string;
 }
 
 @Injectable()
@@ -83,6 +87,29 @@ export class ExercisesService {
     return { id: doc.id, ...doc.data() };
   }
 
+  private readonly DEFAULT_CATEGORIES = [
+    'Strength', 'Cardio', 'Mobility', 'Plyometric',
+    'Stretching', 'Balance', 'Olympic',
+  ];
+
+  async listCategories(orgId: string): Promise<string[]> {
+    const snap = await this.firebase.orgExerciseCategories(orgId).orderBy('name').get();
+    const custom = snap.docs.map((d) => (d.data() as { name: string }).name);
+    return Array.from(new Set([...this.DEFAULT_CATEGORIES, ...custom])).sort();
+  }
+
+  async createCategory(orgId: string, name: string): Promise<string> {
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error('Category name is required');
+    const id = this.firebase.generateId();
+    await this.firebase.orgExerciseCategories(orgId).doc(id).set({
+      name: trimmed,
+      orgId,
+      createdAt: new Date().toISOString(),
+    });
+    return trimmed;
+  }
+
   async createExercise(orgId: string, createdBy: string, input: CreateExerciseInput) {
     const id = this.firebase.generateId();
     const now = new Date().toISOString();
@@ -90,11 +117,15 @@ export class ExercisesService {
       orgId,
       name: input.name,
       description: input.description || null,
+      instructions: input.instructions || null,
       category: input.category,
       equipment: input.equipment ?? [],
       muscleGroups: input.muscleGroups ?? [],
       defaultUnits: input.defaultUnits ?? 'REPS_WEIGHT',
       tags: input.tags ?? [],
+      isPrBased: input.isPrBased ?? false,
+      difficulty: input.difficulty ?? 'BEGINNER',
+      videoUrl: input.videoUrl || null,
       isSystem: false,
       createdBy,
       createdAt: now,
@@ -119,6 +150,10 @@ export class ExercisesService {
     if (data.equipment !== undefined) update.equipment = data.equipment;
     if (data.muscleGroups !== undefined) update.muscleGroups = data.muscleGroups;
     if (data.tags !== undefined) update.tags = data.tags;
+    if (data.isPrBased !== undefined) update.isPrBased = data.isPrBased;
+    if (data.difficulty !== undefined) update.difficulty = data.difficulty;
+    if (data.instructions !== undefined) update.instructions = data.instructions;
+    if (data.videoUrl !== undefined) update.videoUrl = data.videoUrl;
 
     await this.firebase.orgExercises(orgId).doc(id).update(update);
     return { id, ...existing, ...update };

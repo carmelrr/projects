@@ -40,6 +40,7 @@ function bcp47(locale: string): string {
   return LOCALE_TO_BCP47[locale] ?? locale;
 }
 import { PickWorkoutDialog } from '@/components/programs/PickWorkoutDialog';
+import { InstanceOverrideSheet } from '@/components/calendar/InstanceOverrideSheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -388,6 +389,7 @@ function InstanceDialog({
   const skip = useSkipInstance();
   const del = useDeleteInstance();
   const [moveDate, setMoveDate] = useState('');
+  const [overrideOpen, setOverrideOpen] = useState(false);
 
   if (!instance) return null;
   const style = STATUS_STYLES[instance.status] ?? STATUS_STYLES.SCHEDULED;
@@ -482,6 +484,11 @@ function InstanceDialog({
                 {t('clientDetail.calendar.details.skip')}
               </Button>
             )}
+            {instance.templateId && (
+              <Button variant="outline" onClick={() => setOverrideOpen(true)}>
+                {t('clientDetail.calendar.details.customize')}
+              </Button>
+            )}
             <Button onClick={() => onOpenChange(false)}>
               {t('clientDetail.calendar.details.close')}
             </Button>
@@ -489,6 +496,12 @@ function InstanceDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <InstanceOverrideSheet
+      instanceId={instance.id}
+      open={overrideOpen}
+      onOpenChange={setOverrideOpen}
+    />
   );
 }
 

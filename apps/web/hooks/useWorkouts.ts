@@ -197,3 +197,34 @@ export function useDeleteWorkout() {
     },
   });
 }
+
+export function useWorkoutInstance(instanceId: string) {
+  return useQuery({
+    queryKey: ['workout-instance', instanceId],
+    queryFn: () => api.get<WorkoutInstance>(`/workouts/instances/${instanceId}`),
+    enabled: !!instanceId,
+  });
+}
+
+export function useOverrideInstanceItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      instanceId,
+      exerciseId,
+      prescription,
+    }: {
+      instanceId: string;
+      exerciseId: string;
+      prescription: Record<string, unknown>;
+    }) =>
+      api.patch(`/workouts/instances/${instanceId}/override`, {
+        exerciseId,
+        prescription,
+      }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['workout-instance', vars.instanceId] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}

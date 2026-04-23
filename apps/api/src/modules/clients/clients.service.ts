@@ -634,4 +634,47 @@ export class ClientsService {
       createdAt: now,
     });
   }
+
+  // ── Personal Records ─────────────────────────────────────────────────
+
+  async listPersonalRecords(clientUserId: string, orgId: string) {
+    const snap = await this.firebase
+      .personalRecords(orgId)
+      .where('clientUserId', '==', clientUserId)
+      .get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+
+  async upsertPersonalRecord(
+    clientUserId: string,
+    orgId: string,
+    input: {
+      exerciseId: string;
+      exerciseName: string;
+      weight: number;
+      unit?: string;
+      reps?: number;
+      notes?: string;
+      source?: string;
+    },
+  ) {
+    const docId = `${clientUserId}_${input.exerciseId}`;
+    const now = new Date().toISOString();
+    const existing = await this.firebase.personalRecords(orgId).doc(docId).get();
+    const data = {
+      clientUserId,
+      exerciseId: input.exerciseId,
+      exerciseName: input.exerciseName,
+      weight: input.weight,
+      unit: input.unit ?? 'kg',
+      reps: input.reps ?? 1,
+      recordedAt: now,
+      source: input.source ?? 'manual',
+      notes: input.notes ?? null,
+      updatedAt: now,
+      ...(existing.exists ? {} : { createdAt: now }),
+    };
+    await this.firebase.personalRecords(orgId).doc(docId).set(data, { merge: true });
+    return { id: docId, ...data };
+  }
 }

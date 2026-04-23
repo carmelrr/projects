@@ -24,6 +24,21 @@ export class ExercisesController {
     return this.exercisesService.listExercises(user.orgId, query);
   }
 
+  @Get('categories')
+  async listCategories(@CurrentUser() user: CurrentUserPayload) {
+    return this.exercisesService.listCategories(user.orgId);
+  }
+
+  @Post('categories')
+  @Roles('OWNER', 'ADMIN_COACH', 'COACH')
+  async createCategory(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { name: string },
+  ) {
+    const name = await this.exercisesService.createCategory(user.orgId, body.name);
+    return { name };
+  }
+
   @Get(':id')
   async get(
     @Param('id') id: string,
@@ -36,7 +51,7 @@ export class ExercisesController {
   @Roles('OWNER', 'ADMIN_COACH', 'COACH')
   async create(
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: { name: string; description?: string; category: string; equipment?: string[]; muscleGroups?: string[]; tags?: string[] },
+    @Body() body: { name: string; description?: string; category: string; equipment?: string[]; muscleGroups?: string[]; tags?: string[]; isPrBased?: boolean; difficulty?: string; instructions?: string; videoUrl?: string },
   ) {
     return this.exercisesService.createExercise(user.orgId, user.sub, body);
   }
@@ -46,7 +61,7 @@ export class ExercisesController {
   async update(
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: { name?: string; description?: string; category?: string; equipment?: string[]; muscleGroups?: string[]; tags?: string[] },
+    @Body() body: { name?: string; description?: string; category?: string; equipment?: string[]; muscleGroups?: string[]; tags?: string[]; isPrBased?: boolean; difficulty?: string; instructions?: string; videoUrl?: string },
   ) {
     return this.exercisesService.updateExercise(id, user.orgId, body);
   }

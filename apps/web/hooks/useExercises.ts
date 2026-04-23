@@ -15,6 +15,7 @@ export interface Exercise {
   isSystem: boolean;
   orgId?: string;
   createdAt: string;
+  isPrBased?: boolean;
 }
 
 export interface ExercisesResponse {
@@ -81,6 +82,25 @@ export function useDeleteExercise() {
     mutationFn: (id: string) => api.delete(`/exercises/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['exercises'] });
+    },
+  });
+}
+
+export function useExerciseCategories() {
+  return useQuery({
+    queryKey: ['exercise-categories'],
+    queryFn: () => api.get<string[]>('/exercises/categories'),
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateExerciseCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      api.post<{ name: string }>('/exercises/categories', { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['exercise-categories'] });
     },
   });
 }

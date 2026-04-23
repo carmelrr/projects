@@ -36,12 +36,33 @@ export class WorkoutInstancesService {
 
     const instance = { id: doc.id, ...doc.data() };
 
+    // Fetch overrides (per-client, per-instance prescriptions)
+    const overrideDoc = await this.firebase.workoutInstanceOverrides(orgId).doc(id).get();
+    const overrides: Record<string, { prescription: Record<string, unknown> }> =
+      overrideDoc.exists ? (overrideDoc.data()?.overrides ?? {}) : {};
+
     // If there's a template, fetch it
     const data = doc.data()!;
     if (data.templateId) {
       const tplDoc = await this.firebase.workouts(orgId).doc(data.templateId).get();
       if (tplDoc.exists) {
-        (instance as Record<string, unknown>).template = { id: tplDoc.id, ...tplDoc.data() };
+        const tplData = tplDoc.data()!;
+        // Apply overrides to template items
+        const items = (tplData.items ?? []) as Array<Record<string, unknown>>;
+        const effectiveItems = items.map((item) => {
+          const override = overrides[item.exerciseId as string];
+          if (!override) return item;
+          return {
+            ...item,
+            prescription: { ...(item.prescription as object), ...override.prescription },
+            _hasOverride: true,
+          };
+        });
+        (instance as Record<string, unknown>).template = {
+          id: tplDoc.id,
+          ...tplData,
+          items: effectiveItems,
+        };
       }
     }
 
@@ -58,6 +79,41 @@ export class WorkoutInstancesService {
     }
 
     return instance;
+  }
+
+  async setInstanceOverride(
+    instanceId: string,
+    orgId: string,
+    exerciseId: string,
+    prescription: Record<string, unknown>,
+    modifiedBy: string,
+  ) {
+    // Verify instance exists
+    const doc = await this.firebase.workoutInstances(orgId).doc(instanceId).get();
+    if (!doc.exists) throw new NotFoundException('Workout instance not found');
+
+    const now = new Date().toISOString();
+    const overrideRef = this.firebase.workoutInstanceOverrides(orgId).doc(instanceId);
+    const existing = await overrideRef.get();
+
+    const override = { prescription, modifiedBy, modifiedAt: now };
+
+    if (existing.exists) {
+      await overrideRef.update({
+        [`overrides.${exerciseId}`]: override,
+        updatedAt: now,
+      });
+    } else {
+      await overrideRef.set({
+        instanceId,
+        orgId,
+        overrides: { [exerciseId]: override },
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return { instanceId, exerciseId, prescription, modifiedBy, modifiedAt: now };
   }
 
   async scheduleWorkout(orgId: string, input: { clientId: string; templateId: string; scheduledDate: string; title?: string; notes?: string }) {

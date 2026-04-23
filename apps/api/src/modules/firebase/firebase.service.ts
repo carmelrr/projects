@@ -83,6 +83,10 @@ export class FirebaseService implements OnModuleInit {
     return this._db.collection('organizations').doc(orgId).collection('exercises');
   }
 
+  orgExerciseCategories(orgId: string) {
+    return this._db.collection('organizations').doc(orgId).collection('exerciseCategories');
+  }
+
   workouts(orgId: string) {
     return this._db.collection('organizations').doc(orgId).collection('workouts');
   }
@@ -101,6 +105,14 @@ export class FirebaseService implements OnModuleInit {
 
   trainingGroups(orgId: string) {
     return this._db.collection('organizations').doc(orgId).collection('trainingGroups');
+  }
+
+  personalRecords(orgId: string) {
+    return this._db.collection('organizations').doc(orgId).collection('personalRecords');
+  }
+
+  workoutInstanceOverrides(orgId: string) {
+    return this._db.collection('organizations').doc(orgId).collection('workoutInstanceOverrides');
   }
 
   clientAssignments(orgId: string) {

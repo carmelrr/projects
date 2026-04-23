@@ -121,4 +121,32 @@ export class ClientsController {
   ) {
     await this.clientsService.endAssignment(id, user.orgId, assignmentId, user.sub);
   }
+
+  // ── Personal Records ─────────────────────────────────────────────────
+
+  @Get(':id/personal-records')
+  @Roles('COACH')
+  async listPersonalRecords(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.clientsService.listPersonalRecords(id, user.orgId);
+  }
+
+  @Post(':id/personal-records')
+  @Roles('COACH')
+  async upsertPersonalRecord(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: {
+      exerciseId: string;
+      exerciseName: string;
+      weight: number;
+      unit?: string;
+      reps?: number;
+      notes?: string;
+    },
+  ) {
+    return this.clientsService.upsertPersonalRecord(id, user.orgId, body);
+  }
 }

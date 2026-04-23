@@ -17,7 +17,9 @@ import {
   type WorkoutItem,
 } from '@/hooks/useWorkouts';
 import { useExercises, useCreateExercise, type Exercise } from '@/hooks/useExercises';
+import { useExerciseCategories, useCreateExerciseCategory } from '@/hooks/useExercises';
 import { api } from '@/lib/api';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
   Sheet,
@@ -52,7 +54,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 type DraftItem = Omit<WorkoutItem, 'id'> & { id?: string };
 
-const EX_CATEGORIES = ['Strength', 'Cardio', 'Mobility', 'Plyometric', 'Stretching', 'Balance', 'Olympic'];
 const EX_MUSCLE_GROUPS = [
   'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms',
   'Core', 'Glutes', 'Quads', 'Hamstrings', 'Calves', 'Full Body',
@@ -88,14 +89,22 @@ function PickExerciseDialog({
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ name: '', category: '', muscleGroups: [] as string[] });
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [newCatInput, setNewCatInput] = useState('');
+  const [showNewCat, setShowNewCat] = useState(false);
   const { data, isLoading } = useExercises({ search });
+  const { data: categories = [] } = useExerciseCategories();
   const createExercise = useCreateExercise();
+  const createCategory = useCreateExerciseCategory();
 
   useEffect(() => {
     if (!open) {
       setSearch('');
       setMode('pick');
       setForm({ name: '', category: '', muscleGroups: [] });
+      setCreateError(null);
+      setNewCatInput('');
+      setShowNewCat(false);
     }
   }, [open]);
 
@@ -107,17 +116,33 @@ function PickExerciseDialog({
         : [...f.muscleGroups, m],
     }));
 
+  const handleCreateCategory = async () => {
+    const name = newCatInput.trim();
+    if (!name) return;
+    try {
+      await createCategory.mutateAsync(name);
+      setForm((f) => ({ ...f, category: name }));
+      setNewCatInput('');
+      setShowNewCat(false);
+    } catch {
+      toast.error('Failed to create category');
+    }
+  };
+
   const handleCreate = async () => {
     if (!form.name.trim()) return;
     setCreating(true);
+    setCreateError(null);
     try {
       const created = await createExercise.mutateAsync({
         name: form.name.trim(),
-        category: form.category || undefined,
+        category: form.category || '',
         muscleGroups: form.muscleGroups.length ? form.muscleGroups : undefined,
       });
       onPick(created);
       onOpenChange(false);
+    } catch {
+      setCreateError('Failed to create exercise. Please try again.');
     } finally {
       setCreating(false);
     }
@@ -228,17 +253,47 @@ function PickExerciseDialog({
               <Label>Category</Label>
               <Select
                 value={form.category || undefined}
-                onValueChange={(v) => setForm({ ...form, category: v })}
+                onValueChange={(v) => {
+                  if (v === '__new__') { setShowNewCat(true); return; }
+                  setForm({ ...form, category: v });
+                  setShowNewCat(false);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {EX_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
+                  <SelectItem value="__new__">➕ New category…</SelectItem>
                 </SelectContent>
               </Select>
+              {showNewCat && (
+                <div className="flex gap-2">
+                  <Input
+                    value={newCatInput}
+                    onChange={(e) => setNewCatInput(e.target.value)}
+                    placeholder="Category name"
+                    className="flex-1"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); }
+                      if (e.key === 'Escape') { setShowNewCat(false); setNewCatInput(''); }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleCreateCategory}
+                    disabled={!newCatInput.trim() || createCategory.isPending}
+                  >
+                    Add
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowNewCat(false); setNewCatInput(''); }}>
+                    ✕
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Muscle groups</Label>
@@ -261,6 +316,9 @@ function PickExerciseDialog({
               </div>
             </div>
             <Separator />
+            {createError && (
+              <p className="text-sm text-destructive">{createError}</p>
+            )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setMode('pick')} disabled={creating}>
                 Back

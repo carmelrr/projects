@@ -114,6 +114,22 @@ export class WorkoutsController {
     return this.instancesService.getInstance(id, user.orgId);
   }
 
+  @Patch('instances/:id/override')
+  @Roles('OWNER', 'ADMIN_COACH', 'COACH')
+  async overrideInstanceItem(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { exerciseId: string; prescription: Record<string, unknown> },
+  ) {
+    return this.instancesService.setInstanceOverride(
+      id,
+      user.orgId,
+      body.exerciseId,
+      body.prescription,
+      user.sub,
+    );
+  }
+
   @Post('schedule')
   @Roles('OWNER', 'ADMIN_COACH', 'COACH')
   async schedule(
