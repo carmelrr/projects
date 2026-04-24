@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Pressable,
@@ -28,6 +28,45 @@ export default function AcceptInviteScreen() {
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  // Stable per-field setters so memoized Inputs don't re-render every keystroke.
+  // Critical on Android: re-rendering a sibling password Input mid-typing
+  // can rebuild the underlying native view (with secureTextEntry) and
+  // dismiss the keyboard.
+  const setToken = useCallback(
+    (token: string) => setForm((p) => ({ ...p, token })),
+    [],
+  );
+  const setEmail = useCallback(
+    (email: string) => setForm((p) => ({ ...p, email })),
+    [],
+  );
+  const setFirstName = useCallback(
+    (firstName: string) => setForm((p) => ({ ...p, firstName })),
+    [],
+  );
+  const setLastName = useCallback(
+    (lastName: string) => setForm((p) => ({ ...p, lastName })),
+    [],
+  );
+  const setPassword = useCallback(
+    (password: string) => setForm((p) => ({ ...p, password })),
+    [],
+  );
+  const setConfirm = useCallback(
+    (confirm: string) => setForm((p) => ({ ...p, confirm })),
+    [],
+  );
+
+  // Stable style refs so memoized children don't see new style objects each render.
+  const fieldContainer = useMemo(
+    () => ({ marginBottom: theme.spacing[4] }),
+    [theme],
+  );
+  const halfFieldContainer = useMemo(
+    () => ({ flex: 1, marginBottom: theme.spacing[4] }),
+    [theme],
+  );
 
   const submit = async () => {
     setError('');
@@ -134,7 +173,9 @@ export default function AcceptInviteScreen() {
             </Text>
           </FadeInUp>
 
-          <FadeInUp delay={120}>
+          {/* NOTE: Do NOT wrap this Card in FadeInUp / Animated.View — having
+              an animated parent above a TextInput with `secureTextEntry` on
+              Android causes the keyboard to dismiss on the first keystroke. */}
           <Card style={{ marginTop: theme.spacing[6] }}>
             {error ? (
               <View
@@ -201,48 +242,46 @@ export default function AcceptInviteScreen() {
               <Input
                 label="Invite token"
                 value={form.token}
-                onChangeText={(token) => setForm({ ...form, token })}
+                onChangeText={setToken}
                 autoCapitalize="none"
                 autoCorrect={false}
                 placeholder="Paste from your invite email"
-                containerStyle={{ marginBottom: theme.spacing[4] }}
+                containerStyle={fieldContainer}
               />
             )}
 
             <Input
               label="Email"
               value={form.email}
-              onChangeText={(email) => setForm({ ...form, email })}
+              onChangeText={setEmail}
               placeholder="you@example.com"
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
               textContentType="emailAddress"
               autoComplete="email"
-              containerStyle={{ marginBottom: theme.spacing[4] }}
+              containerStyle={fieldContainer}
             />
 
             <View style={{ flexDirection: 'row', gap: theme.spacing[3] }}>
               <Input
                 label="First name"
                 value={form.firstName}
-                onChangeText={(firstName) => setForm({ ...form, firstName })}
-                containerStyle={{ flex: 1, marginBottom: theme.spacing[4] }}
+                onChangeText={setFirstName}
+                containerStyle={halfFieldContainer}
               />
               <Input
                 label="Last name"
                 value={form.lastName}
-                onChangeText={(lastName) => setForm({ ...form, lastName })}
-                containerStyle={{ flex: 1, marginBottom: theme.spacing[4] }}
+                onChangeText={setLastName}
+                containerStyle={halfFieldContainer}
               />
             </View>
 
             <Input
               label="Password"
               value={form.password}
-              onChangeText={(password) =>
-                setForm((prev) => ({ ...prev, password }))
-              }
+              onChangeText={setPassword}
               placeholder="At least 8 characters"
               secureTextEntry
               autoCapitalize="none"
@@ -251,15 +290,13 @@ export default function AcceptInviteScreen() {
               autoComplete={Platform.OS === 'android' ? 'off' : 'new-password'}
               importantForAutofill={Platform.OS === 'android' ? 'no' : 'auto'}
               blurOnSubmit={false}
-              containerStyle={{ marginBottom: theme.spacing[4] }}
+              containerStyle={fieldContainer}
             />
 
             <Input
               label="Confirm password"
               value={form.confirm}
-              onChangeText={(confirm) =>
-                setForm((prev) => ({ ...prev, confirm }))
-              }
+              onChangeText={setConfirm}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -267,7 +304,7 @@ export default function AcceptInviteScreen() {
               autoComplete={Platform.OS === 'android' ? 'off' : 'new-password'}
               importantForAutofill={Platform.OS === 'android' ? 'no' : 'auto'}
               blurOnSubmit={false}
-              containerStyle={{ marginBottom: theme.spacing[4] }}
+              containerStyle={fieldContainer}
             />
 
             <Button
@@ -282,7 +319,6 @@ export default function AcceptInviteScreen() {
               Create account
             </Button>
           </Card>
-          </FadeInUp>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

@@ -1,5 +1,6 @@
-import { forwardRef, useState, type ReactNode } from 'react';
+import { forwardRef, memo, useState, type ReactNode } from 'react';
 import {
+  Platform,
   TextInput,
   View,
   type TextInputProps,
@@ -23,8 +24,17 @@ export interface InputProps extends Omit<TextInputProps, 'style'> {
 /**
  * Input — themed TextInput wrapper with label, error, and icon slots.
  * Border uses theme.colors.input (resting) / ring (focus) / destructive (error).
+ *
+ * NOTE on Android keyboard-blur fix: the wrapping View MUST keep a stable
+ * style-key shape across renders. If we conditionally add elevation/shadow*
+ * keys when `focused` flips, Android can rebuild the underlying native view
+ * and a `secureTextEntry` child TextInput will lose focus on the very first
+ * keystroke (which dismisses the keyboard). Here we always emit the same
+ * keys and only toggle their *values*. We also render this Input as a
+ * `memo` so a sibling input's value-change can't force-re-render the
+ * password field's wrapper.
  */
-export const Input = forwardRef<TextInput, InputProps>(function Input(
+const InputInner = forwardRef<TextInput, InputProps>(function Input(
   {
     label,
     error,
@@ -51,6 +61,9 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     ? theme.colors.ring
     : theme.colors.input;
 
+  // Stable iOS shadow shape — same keys every render, only values change.
+  const showShadow = focused && !error && Platform.OS === 'ios';
+
   return (
     <View style={containerStyle}>
       {label ? (
@@ -73,9 +86,10 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           backgroundColor: editable ? theme.colors.background : theme.colors.muted,
           paddingHorizontal: theme.spacing[3],
           minHeight: 44,
-          ...(focused && !error
-            ? { shadowColor: theme.colors.ring, shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 0 }, elevation: 0 }
-            : null),
+          shadowColor: theme.colors.ring,
+          shadowOpacity: showShadow ? 0.15 : 0,
+          shadowRadius: showShadow ? 4 : 0,
+          shadowOffset: { width: 0, height: 0 },
         }}
       >
         {leftIcon ? <View>{leftIcon}</View> : null}
@@ -126,3 +140,5 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     </View>
   );
 });
+
+export const Input = memo(InputInner);

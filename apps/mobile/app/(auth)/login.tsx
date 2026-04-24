@@ -120,7 +120,9 @@ export default function LoginScreen() {
             </FadeInUp>
           </View>
 
-          <FadeInUp delay={120}>
+          {/* NOTE: keep this Card outside of FadeInUp / Animated.View — an
+              animated parent above a TextInput with secureTextEntry causes
+              the Android keyboard to dismiss on the first keystroke. */}
           <Card>
             {error ? (
               <View
@@ -242,7 +244,6 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
           </Card>
-          </FadeInUp>
         </View>
       </KeyboardAvoidingView>
     </Screen>
