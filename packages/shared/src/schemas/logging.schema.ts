@@ -8,7 +8,7 @@ const setLogSchema = z.object({
   time: z.number().min(0).optional(),
   distance: z.number().min(0).optional(),
   calories: z.number().min(0).optional(),
-  rpe: z.number().min(1).max(10).optional(),
+  restSeconds: z.number().min(0).optional(),
   notes: z.string().max(500).optional(),
 });
 

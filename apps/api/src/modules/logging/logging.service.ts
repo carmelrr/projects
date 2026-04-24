@@ -6,7 +6,6 @@ interface CreateWorkoutLogInput {
   workoutInstanceId: string;
   startedAt: string;
   finishedAt?: string;
-  perceivedExertion?: number;
   clientNotes?: string;
   sets: {
     itemId: string;
@@ -16,7 +15,7 @@ interface CreateWorkoutLogInput {
     time?: number;
     distance?: number;
     calories?: number;
-    rpe?: number;
+    restSeconds?: number;
     notes?: string;
   }[];
 }
@@ -58,7 +57,7 @@ export class LoggingService {
       time: set.time ?? null,
       distance: set.distance ?? null,
       calories: set.calories ?? null,
-      rpe: set.rpe ?? null,
+      restSeconds: set.restSeconds ?? null,
       notes: set.notes ?? null,
     }));
 
@@ -67,7 +66,6 @@ export class LoggingService {
       instanceId: input.workoutInstanceId,
       startedAt: input.startedAt,
       finishedAt: input.finishedAt || null,
-      perceivedExertion: input.perceivedExertion || null,
       clientNotes: input.clientNotes || null,
       setLogs,
       coachFeedback: null,

@@ -231,6 +231,8 @@ enum ExerciseUnit {
   REPS_WEIGHT
   REPS_ONLY
   TIME
+  TIME_STOPWATCH
+  TIME_COUNTDOWN
   DISTANCE
   CALORIES
 }
@@ -424,7 +426,7 @@ model SetLog {
   time         Float?
   distance     Float?
   calories     Float?
-  rpe          Float?
+  restSeconds  Float?
   notes        String?
   createdAt    DateTime @default(now())
 

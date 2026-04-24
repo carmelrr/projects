@@ -5,6 +5,27 @@ import { FirebaseService } from '../firebase/firebase.service';
 export class WorkoutInstancesService {
   constructor(private firebase: FirebaseService) {}
 
+  private isoDay(value: string): string {
+    return value.split('T')[0];
+  }
+
+  private async getNextDayOrder(clientId: string, orgId: string, day: string): Promise<number> {
+    const snap = await this.firebase
+      .workoutInstances(orgId)
+      .where('clientUserId', '==', clientId)
+      .get();
+
+    const maxOrder = snap.docs
+      .map((doc) => doc.data())
+      .filter((it) => this.isoDay(String(it.scheduledDate ?? '')) === day)
+      .reduce((acc, it) => {
+        const n = typeof it.dayOrder === 'number' ? it.dayOrder : 0;
+        return Math.max(acc, n);
+      }, -1);
+
+    return maxOrder + 1;
+  }
+
   async getClientCalendar(clientId: string, orgId: string, startDate: string, endDate: string) {
     // Verify client belongs to org
     const userDoc = await this.firebase.users().doc(clientId).get();
@@ -23,10 +44,17 @@ export class WorkoutInstancesService {
     const items = snap.docs
       .map(doc => ({ id: doc.id, ...doc.data() } as Record<string, unknown>))
       .filter(i => {
-        const sd = (i.scheduledDate as string | undefined) || '';
+        const sd = this.isoDay((i.scheduledDate as string | undefined) || '');
         return sd >= startDate && sd <= endDate;
       });
-    items.sort((a, b) => ((a.scheduledDate as string | undefined) || '').localeCompare((b.scheduledDate as string | undefined) || ''));
+    items.sort((a, b) => {
+      const byDate = ((a.scheduledDate as string | undefined) || '').localeCompare((b.scheduledDate as string | undefined) || '');
+      if (byDate !== 0) return byDate;
+      const aOrder = typeof a.dayOrder === 'number' ? a.dayOrder : 0;
+      const bOrder = typeof b.dayOrder === 'number' ? b.dayOrder : 0;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return ((a.createdAt as string | undefined) || '').localeCompare((b.createdAt as string | undefined) || '');
+    });
     return items;
   }
 
@@ -127,10 +155,14 @@ export class WorkoutInstancesService {
     const id = this.firebase.generateId();
     const now = new Date().toISOString();
 
+    const day = this.isoDay(input.scheduledDate);
+    const dayOrder = await this.getNextDayOrder(input.clientId, orgId, day);
+
     const data = {
       clientUserId: input.clientId,
       templateId: input.templateId,
       scheduledDate: input.scheduledDate,
+      dayOrder,
       title: input.title || null,
       notes: input.notes || null,
       status: 'SCHEDULED',
@@ -151,13 +183,67 @@ export class WorkoutInstancesService {
       throw new ForbiddenException('Can only move scheduled workouts');
     }
 
+    const dayOrder = await this.getNextDayOrder(instance.clientUserId, orgId, this.isoDay(newDate));
+
     await this.firebase.workoutInstances(orgId).doc(id).update({
       movedFromDate: instance.scheduledDate,
       scheduledDate: newDate,
+      dayOrder,
       updatedAt: new Date().toISOString(),
     });
 
-    return { id, ...instance, movedFromDate: instance.scheduledDate, scheduledDate: newDate };
+    return { id, ...instance, movedFromDate: instance.scheduledDate, scheduledDate: newDate, dayOrder };
+  }
+
+  async reorderDayInstances(
+    clientId: string,
+    orgId: string,
+    day: string,
+    orderedInstanceIds: string[],
+  ) {
+    const snap = await this.firebase
+      .workoutInstances(orgId)
+      .where('clientUserId', '==', clientId)
+      .get();
+
+    type DayItem = { id: string } & Record<string, unknown>;
+    const dayItems: DayItem[] = snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() } as DayItem))
+      .filter((it) => this.isoDay(String(it.scheduledDate ?? '')) === day);
+
+    const byId = new Map<string, DayItem>(dayItems.map((it) => [it.id, it]));
+
+    if (orderedInstanceIds.some((id) => !byId.has(id))) {
+      throw new NotFoundException('One or more workout instances were not found for this day');
+    }
+
+    const now = new Date().toISOString();
+    const batch = this.firebase.batch();
+
+    orderedInstanceIds.forEach((id, index) => {
+      batch.update(this.firebase.workoutInstances(orgId).doc(id), {
+        dayOrder: index,
+        updatedAt: now,
+      });
+    });
+
+    const tail = Array.from(byId.values())
+      .filter((it) => !orderedInstanceIds.includes(it.id))
+      .sort((a, b) => {
+        const aOrder = typeof a.dayOrder === 'number' ? a.dayOrder : 0;
+        const bOrder = typeof b.dayOrder === 'number' ? b.dayOrder : 0;
+        return aOrder - bOrder;
+      });
+
+    tail.forEach((it, offset) => {
+      batch.update(this.firebase.workoutInstances(orgId).doc(it.id), {
+        dayOrder: orderedInstanceIds.length + offset,
+        updatedAt: now,
+      });
+    });
+
+    await batch.commit();
+    return { clientId, date: day, orderedInstanceIds };
   }
 
   async skipInstance(id: string, orgId: string) {
@@ -190,7 +276,6 @@ export class WorkoutInstancesService {
     clientUserId: string,
     body: {
       durationMinutes?: number;
-      overallRpe?: number;
       notes?: string;
       items?: Array<{
         exerciseId: string;
@@ -199,7 +284,7 @@ export class WorkoutInstancesService {
           reps?: number;
           weight?: number;
           duration?: number;
-          rpe?: number;
+          restSeconds?: number;
           completed: boolean;
         }>;
       }>;
@@ -221,7 +306,6 @@ export class WorkoutInstancesService {
       clientUserId,
       orgId,
       durationMinutes: body.durationMinutes ?? null,
-      overallRpe: body.overallRpe ?? null,
       notes: body.notes ?? null,
       items: body.items ?? [],
       completedAt: now,

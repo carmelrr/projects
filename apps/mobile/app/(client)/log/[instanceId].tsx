@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, router } from 'expo-router';
 import { X, Play, Check, Plus } from 'lucide-react-native';
 import {
@@ -41,7 +42,7 @@ interface SetState {
   reps: string;
   weight: string;
   duration: string;
-  rpe: string;
+  restSeconds: string;
   completed: boolean;
 }
 
@@ -61,6 +62,28 @@ interface ExerciseState {
 function prescStr(v: unknown): string {
   if (v === null || v === undefined) return '';
   return String(v);
+}
+
+function parseSeconds(v: unknown): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0, Math.floor(v));
+  if (typeof v !== 'string') return 0;
+  const raw = v.trim().toLowerCase();
+  if (!raw) return 0;
+  const mmss = raw.match(/^(\d+):(\d{1,2})$/);
+  if (mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
+  if (/^\d+$/.test(raw)) return Number(raw);
+  const m = raw.match(/^(\d+(?:\.\d+)?)(s|sec|secs|seconds|m|min|mins|minutes)$/);
+  if (!m) return 0;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  return m[2].startsWith('m') ? Math.floor(n * 60) : Math.floor(n);
+}
+
+function formatSeconds(total: number): string {
+  const safe = Math.max(0, Math.floor(total));
+  const mm = String(Math.floor(safe / 60)).padStart(2, '0');
+  const ss = String(safe % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
 }
 
 function buildInitialState(
@@ -91,7 +114,7 @@ function buildInitialState(
       reps: prescStr(item.prescription?.reps),
       weight: resolvedWeight,
       duration: prescStr(item.prescription?.duration),
-      rpe: '',
+      restSeconds: '',
       completed: false,
     }));
     return {
@@ -148,6 +171,31 @@ function SetRow({
   const hasReps = !!prescription.reps;
   const hasWeight = !!prescription.weight;
   const hasDuration = !!prescription.duration;
+  const timeMode =
+    prescription.timeMode === 'COUNTDOWN' ? 'COUNTDOWN' : 'STOPWATCH';
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
+  const [targetSeconds, setTargetSeconds] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!timerRunning) return;
+    const id = setInterval(() => {
+      setTimerSeconds((prev) => {
+        if (prev === null) return prev;
+        if (timeMode === 'COUNTDOWN') {
+          if (prev <= 1) {
+            setTimerRunning(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            onChange({ duration: String(targetSeconds ?? 0), completed: true });
+            return 0;
+          }
+          return prev - 1;
+        }
+        return prev + 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [onChange, targetSeconds, timeMode, timerRunning]);
 
   const inputStyle = {
     borderWidth: 1,
@@ -229,20 +277,53 @@ function SetRow({
             placeholderTextColor={placeholderColor}
             accessibilityLabel={`Duration for set ${setIndex + 1}`}
           />
+          <Pressable
+            onPress={() => {
+              if (timerRunning) {
+                const current = timerSeconds ?? 0;
+                if (timeMode === 'COUNTDOWN') {
+                  const target = targetSeconds ?? parseSeconds(prescription.duration);
+                  const elapsed = Math.max(0, target - current);
+                  onChange({ duration: String(elapsed) });
+                } else {
+                  onChange({ duration: String(current) });
+                }
+                setTimerRunning(false);
+                return;
+              }
+
+              if (timeMode === 'COUNTDOWN') {
+                const target = parseSeconds(prescription.duration);
+                if (!target) return;
+                setTargetSeconds(target);
+                setTimerSeconds(target);
+                setTimerRunning(true);
+                return;
+              }
+
+              setTargetSeconds(null);
+              setTimerSeconds(parseSeconds(set.duration));
+              setTimerRunning(true);
+            }}
+            style={({ pressed }) => ({
+              marginTop: theme.spacing[1],
+              paddingHorizontal: theme.spacing[1],
+              paddingVertical: theme.spacing[0.5],
+              borderRadius: theme.radii.sm,
+              borderWidth: 1,
+              borderColor: withAlpha(theme.colors.primary, 0.4),
+              backgroundColor: withAlpha(theme.colors.primary, 0.1),
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text variant="caption" color="primary" tabular>
+              {timerRunning
+                ? `Stop ${formatSeconds(timerSeconds ?? 0)}`
+                : `${timeMode === 'COUNTDOWN' ? 'Timer' : 'Stopwatch'} Start`}
+            </Text>
+          </Pressable>
         </View>
       )}
-
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <TextInput
-          style={[inputStyle, set.completed ? inputCompletedStyle : null]}
-          value={set.rpe}
-          onChangeText={(v) => onChange({ rpe: v })}
-          keyboardType="numeric"
-          placeholder="—"
-          placeholderTextColor={placeholderColor}
-          accessibilityLabel={`RPE for set ${setIndex + 1}`}
-        />
-      </View>
 
       <Pressable
         onPress={() => onChange({ completed: !set.completed })}
@@ -398,9 +479,9 @@ function ExerciseBlock({
             <Badge variant="info">{prescStr(p.weight)} kg</Badge>
           ) : null}
           {p.duration ? <Badge variant="info">{prescStr(p.duration)}</Badge> : null}
-          {p.rpe ? <Badge variant="info">RPE {prescStr(p.rpe)}</Badge> : null}
+          {p.timeMode ? <Badge variant="info">{prescStr(p.timeMode)}</Badge> : null}
           {p.rest ? (
-            <Badge variant="muted">Rest {prescStr(p.rest)}</Badge>
+            <Badge variant="muted">Rest between sets {prescStr(p.rest)}</Badge>
           ) : null}
         </View>
       )}
@@ -453,14 +534,6 @@ function ExerciseBlock({
             Time
           </Text>
         )}
-        <Text
-          variant="caption"
-          color="mutedForeground"
-          weight="600"
-          style={columnHeaderStyle}
-        >
-          RPE
-        </Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -610,12 +683,11 @@ function FinishModal({
   visible: boolean;
   durationSeconds: number;
   submitting: boolean;
-  onSubmit: (notes: string, rpe: number | null) => void;
+  onSubmit: (notes: string) => void;
   onClose: () => void;
 }) {
   const theme = useTheme();
   const [notes, setNotes] = useState('');
-  const [rpe, setRpe] = useState('');
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -658,14 +730,6 @@ function FinishModal({
           </View>
 
           <Input
-            label="Overall RPE (1–10)"
-            value={rpe}
-            onChangeText={setRpe}
-            keyboardType="numeric"
-            placeholder="How hard was it?"
-          />
-
-          <Input
             label="Notes"
             value={notes}
             onChangeText={setNotes}
@@ -695,7 +759,7 @@ function FinishModal({
               Back
             </Button>
             <Button
-              onPress={() => onSubmit(notes, rpe ? Number(rpe) : null)}
+              onPress={() => onSubmit(notes)}
               loading={submitting}
               style={{
                 flex: 2,
@@ -764,7 +828,16 @@ export default function WorkoutLogScreen() {
           : {
               ...ex,
               sets: ex.sets.map((s, si) =>
-                si !== setIndex ? s : { ...s, ...updated },
+                si !== setIndex
+                  ? s
+                  : {
+                      ...s,
+                      ...updated,
+                      restSeconds:
+                        updated.completed && !s.restSeconds
+                          ? String(parseSeconds(ex.prescription.rest))
+                          : s.restSeconds,
+                    },
               ),
             },
       ),
@@ -784,7 +857,7 @@ export default function WorkoutLogScreen() {
                   reps: prescStr(ex.prescription.reps),
                   weight: prescStr(ex.prescription.weight),
                   duration: prescStr(ex.prescription.duration),
-                  rpe: '',
+                  restSeconds: '',
                   completed: false,
                 },
               ],
@@ -793,7 +866,7 @@ export default function WorkoutLogScreen() {
     );
   };
 
-  const handleSubmit = async (notes: string, overallRpe: number | null) => {
+  const handleSubmit = async (notes: string) => {
     setTimerRunning(false);
 
     const items: LogItem[] = exercises.map((ex) => ({
@@ -803,7 +876,7 @@ export default function WorkoutLogScreen() {
         reps: s.reps ? Number(s.reps) : undefined,
         weight: s.weight ? Number(s.weight) : undefined,
         duration: s.duration ? Number(s.duration) : undefined,
-        rpe: s.rpe ? Number(s.rpe) : undefined,
+        restSeconds: s.restSeconds ? Number(s.restSeconds) : undefined,
         completed: s.completed,
       })) as LogSet[],
     }));
@@ -811,7 +884,6 @@ export default function WorkoutLogScreen() {
     try {
       const result = await submitLog.mutateAsync({
         durationMinutes: Math.round(seconds / 60),
-        overallRpe: overallRpe ?? undefined,
         notes: notes || undefined,
         items,
       });

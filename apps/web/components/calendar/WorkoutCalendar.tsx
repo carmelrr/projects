@@ -28,6 +28,7 @@ import {
   useClientCalendar,
   useScheduleWorkout,
   useMoveInstance,
+  useReorderDayInstances,
   useSkipInstance,
   useDeleteInstance,
   useWorkout,
@@ -120,16 +121,18 @@ const STATUS_STYLES: Record<
 
 function WorkoutChip({
   instance,
+  dayKey,
   onClick,
 }: {
   instance: WorkoutInstance;
+  dayKey: string;
   onClick: () => void;
 }) {
   const t = useT();
   const { data: tpl } = useWorkout(instance.templateId ?? '');
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: instance.id,
-    data: { instance },
+    data: { instance, date: dayKey },
     disabled: instance.status !== 'SCHEDULED',
   });
   const style = STATUS_STYLES[instance.status] ?? STATUS_STYLES.SCHEDULED;
@@ -143,7 +146,7 @@ function WorkoutChip({
       className={cn(
         'block w-full truncate rounded-md border px-1.5 py-1 text-start text-[11px] font-medium transition hover:brightness-105',
         style.chip,
-        isDragging && 'opacity-40',
+        isDragging && 'opacity-30 scale-95 ring-2 ring-primary/50',
         instance.status === 'SCHEDULED' && 'cursor-grab active:cursor-grabbing',
       )}
       {...attributes}
@@ -206,7 +209,12 @@ function DayCell({
       </div>
       <div className="flex flex-col gap-1">
         {(compact ? instances.slice(0, 3) : instances).map((i) => (
-          <WorkoutChip key={i.id} instance={i} onClick={() => onClickChip(i)} />
+          <WorkoutChip
+            key={i.id}
+            instance={i}
+            dayKey={iso}
+            onClick={() => onClickChip(i)}
+          />
         ))}
         {compact && instances.length > 3 && (
           <span className="px-1 text-[10px] text-muted-foreground">
@@ -522,6 +530,7 @@ export function WorkoutCalendar({ clientId }: { clientId: string }): JSX.Element
   const [scheduleDate, setScheduleDate] = useState(toISODate(new Date()));
   const [dragInstance, setDragInstance] = useState<WorkoutInstance | null>(null);
   const move = useMoveInstance();
+  const reorderDay = useReorderDayInstances();
 
   // Range for the current view.
   const { startDate, endDate, days } = useMemo(() => {
@@ -567,6 +576,15 @@ export function WorkoutCalendar({ clientId }: { clientId: string }): JSX.Element
       arr.push(i);
       map.set(key, arr);
     }
+    for (const [key, dayItems] of map.entries()) {
+      dayItems.sort((a, b) => {
+        const aOrder = a.dayOrder ?? 0;
+        const bOrder = b.dayOrder ?? 0;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.id.localeCompare(b.id);
+      });
+      map.set(key, dayItems);
+    }
     return map;
   }, [instances]);
 
@@ -584,11 +602,36 @@ export function WorkoutCalendar({ clientId }: { clientId: string }): JSX.Element
   const onDragEnd = (e: DragEndEvent) => {
     setDragInstance(null);
     if (!e.over) return;
-    const targetDate = (e.over.data.current as { date?: string } | undefined)?.date;
     const inst = (e.active.data.current as { instance?: WorkoutInstance } | undefined)
       ?.instance;
-    if (!targetDate || !inst) return;
+    const overData = e.over.data.current as
+      | { date?: string; instance?: WorkoutInstance }
+      | undefined;
+    const targetDate = overData?.date;
+    const overInst = overData?.instance;
+    if (!inst) return;
     const currentDate = inst.scheduledDate.split('T')[0];
+
+    if (overInst) {
+      const overDate = overInst.scheduledDate.split('T')[0];
+      if (currentDate === overDate && overInst.id !== inst.id) {
+        const dayItems = [...(byDay.get(currentDate) ?? [])];
+        const from = dayItems.findIndex((it) => it.id === inst.id);
+        const to = dayItems.findIndex((it) => it.id === overInst.id);
+        if (from >= 0 && to >= 0) {
+          const [moved] = dayItems.splice(from, 1);
+          dayItems.splice(to, 0, moved);
+          reorderDay.mutate({
+            clientId,
+            date: currentDate,
+            orderedInstanceIds: dayItems.map((it) => it.id),
+          });
+        }
+      }
+      return;
+    }
+
+    if (!targetDate) return;
     if (currentDate === targetDate) return;
     move.mutate({ id: inst.id, scheduledDate: targetDate });
   };
@@ -799,7 +842,7 @@ function DragChip({ instance }: { instance: WorkoutInstance }) {
   return (
     <div
       className={cn(
-        'rounded-md border px-1.5 py-1 text-[11px] font-medium shadow-lg',
+        'rounded-md border px-1.5 py-1 text-[11px] font-medium shadow-xl ring-2 ring-primary/40 rotate-1 scale-105',
         style.chip,
       )}
     >

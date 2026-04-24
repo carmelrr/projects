@@ -15,8 +15,8 @@ export interface WorkoutItem {
     duration?: string;
     distance?: string;
     weight?: string;
-    rpe?: number;
-    rest?: string;
+    rest?: string | number;
+    timeMode?: 'STOPWATCH' | 'COUNTDOWN';
     [key: string]: unknown;
   };
   exercise?: {
@@ -47,6 +47,7 @@ export interface WorkoutInstance {
   templateId?: string;
   clientUserId: string;
   scheduledDate: string;
+  dayOrder?: number;
   movedFromDate?: string;
   status: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED' | 'MISSED' | 'MOVED';
   title?: string;
@@ -63,7 +64,6 @@ export interface WorkoutLog {
   clientUserId: string;
   completedAt: string;
   durationMinutes?: number;
-  overallRpe?: number;
   notes?: string;
   items: {
     exerciseId: string;
@@ -72,7 +72,7 @@ export interface WorkoutLog {
       reps?: number;
       weight?: number;
       duration?: number;
-      rpe?: number;
+      restSeconds?: number;
       completed: boolean;
     }>;
   }[];
@@ -138,6 +138,27 @@ export function useMoveInstance() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: string; scheduledDate: string }) =>
       api.patch(`/workouts/instances/${id}/move`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
+export function useReorderDayInstances() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      clientId,
+      date,
+      orderedInstanceIds,
+    }: {
+      clientId: string;
+      date: string;
+      orderedInstanceIds: string[];
+    }) =>
+      api.patch(`/workouts/calendar/${clientId}/${date}/reorder`, {
+        orderedInstanceIds,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar'] });
     },

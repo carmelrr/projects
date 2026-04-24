@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Plus,
   Trash2,
-  ChevronUp,
-  ChevronDown,
   Save,
   Search,
   Loader2,
@@ -58,7 +56,7 @@ function newItem(exercise: Exercise, orderIndex: number): DraftItem {
   return {
     exerciseId: exercise.id,
     orderIndex,
-    prescription: { sets: 3, reps: '10', rpe: 7, rest: '90s' },
+    prescription: { sets: 3, reps: '10', rest: 90 },
     exercise: {
       id: exercise.id,
       name: exercise.name,
@@ -392,6 +390,19 @@ interface Props {
   onOpenChange: (o: boolean) => void;
 }
 
+function nextSupersetLabel(items: DraftItem[]): string {
+  const used = new Set(
+    items
+      .map((it) => (it.groupLabel ?? '').trim().toUpperCase().charAt(0))
+      .filter((ch) => ch >= 'A' && ch <= 'Z'),
+  );
+  for (let i = 0; i < 26; i += 1) {
+    const label = String.fromCharCode(65 + i);
+    if (!used.has(label)) return label;
+  }
+  return `G${items.length + 1}`;
+}
+
 export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
   const { data: workout, isLoading } = useWorkout(workoutId ?? '');
   const updateMeta = useUpdateWorkout();
@@ -423,6 +434,8 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
   const [pickOpen, setPickOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (workout) {
@@ -470,18 +483,29 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
     setItems((prev) => prev.filter((_, i) => i !== idx));
     markDirty();
   };
-  const moveItem = (idx: number, dir: -1 | 1) => {
+  const addExercise = (ex: Exercise) => {
+    setItems((prev) => [...prev, newItem(ex, prev.length)]);
+    markDirty();
+  };
+
+  const reorderItems = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
     setItems((prev) => {
       const next = [...prev];
-      const j = idx + dir;
-      if (j < 0 || j >= next.length) return prev;
-      [next[idx], next[j]] = [next[j], next[idx]];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
       return next;
     });
     markDirty();
   };
-  const addExercise = (ex: Exercise) => {
-    setItems((prev) => [...prev, newItem(ex, prev.length)]);
+
+  const linkSupersetPair = (upperIndex: number) => {
+    const label = nextSupersetLabel(items);
+    setItems((prev) =>
+      prev.map((it, i) =>
+        i === upperIndex || i === upperIndex + 1 ? { ...it, groupLabel: label } : it,
+      ),
+    );
     markDirty();
   };
 
@@ -609,10 +633,26 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                 ) : (
                   <div className="space-y-2">
                     {items.map((it, idx) => (
-                      <Card key={`${it.exerciseId}-${idx}`}>
+                      <div key={`${it.exerciseId}-${idx}`} className="space-y-2">
+                        <Card
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragIndex(idx); }}
+                          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverIndex !== idx) setDragOverIndex(idx); }}
+                          onDragLeave={() => setDragOverIndex(null)}
+                          onDrop={() => {
+                            if (dragIndex !== null) reorderItems(dragIndex, idx);
+                            setDragIndex(null);
+                            setDragOverIndex(null);
+                          }}
+                          onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
+                          className={cn(
+                            dragIndex === idx && 'opacity-50 ring-2 ring-primary shadow-lg',
+                            dragOverIndex === idx && dragIndex !== idx && 'ring-2 ring-dashed ring-primary/60 bg-primary/5',
+                          )}
+                        >
                         <CardContent className="space-y-3 p-4">
                           <div className="flex items-start gap-2">
-                            <div className="pt-1 text-muted-foreground">
+                            <div className="cursor-grab pt-1 text-muted-foreground active:cursor-grabbing">
                               <GripVertical className="size-4" />
                             </div>
                             <div className="min-w-0 flex-1">
@@ -637,26 +677,6 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                                 )}
                             </div>
                             <div className="flex shrink-0 gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="size-7"
-                                onClick={() => moveItem(idx, -1)}
-                                disabled={idx === 0}
-                                aria-label="Move up"
-                              >
-                                <ChevronUp className="size-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="size-7"
-                                onClick={() => moveItem(idx, 1)}
-                                disabled={idx === items.length - 1}
-                                aria-label="Move down"
-                              >
-                                <ChevronDown className="size-4" />
-                              </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -708,24 +728,7 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-[11px]">RPE</Label>
-                              <Input
-                                type="number"
-                                step="0.5"
-                                value={String(it.prescription.rpe ?? '')}
-                                onChange={(e) =>
-                                  updatePrescription(idx, {
-                                    rpe: e.target.value
-                                      ? Number(e.target.value)
-                                      : undefined,
-                                  })
-                                }
-                                placeholder="7"
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[11px]">Rest</Label>
+                              <Label className="text-[11px]">Rest Between Sets</Label>
                               <Input
                                 value={String(it.prescription.rest ?? '')}
                                 onChange={(e) =>
@@ -734,6 +737,41 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                                 placeholder="90s"
                                 className="h-8"
                               />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[11px]">Duration</Label>
+                              <Input
+                                value={String(it.prescription.duration ?? '')}
+                                onChange={(e) =>
+                                  updatePrescription(idx, { duration: e.target.value })
+                                }
+                                placeholder="60s"
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[11px]">Time Mode</Label>
+                              <Select
+                                value={
+                                  it.prescription.timeMode === 'STOPWATCH' ||
+                                  it.prescription.timeMode === 'COUNTDOWN'
+                                    ? (it.prescription.timeMode as 'STOPWATCH' | 'COUNTDOWN')
+                                    : undefined
+                                }
+                                onValueChange={(v) =>
+                                  updatePrescription(idx, {
+                                    timeMode: v as 'STOPWATCH' | 'COUNTDOWN',
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="Pick" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="STOPWATCH">Stopwatch</SelectItem>
+                                  <SelectItem value="COUNTDOWN">Countdown</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
 
@@ -762,7 +800,52 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                             </div>
                           </div>
                         </CardContent>
-                      </Card>
+                        </Card>
+                        {idx < items.length - 1 && (() => {
+                          const linked =
+                            it.groupLabel &&
+                            items[idx + 1].groupLabel &&
+                            it.groupLabel === items[idx + 1].groupLabel;
+                          if (linked) {
+                            return (
+                              <div className="flex items-center justify-center gap-2">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary/70">
+                                  {it.groupLabel}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-[11px] text-destructive hover:text-destructive"
+                                  onClick={() =>
+                                    setItems((prev) =>
+                                      prev.map((x, i) =>
+                                        i === idx || i === idx + 1
+                                          ? { ...x, groupLabel: undefined }
+                                          : x,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  ✕ Remove link
+                                </Button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="flex justify-center">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => linkSupersetPair(idx)}
+                              >
+                                Superset +
+                              </Button>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     ))}
                   </div>
                 )}

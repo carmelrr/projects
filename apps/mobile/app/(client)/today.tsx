@@ -5,7 +5,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Bell, ChevronRight, Clock, Gauge, PartyPopper } from 'lucide-react-native';
+import { Bell, ChevronRight, Clock, PartyPopper } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUpcomingWorkouts, type WorkoutInstance } from '@/hooks/useWorkouts';
@@ -153,14 +153,6 @@ function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
               <Clock size={12} color={theme.colors.success} strokeWidth={1.75} />
               <Text variant="caption" color="success">
                 {instance.log.durationMinutes} min
-              </Text>
-            </View>
-          ) : null}
-          {instance.log.overallRpe ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Gauge size={12} color={theme.colors.success} strokeWidth={1.75} />
-              <Text variant="caption" color="success">
-                RPE {instance.log.overallRpe}/10
               </Text>
             </View>
           ) : null}

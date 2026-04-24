@@ -25,9 +25,8 @@ export class LoggingController {
       workoutInstanceId: string;
       startedAt: string;
       finishedAt?: string;
-      perceivedExertion?: number;
       clientNotes?: string;
-      sets: { itemId: string; setNumber: number; reps?: number; weight?: number; time?: number; distance?: number; calories?: number; rpe?: number; notes?: string }[];
+      sets: { itemId: string; setNumber: number; reps?: number; weight?: number; time?: number; distance?: number; calories?: number; restSeconds?: number; notes?: string }[];
     },
   ) {
     if (!user.clientProfileId) {

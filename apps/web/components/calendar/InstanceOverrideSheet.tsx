@@ -24,10 +24,10 @@ type PrescriptionFields = {
   sets: string;
   reps: string;
   weight: string;
-  rpe: string;
   rest: string;
   duration: string;
   distance: string;
+  timeMode: '' | 'STOPWATCH' | 'COUNTDOWN';
 };
 
 function toPrescriptionFields(p: WorkoutItem['prescription']): PrescriptionFields {
@@ -35,10 +35,11 @@ function toPrescriptionFields(p: WorkoutItem['prescription']): PrescriptionField
     sets: p.sets !== undefined ? String(p.sets) : '',
     reps: p.reps ?? '',
     weight: p.weight ?? '',
-    rpe: p.rpe !== undefined ? String(p.rpe) : '',
     rest: p.rest ?? '',
     duration: p.duration ?? '',
     distance: p.distance ?? '',
+    timeMode:
+      p.timeMode === 'STOPWATCH' || p.timeMode === 'COUNTDOWN' ? p.timeMode : '',
   };
 }
 
@@ -47,10 +48,10 @@ function toPayload(f: PrescriptionFields): Record<string, unknown> {
   if (f.sets !== '') out.sets = Number(f.sets);
   if (f.reps !== '') out.reps = f.reps;
   if (f.weight !== '') out.weight = f.weight;
-  if (f.rpe !== '') out.rpe = Number(f.rpe);
   if (f.rest !== '') out.rest = f.rest;
   if (f.duration !== '') out.duration = f.duration;
   if (f.distance !== '') out.distance = f.distance;
+  if (f.timeMode !== '') out.timeMode = f.timeMode;
   return out;
 }
 
@@ -142,10 +143,10 @@ function ExerciseOverrideRow({
             fields.sets && `${fields.sets} sets`,
             fields.reps && `× ${fields.reps} reps`,
             fields.weight && `@ ${fields.weight}`,
-            fields.rpe && `RPE ${fields.rpe}`,
             fields.rest && `rest ${fields.rest}`,
             fields.duration && fields.duration,
             fields.distance && fields.distance,
+            fields.timeMode && fields.timeMode.toLowerCase(),
           ]
             .filter(Boolean)
             .join(' · ') || '—'}
@@ -182,17 +183,6 @@ function ExerciseOverrideRow({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">{t('instanceOverride.fields.rpe')}</Label>
-            <Input
-              type="number"
-              min={1}
-              max={10}
-              value={fields.rpe}
-              onChange={(e) => set('rpe', e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
             <Label className="text-xs">{t('instanceOverride.fields.rest')}</Label>
             <Input
               value={fields.rest}
@@ -207,6 +197,20 @@ function ExerciseOverrideRow({
               value={fields.duration}
               onChange={(e) => set('duration', e.target.value)}
               placeholder="e.g. 30min"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Time mode</Label>
+            <Input
+              value={fields.timeMode}
+              onChange={(e) => {
+                const v = e.target.value.toUpperCase();
+                if (v === 'STOPWATCH' || v === 'COUNTDOWN' || v === '') {
+                  set('timeMode', v as PrescriptionFields['timeMode']);
+                }
+              }}
+              placeholder="STOPWATCH or COUNTDOWN"
               className="h-8 text-sm"
             />
           </div>

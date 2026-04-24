@@ -148,6 +148,22 @@ export class WorkoutsController {
     return this.instancesService.moveInstance(id, user.orgId, body.scheduledDate);
   }
 
+  @Patch('calendar/:clientId/:date/reorder')
+  @Roles('OWNER', 'ADMIN_COACH', 'COACH')
+  async reorderDay(
+    @Param('clientId') clientId: string,
+    @Param('date') date: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { orderedInstanceIds: string[] },
+  ) {
+    return this.instancesService.reorderDayInstances(
+      clientId,
+      user.orgId,
+      date,
+      body.orderedInstanceIds,
+    );
+  }
+
   @Patch('instances/:id/skip')
   @Roles('OWNER', 'ADMIN_COACH', 'COACH')
   async skipInstance(
@@ -173,7 +189,6 @@ export class WorkoutsController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() body: {
       durationMinutes?: number;
-      overallRpe?: number;
       notes?: string;
       items?: Array<{
         exerciseId: string;
@@ -182,7 +197,7 @@ export class WorkoutsController {
           reps?: number;
           weight?: number;
           duration?: number;
-          rpe?: number;
+          restSeconds?: number;
           completed: boolean;
         }>;
       }>;

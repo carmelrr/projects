@@ -4,7 +4,8 @@ export interface WorkoutPrescription {
   weight?: { type: 'absolute' | 'percentage_1rm' | 'rpe_target'; value: number };
   tempo?: string; // "3-1-1-0"
   rest?: number; // seconds
-  rpe?: number;
+  duration?: number; // seconds
+  timeMode?: 'STOPWATCH' | 'COUNTDOWN';
   notes?: string;
   intervals?: { work: number; rest: number; rounds: number };
 }

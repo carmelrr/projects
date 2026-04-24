@@ -25,8 +25,8 @@ export interface WorkoutItem {
     duration?: string;
     distance?: string;
     weight?: string;
-    rpe?: number;
-    rest?: string;
+    rest?: string | number;
+    timeMode?: 'STOPWATCH' | 'COUNTDOWN';
     [key: string]: unknown;
   };
   exercise?: ExerciseRef;
@@ -47,6 +47,7 @@ export interface WorkoutInstance {
   clientUserId: string;
   templateId?: string;
   scheduledDate: string;
+  dayOrder?: number;
   movedFromDate?: string;
   status: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED' | 'MISSED' | 'MOVED';
   completedAt?: string;
@@ -62,7 +63,6 @@ export interface WorkoutLog {
   clientUserId: string;
   completedAt: string;
   durationMinutes?: number;
-  overallRpe?: number;
   notes?: string;
   items: LogItem[];
 }
@@ -77,7 +77,7 @@ export interface LogSet {
   reps?: number;
   weight?: number;
   duration?: number;
-  rpe?: number;
+  restSeconds?: number;
   completed: boolean;
 }
 
@@ -128,7 +128,6 @@ export function useWorkoutInstance(instanceId: string) {
 
 export interface SubmitLogPayload {
   durationMinutes?: number;
-  overallRpe?: number;
   notes?: string;
   items: LogItem[];
 }
