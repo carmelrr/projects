@@ -731,7 +731,7 @@ export default function WorkoutLogScreen() {
   const { seconds, formatted } = useTimer(timerRunning);
 
   // Build PR lookup map by exerciseId
-  const prMap = (personalRecords ?? []).reduce<Record<string, (typeof personalRecords)[number]>>(
+  const prMap = (personalRecords ?? []).reduce<Record<string, PersonalRecord>>(
     (acc, pr) => { acc[pr.exerciseId] = pr; return acc; },
     {},
   );

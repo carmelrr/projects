@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, Pencil, Trash2, Dumbbell, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -10,6 +10,8 @@ import {
   useDeleteExercise,
   useExerciseCategories,
   useCreateExerciseCategory,
+  useExerciseMuscleGroups,
+  useCreateExerciseMuscleGroup,
   type Exercise,
 } from '@/hooks/useExercises';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -39,10 +41,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/client';
 
-const MUSCLE_GROUPS = [
-  'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms',
-  'Core', 'Glutes', 'Quads', 'Hamstrings', 'Calves', 'Full Body',
-];
 const EQUIPMENT = [
   'Barbell', 'Dumbbell', 'Kettlebell', 'Cable', 'Machine',
   'Bodyweight', 'Resistance Band', 'Pull-up Bar', 'Foam Roller',
@@ -87,8 +85,12 @@ function ExerciseDialog({
   const update = useUpdateExercise();
   const { data: categories = [] } = useExerciseCategories();
   const createCategory = useCreateExerciseCategory();
+  const { data: muscleGroups = [] } = useExerciseMuscleGroups();
+  const createMuscleGroup = useCreateExerciseMuscleGroup();
   const [newCatInput, setNewCatInput] = useState('');
   const [showNewCat, setShowNewCat] = useState(false);
+  const [newMgInput, setNewMgInput] = useState('');
+  const [showNewMg, setShowNewMg] = useState(false);
 
   const handleCreateCategory = async () => {
     const name = newCatInput.trim();
@@ -103,6 +105,19 @@ function ExerciseDialog({
     }
   };
 
+  const handleCreateMuscleGroup = async () => {
+    const name = newMgInput.trim();
+    if (!name) return;
+    try {
+      await createMuscleGroup.mutateAsync(name);
+      setForm((f) => ({ ...f, muscleGroups: [...f.muscleGroups, name] }));
+      setNewMgInput('');
+      setShowNewMg(false);
+    } catch {
+      toast.error('Failed to create muscle group');
+    }
+  };
+
   const [form, setForm] = useState({
     name: initial?.name ?? '',
     description: initial?.description ?? '',
@@ -114,6 +129,15 @@ function ExerciseDialog({
     videoUrl: initial?.videoUrl ?? '',
     isPrBased: initial?.isPrBased ?? false,
   });
+
+  useEffect(() => {
+    if (!open) {
+      setNewCatInput('');
+      setShowNewCat(false);
+      setNewMgInput('');
+      setShowNewMg(false);
+    }
+  }, [open]);
 
   const toggleArr = (field: 'muscleGroups' | 'equipment', val: string) =>
     setForm((f) => ({
@@ -221,7 +245,7 @@ function ExerciseDialog({
           <div className="space-y-2">
             <Label>{t('exercises.dialog.muscleGroups')}</Label>
             <div className="flex flex-wrap gap-1.5">
-              {MUSCLE_GROUPS.map((m) => (
+              {muscleGroups.map((m) => (
                 <ChipToggle
                   key={m}
                   label={m}
@@ -229,7 +253,39 @@ function ExerciseDialog({
                   onClick={() => toggleArr('muscleGroups', m)}
                 />
               ))}
+              <button
+                type="button"
+                onClick={() => setShowNewMg(true)}
+                className="rounded-full px-2.5 py-1 text-xs font-medium transition-colors border border-dashed border-border hover:bg-muted/50"
+              >
+                ➕ Add
+              </button>
             </div>
+            {showNewMg && (
+              <div className="flex gap-2">
+                <Input
+                  value={newMgInput}
+                  onChange={(e) => setNewMgInput(e.target.value)}
+                  placeholder="Muscle group name"
+                  className="flex-1"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); handleCreateMuscleGroup(); }
+                    if (e.key === 'Escape') { setShowNewMg(false); setNewMgInput(''); }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleCreateMuscleGroup}
+                  disabled={!newMgInput.trim() || createMuscleGroup.isPending}
+                >
+                  Add
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setShowNewMg(false); setNewMgInput(''); }}>
+                  ✕
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -327,6 +383,7 @@ export default function ExercisesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Exercise | undefined>();
   const { data: allCategories = [] } = useExerciseCategories();
+  const { data: allMuscleGroups = [] } = useExerciseMuscleGroups();
 
   const { data, isLoading } = useExercises({
     search: search || undefined,
@@ -406,7 +463,7 @@ export default function ExercisesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('exercises.filter.allMuscleGroups')}</SelectItem>
-                {MUSCLE_GROUPS.map((m) => (
+                {allMuscleGroups.map((m) => (
                   <SelectItem key={m} value={m}>
                     {m}
                   </SelectItem>

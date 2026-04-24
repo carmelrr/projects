@@ -39,6 +39,21 @@ export class ExercisesController {
     return { name };
   }
 
+  @Get('muscle-groups')
+  async listMuscleGroups(@CurrentUser() user: CurrentUserPayload) {
+    return this.exercisesService.listMuscleGroups(user.orgId);
+  }
+
+  @Post('muscle-groups')
+  @Roles('OWNER', 'ADMIN_COACH', 'COACH')
+  async createMuscleGroup(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { name: string },
+  ) {
+    const name = await this.exercisesService.createMuscleGroup(user.orgId, body.name);
+    return { name };
+  }
+
   @Get(':id')
   async get(
     @Param('id') id: string,

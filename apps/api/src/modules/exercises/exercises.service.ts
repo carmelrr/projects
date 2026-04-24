@@ -92,6 +92,11 @@ export class ExercisesService {
     'Stretching', 'Balance', 'Olympic',
   ];
 
+  private readonly DEFAULT_MUSCLE_GROUPS = [
+    'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms',
+    'Core', 'Glutes', 'Quads', 'Hamstrings', 'Calves', 'Full Body',
+  ];
+
   async listCategories(orgId: string): Promise<string[]> {
     const snap = await this.firebase.orgExerciseCategories(orgId).orderBy('name').get();
     const custom = snap.docs.map((d) => (d.data() as { name: string }).name);
@@ -103,6 +108,24 @@ export class ExercisesService {
     if (!trimmed) throw new Error('Category name is required');
     const id = this.firebase.generateId();
     await this.firebase.orgExerciseCategories(orgId).doc(id).set({
+      name: trimmed,
+      orgId,
+      createdAt: new Date().toISOString(),
+    });
+    return trimmed;
+  }
+
+  async listMuscleGroups(orgId: string): Promise<string[]> {
+    const snap = await this.firebase.orgMuscleGroups(orgId).orderBy('name').get();
+    const custom = snap.docs.map((d) => (d.data() as { name: string }).name);
+    return Array.from(new Set([...this.DEFAULT_MUSCLE_GROUPS, ...custom])).sort();
+  }
+
+  async createMuscleGroup(orgId: string, name: string): Promise<string> {
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error('Muscle group name is required');
+    const id = this.firebase.generateId();
+    await this.firebase.orgMuscleGroups(orgId).doc(id).set({
       name: trimmed,
       orgId,
       createdAt: new Date().toISOString(),

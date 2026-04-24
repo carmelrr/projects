@@ -17,7 +17,7 @@ import {
   type WorkoutItem,
 } from '@/hooks/useWorkouts';
 import { useExercises, useCreateExercise, type Exercise } from '@/hooks/useExercises';
-import { useExerciseCategories, useCreateExerciseCategory } from '@/hooks/useExercises';
+import { useExerciseCategories, useCreateExerciseCategory, useExerciseMuscleGroups, useCreateExerciseMuscleGroup } from '@/hooks/useExercises';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -54,11 +54,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 type DraftItem = Omit<WorkoutItem, 'id'> & { id?: string };
 
-const EX_MUSCLE_GROUPS = [
-  'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms',
-  'Core', 'Glutes', 'Quads', 'Hamstrings', 'Calves', 'Full Body',
-];
-
 function newItem(exercise: Exercise, orderIndex: number): DraftItem {
   return {
     exerciseId: exercise.id,
@@ -92,10 +87,14 @@ function PickExerciseDialog({
   const [createError, setCreateError] = useState<string | null>(null);
   const [newCatInput, setNewCatInput] = useState('');
   const [showNewCat, setShowNewCat] = useState(false);
+  const [newMgInput, setNewMgInput] = useState('');
+  const [showNewMg, setShowNewMg] = useState(false);
   const { data, isLoading } = useExercises({ search });
   const { data: categories = [] } = useExerciseCategories();
+  const { data: muscleGroups = [] } = useExerciseMuscleGroups();
   const createExercise = useCreateExercise();
   const createCategory = useCreateExerciseCategory();
+  const createMuscleGroup = useCreateExerciseMuscleGroup();
 
   useEffect(() => {
     if (!open) {
@@ -105,6 +104,8 @@ function PickExerciseDialog({
       setCreateError(null);
       setNewCatInput('');
       setShowNewCat(false);
+      setNewMgInput('');
+      setShowNewMg(false);
     }
   }, [open]);
 
@@ -126,6 +127,19 @@ function PickExerciseDialog({
       setShowNewCat(false);
     } catch {
       toast.error('Failed to create category');
+    }
+  };
+
+  const handleCreateMuscleGroup = async () => {
+    const name = newMgInput.trim();
+    if (!name) return;
+    try {
+      await createMuscleGroup.mutateAsync(name);
+      setForm((f) => ({ ...f, muscleGroups: [...f.muscleGroups, name] }));
+      setNewMgInput('');
+      setShowNewMg(false);
+    } catch {
+      toast.error('Failed to create muscle group');
     }
   };
 
@@ -298,7 +312,7 @@ function PickExerciseDialog({
             <div className="space-y-2">
               <Label>Muscle groups</Label>
               <div className="flex flex-wrap gap-1.5">
-                {EX_MUSCLE_GROUPS.map((m) => (
+                {muscleGroups.map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -313,7 +327,39 @@ function PickExerciseDialog({
                     {m}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setShowNewMg(true)}
+                  className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted/50"
+                >
+                  ➕ Add
+                </button>
               </div>
+              {showNewMg && (
+                <div className="flex gap-2">
+                  <input
+                    value={newMgInput}
+                    onChange={(e) => setNewMgInput(e.target.value)}
+                    placeholder="Muscle group name"
+                    className="flex-1 rounded border border-input bg-background px-2 py-1 text-sm"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleCreateMuscleGroup(); }
+                      if (e.key === 'Escape') { setShowNewMg(false); setNewMgInput(''); }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleCreateMuscleGroup}
+                    disabled={!newMgInput.trim() || createMuscleGroup.isPending}
+                  >
+                    Add
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowNewMg(false); setNewMgInput(''); }}>
+                    ✕
+                  </Button>
+                </div>
+              )}
             </div>
             <Separator />
             {createError && (

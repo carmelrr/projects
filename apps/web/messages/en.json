@@ -456,6 +456,7 @@
       "difficultyIntermediate": "Intermediate",
       "difficultyAdvanced": "Advanced",
       "muscleGroups": "Muscle groups",
+      "muscleGroupPlaceholder": "Muscle group name",
       "equipment": "Equipment",
       "descLabel": "Description",
       "descPlaceholder": "Short description…",

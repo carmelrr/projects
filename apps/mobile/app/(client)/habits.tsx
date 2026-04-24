@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, Leaf } from 'lucide-react-native';
 import {
   useHabitDefinitions,
@@ -152,6 +153,7 @@ function HabitRow({
 
 export default function HabitsScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const date = useMemo(() => todayStr(), []);
   const { data: defs, isLoading: loadingDefs, refetch: refetchDefs } =
     useHabitDefinitions();
@@ -214,7 +216,7 @@ export default function HabitsScreen() {
         keyExtractor={(d) => d.id}
         contentContainerStyle={{
           padding: theme.spacing[5],
-          paddingBottom: theme.spacing[10],
+          paddingBottom: Math.max(theme.spacing[10], 76 + insets.bottom + theme.spacing[4]),
         }}
         ItemSeparatorComponent={() => (
           <View style={{ height: theme.spacing[2.5] }} />

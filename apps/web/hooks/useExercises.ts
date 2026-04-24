@@ -104,3 +104,22 @@ export function useCreateExerciseCategory() {
     },
   });
 }
+
+export function useExerciseMuscleGroups() {
+  return useQuery({
+    queryKey: ['exercise-muscle-groups'],
+    queryFn: () => api.get<string[]>('/exercises/muscle-groups'),
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateExerciseMuscleGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      api.post<{ name: string }>('/exercises/muscle-groups', { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['exercise-muscle-groups'] });
+    },
+  });
+}

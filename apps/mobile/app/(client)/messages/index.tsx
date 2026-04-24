@@ -7,6 +7,7 @@ import {
   Modal,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MessageSquare, Plus, X } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
 import {
@@ -127,6 +128,7 @@ function ThreadRow({
 
 export default function MessagesScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { data: threads, isLoading, refetch, isRefetching } = useThreads();
   const { data: coaches } = useCoaches();
@@ -150,7 +152,7 @@ export default function MessagesScreen() {
         keyExtractor={(t) => t.id}
         contentContainerStyle={{
           padding: theme.spacing[5],
-          paddingBottom: theme.spacing[10],
+          paddingBottom: Math.max(theme.spacing[10], 76 + insets.bottom + theme.spacing[4]),
         }}
         ItemSeparatorComponent={() => (
           <View style={{ height: theme.spacing[2.5] }} />

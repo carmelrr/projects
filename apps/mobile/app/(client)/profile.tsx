@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Alert, ScrollView, I18nManager } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
@@ -58,6 +59,7 @@ function Divider() {
 
 export default function ProfileScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuthStore();
 
   const [editing, setEditing] = useState(false);
@@ -121,7 +123,7 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={{
           padding: theme.spacing[5],
-          paddingBottom: theme.spacing[16],
+          paddingBottom: Math.max(theme.spacing[16], 76 + insets.bottom + theme.spacing[4]),
           gap: theme.spacing[5],
         }}
       >

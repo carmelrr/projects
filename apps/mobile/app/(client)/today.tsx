@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Bell, ChevronRight, Clock, Gauge, PartyPopper } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUpcomingWorkouts, type WorkoutInstance } from '@/hooks/useWorkouts';
 import { useUnreadCount } from '@/hooks/useNotifications';
@@ -268,6 +269,7 @@ interface Section {
 
 export default function TodayScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { data: instances, isLoading, refetch, isRefetching } =
     useUpcomingWorkouts(7);
@@ -324,7 +326,7 @@ export default function TodayScreen() {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={{
           padding: theme.spacing[5],
-          paddingBottom: theme.spacing[10],
+          paddingBottom: Math.max(theme.spacing[10], 76 + insets.bottom + theme.spacing[4]),
         }}
         ItemSeparatorComponent={() => <View style={{ height: theme.spacing[3] }} />}
         refreshControl={

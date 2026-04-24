@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { BarChart3, ChevronRight } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sparkline } from '@/components/Sparkline';
 import {
   useMetricDefinitions,
@@ -230,6 +231,7 @@ function MetricRow({
 
 export default function MetricsScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { data: definitions, isLoading: loadingDefs } = useMetricDefinitions();
   const { data: latestEntries, isLoading: loadingLatest } = useLatestMetrics();
   const [logTarget, setLogTarget] = useState<MetricDefinition | null>(null);
@@ -248,7 +250,7 @@ export default function MetricsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{
           padding: theme.spacing[5],
-          paddingBottom: theme.spacing[10],
+          paddingBottom: Math.max(theme.spacing[10], 76 + insets.bottom + theme.spacing[4]),
         }}
         ItemSeparatorComponent={() => (
           <View style={{ height: theme.spacing[2.5] }} />

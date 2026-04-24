@@ -115,6 +115,10 @@ export class FirebaseService implements OnModuleInit {
     return this._db.collection('organizations').doc(orgId).collection('workoutInstanceOverrides');
   }
 
+  orgMuscleGroups(orgId: string) {
+    return this._db.collection('organizations').doc(orgId).collection('muscleGroups');
+  }
+
   clientAssignments(orgId: string) {
     return this._db.collection('organizations').doc(orgId).collection('clientAssignments');
   }
