@@ -414,8 +414,9 @@ function InstanceDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {tpl?.title ?? instance.title ?? t('clientDetail.calendar.details.defaultTitle')}
@@ -502,6 +503,7 @@ function InstanceDialog({
       open={overrideOpen}
       onOpenChange={setOverrideOpen}
     />
+    </>
   );
 }
 
