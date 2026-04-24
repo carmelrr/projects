@@ -98,7 +98,7 @@ export default function LoginScreen() {
     <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View
           style={{
@@ -207,8 +207,12 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               placeholder="••••••••"
               secureTextEntry
-              textContentType="password"
-              autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType={Platform.OS === 'ios' ? 'password' : 'none'}
+              autoComplete={Platform.OS === 'android' ? 'off' : 'current-password'}
+              importantForAutofill={Platform.OS === 'android' ? 'no' : 'auto'}
+              blurOnSubmit={false}
               onSubmitEditing={handleLogin}
               returnKeyType="go"
               containerStyle={{ marginBottom: theme.spacing[4] }}

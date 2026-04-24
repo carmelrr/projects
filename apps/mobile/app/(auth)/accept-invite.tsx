@@ -94,11 +94,12 @@ export default function AcceptInviteScreen() {
     <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={{ padding: theme.spacing[6] }}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="none"
         >
           <Pressable
             onPress={() => router.back()}
@@ -239,20 +240,33 @@ export default function AcceptInviteScreen() {
             <Input
               label="Password"
               value={form.password}
-              onChangeText={(password) => setForm({ ...form, password })}
+              onChangeText={(password) =>
+                setForm((prev) => ({ ...prev, password }))
+              }
               placeholder="At least 8 characters"
               secureTextEntry
-              textContentType="newPassword"
-              autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType={Platform.OS === 'ios' ? 'newPassword' : 'none'}
+              autoComplete={Platform.OS === 'android' ? 'off' : 'new-password'}
+              importantForAutofill={Platform.OS === 'android' ? 'no' : 'auto'}
+              blurOnSubmit={false}
               containerStyle={{ marginBottom: theme.spacing[4] }}
             />
 
             <Input
               label="Confirm password"
               value={form.confirm}
-              onChangeText={(confirm) => setForm({ ...form, confirm })}
+              onChangeText={(confirm) =>
+                setForm((prev) => ({ ...prev, confirm }))
+              }
               secureTextEntry
-              textContentType="newPassword"
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType={Platform.OS === 'ios' ? 'newPassword' : 'none'}
+              autoComplete={Platform.OS === 'android' ? 'off' : 'new-password'}
+              importantForAutofill={Platform.OS === 'android' ? 'no' : 'auto'}
+              blurOnSubmit={false}
               containerStyle={{ marginBottom: theme.spacing[4] }}
             />
 
