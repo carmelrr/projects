@@ -211,7 +211,7 @@ export default function MetricDetailScreen() {
   const { data: history, isLoading } = useMetricHistory(metricId!, windowDays);
 
   return (
-    <Screen>
+    <Screen edges={['top', 'bottom']}>
       <View
         style={{
           flexDirection: 'row',

@@ -903,7 +903,7 @@ export default function WorkoutLogScreen() {
 
   if (isLoading || !initialized) {
     return (
-      <Screen edges={['top']}>
+      <Screen edges={['top', 'bottom']}>
         <View
           style={{
             padding: theme.spacing[4],
@@ -947,7 +947,7 @@ export default function WorkoutLogScreen() {
   };
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       {/* Top bar */}
       <View
         style={{

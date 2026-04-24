@@ -135,7 +135,7 @@ export default function ThreadScreen() {
   const canSend = text.trim().length > 0 && !send.isPending;
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <View
         style={{
           flexDirection: 'row',
