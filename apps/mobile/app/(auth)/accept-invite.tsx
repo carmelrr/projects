@@ -9,7 +9,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { ChevronLeft } from 'lucide-react-native';
-import { Screen, Card, Text, Input, Button, Icon, OwlLogo, FadeInUp } from '@/components/ui';
+import { Screen, Card, Text, Input, PasswordInput, Button, Icon, OwlLogo, FadeInUp } from '@/components/ui';
 import { useTheme, withAlpha } from '@/lib/theme';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -278,12 +278,11 @@ export default function AcceptInviteScreen() {
               />
             </View>
 
-            <Input
+            <PasswordInput
               label="Password"
               value={form.password}
               onChangeText={setPassword}
               placeholder="At least 8 characters"
-              secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               textContentType={Platform.OS === 'ios' ? 'newPassword' : 'none'}
@@ -293,11 +292,10 @@ export default function AcceptInviteScreen() {
               containerStyle={fieldContainer}
             />
 
-            <Input
+            <PasswordInput
               label="Confirm password"
               value={form.confirm}
               onChangeText={setConfirm}
-              secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               textContentType={Platform.OS === 'ios' ? 'newPassword' : 'none'}

@@ -25,6 +25,9 @@ export type { AvatarProps, AvatarSize, AvatarTone } from './Avatar';
 export { Input } from './Input';
 export type { InputProps } from './Input';
 
+export { PasswordInput } from './PasswordInput';
+export type { PasswordInputProps } from './PasswordInput';
+
 export { OwlLogo } from './OwlLogo';
 export type { OwlLogoProps } from './OwlLogo';
 

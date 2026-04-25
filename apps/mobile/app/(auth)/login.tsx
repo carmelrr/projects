@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { Screen, Card, Text, Input, Button, OwlLogo, FadeInUp } from '@/components/ui';
+import { Screen, Card, Text, Input, PasswordInput, Button, OwlLogo, FadeInUp } from '@/components/ui';
 import { useTheme, withAlpha } from '@/lib/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { ApiError } from '@/lib/api';
@@ -203,12 +203,11 @@ export default function LoginScreen() {
               containerStyle={{ marginBottom: theme.spacing[4] }}
             />
 
-            <Input
+            <PasswordInput
               label="Password"
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               textContentType={Platform.OS === 'ios' ? 'password' : 'none'}

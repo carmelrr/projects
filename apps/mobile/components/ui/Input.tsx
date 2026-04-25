@@ -1,10 +1,18 @@
-import { forwardRef, memo, useState, type ReactNode } from 'react';
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   Platform,
   TextInput,
   View,
-  type TextInputProps,
   type StyleProp,
+  type TextInputProps,
   type ViewStyle,
 } from 'react-native';
 import { Text } from './Text';
@@ -23,16 +31,14 @@ export interface InputProps extends Omit<TextInputProps, 'style'> {
 
 /**
  * Input — themed TextInput wrapper with label, error, and icon slots.
- * Border uses theme.colors.input (resting) / ring (focus) / destructive (error).
  *
- * NOTE on Android keyboard-blur fix: the wrapping View MUST keep a stable
- * style-key shape across renders. If we conditionally add elevation/shadow*
- * keys when `focused` flips, Android can rebuild the underlying native view
- * and a `secureTextEntry` child TextInput will lose focus on the very first
- * keystroke (which dismisses the keyboard). Here we always emit the same
- * keys and only toggle their *values*. We also render this Input as a
- * `memo` so a sibling input's value-change can't force-re-render the
- * password field's wrapper.
+ * Android keyboard-blur fix: every prop reaching the inner native View /
+ * TextInput is memoized. Style objects keep stable references between
+ * renders unless their dependencies actually change. Without this, Android
+ * tears down and recreates the EditText backing a `secureTextEntry`
+ * TextInput on the first keystroke (parent View receives a fresh inline
+ * style object) which dismisses the keyboard. For an even safer
+ * password-only experience, see `PasswordInput` (no internal focus state).
  */
 const InputInner = forwardRef<TextInput, InputProps>(function Input(
   {
@@ -55,43 +61,96 @@ const InputInner = forwardRef<TextInput, InputProps>(function Input(
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
 
+  // Keep latest user-supplied focus handlers in a ref so our wrappers below
+  // can stay referentially stable across renders.
+  const onFocusRef = useRef(onFocus);
+  const onBlurRef = useRef(onBlur);
+  onFocusRef.current = onFocus;
+  onBlurRef.current = onBlur;
+
+  const handleFocus = useCallback<NonNullable<TextInputProps['onFocus']>>(
+    (e) => {
+      setFocused(true);
+      onFocusRef.current?.(e);
+    },
+    [],
+  );
+  const handleBlur = useCallback<NonNullable<TextInputProps['onBlur']>>(
+    (e) => {
+      setFocused(false);
+      onBlurRef.current?.(e);
+    },
+    [],
+  );
+
   const borderColor = error
     ? theme.colors.destructive
     : focused
     ? theme.colors.ring
     : theme.colors.input;
 
-  // Stable iOS shadow shape — same keys every render, only values change.
+  // Stable iOS-only shadow values — keys are always present so Android does
+  // not see the wrapper View's style shape change between renders.
   const showShadow = focused && !error && Platform.OS === 'ios';
+
+  const wrapperStyle = useMemo<ViewStyle>(
+    () => ({
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing[2],
+      borderWidth: 1,
+      borderColor,
+      borderRadius: theme.radii.md,
+      backgroundColor: editable ? theme.colors.background : theme.colors.muted,
+      paddingHorizontal: theme.spacing[3],
+      minHeight: 44,
+      shadowColor: theme.colors.ring,
+      shadowOpacity: showShadow ? 0.15 : 0,
+      shadowRadius: showShadow ? 4 : 0,
+      shadowOffset: { width: 0, height: 0 },
+    }),
+    [theme, borderColor, editable, showShadow],
+  );
+
+  const baseInputStyle = useMemo(
+    () => ({
+      flex: 1,
+      color: theme.colors.foreground,
+      fontSize: 14,
+      paddingVertical: theme.spacing[2.5],
+      ...(tabular ? { fontVariant: ['tabular-nums' as const] } : null),
+    }),
+    [theme, tabular],
+  );
+
+  const combinedInputStyle = useMemo(
+    () => [baseInputStyle, inputStyle],
+    [baseInputStyle, inputStyle],
+  );
+
+  const resolvedPlaceholderColor = useMemo(
+    () =>
+      placeholderTextColor ?? withAlpha(theme.colors.mutedForeground, 0.8),
+    [placeholderTextColor, theme],
+  );
+
+  const labelStyle = useMemo(
+    () => ({ marginBottom: theme.spacing[1.5] }),
+    [theme],
+  );
+  const messageStyle = useMemo(
+    () => ({ marginTop: theme.spacing[1] }),
+    [theme],
+  );
 
   return (
     <View style={containerStyle}>
       {label ? (
-        <Text
-          variant="captionMedium"
-          color="mutedForeground"
-          style={{ marginBottom: theme.spacing[1.5] }}
-        >
+        <Text variant="captionMedium" color="mutedForeground" style={labelStyle}>
           {label}
         </Text>
       ) : null}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: theme.spacing[2],
-          borderWidth: 1,
-          borderColor,
-          borderRadius: theme.radii.md,
-          backgroundColor: editable ? theme.colors.background : theme.colors.muted,
-          paddingHorizontal: theme.spacing[3],
-          minHeight: 44,
-          shadowColor: theme.colors.ring,
-          shadowOpacity: showShadow ? 0.15 : 0,
-          shadowRadius: showShadow ? 4 : 0,
-          shadowOffset: { width: 0, height: 0 },
-        }}
-      >
+      <View style={wrapperStyle}>
         {leftIcon ? <View>{leftIcon}</View> : null}
         <TextInput
           ref={ref}
@@ -100,25 +159,10 @@ const InputInner = forwardRef<TextInput, InputProps>(function Input(
           accessibilityLabel={rest.accessibilityLabel ?? label}
           accessibilityHint={rest.accessibilityHint ?? rest.placeholder}
           accessibilityState={{ disabled: !editable }}
-          onFocus={(e) => {
-            setFocused(true);
-            onFocus?.(e);
-          }}
-          onBlur={(e) => {
-            setFocused(false);
-            onBlur?.(e);
-          }}
-          placeholderTextColor={placeholderTextColor ?? withAlpha(theme.colors.mutedForeground, 0.8)}
-          style={[
-            {
-              flex: 1,
-              color: theme.colors.foreground,
-              fontSize: 14,
-              paddingVertical: theme.spacing[2.5],
-              ...(tabular ? { fontVariant: ['tabular-nums'] } : null),
-            },
-            inputStyle,
-          ]}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholderTextColor={resolvedPlaceholderColor}
+          style={combinedInputStyle}
         />
         {rightIcon ? <View>{rightIcon}</View> : null}
       </View>
@@ -128,12 +172,12 @@ const InputInner = forwardRef<TextInput, InputProps>(function Input(
           color="destructive"
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
-          style={{ marginTop: theme.spacing[1] }}
+          style={messageStyle}
         >
           {error}
         </Text>
       ) : hint ? (
-        <Text variant="caption" color="mutedForeground" style={{ marginTop: theme.spacing[1] }}>
+        <Text variant="caption" color="mutedForeground" style={messageStyle}>
           {hint}
         </Text>
       ) : null}
