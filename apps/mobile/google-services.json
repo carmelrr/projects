@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "1076962539759-3ahp341cksink5midc5ujuqfldirpka9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "owl.performance.com",
+            "certificate_hash": "63ca7314ec718a44c5051f5d97c36dc978c78dd5"
+          }
+        },
+        {
+          "client_id": "1076962539759-cj2kg2ibisvmsv347toih65qant3gu6c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "owl.performance.com",
+            "certificate_hash": "86f73d020fe41f3778d82abb4c52abbcc2bf923b"
+          }
+        },
+        {
           "client_id": "1076962539759-hdflsafusioqetfu2aksl6qh0vdo87o0.apps.googleusercontent.com",
           "client_type": 3
         }
