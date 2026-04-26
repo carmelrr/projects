@@ -38,6 +38,9 @@ export default function LoginPage() {
 
   function handleFirebaseError(err: unknown) {
     if (err instanceof FirebaseError) {
+      // Log the raw code so we can see exactly what Firebase returned.
+      // eslint-disable-next-line no-console
+      console.error('[auth] Firebase error code:', err.code, err.message);
       switch (err.code) {
         case 'auth/invalid-credential':
         case 'auth/invalid-login-credentials':
@@ -49,6 +52,10 @@ export default function LoginPage() {
         case 'auth/popup-closed-by-user':
         case 'auth/cancelled-popup-request':
           return ''; // user cancelled, no error
+        case 'auth/unauthorized-domain':
+          return 'This domain is not authorized for Google sign-in. Check Firebase Console → Authentication → Settings → Authorized domains.';
+        case 'auth/operation-not-allowed':
+          return 'Google sign-in is not enabled. Check Firebase Console → Authentication → Sign-in methods.';
         default:
           return t('auth.genericError');
       }
