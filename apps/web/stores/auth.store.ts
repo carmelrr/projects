@@ -1,6 +1,7 @@
 ﻿import { create } from 'zustand';
 import {
   signInWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -46,22 +47,29 @@ appleProvider.addScope('name');
 /**
  * Social sign-in on the web.
  *
- * We use `signInWithRedirect` directly (no popup) because:
- *  - Popups are frequently blocked in production (Vercel + third-party cookie
- *    restrictions, mobile browsers, embedded webviews).
- *  - The popup→redirect fallback we used to have was fragile: some browsers
- *    report `auth/popup-blocked`, others silently close the popup and surface
- *    `auth/popup-closed-by-user`, and in that mixed state users saw a generic
- *    "something went wrong" error instead of actually being redirected.
- *
- * `getRedirectResult()` in `hydrate()` + `onAuthStateChanged` pick up the
- * signed-in user when the browser lands back on the app after the provider
- * flow completes.
+ * We prefer `signInWithPopup` because it gives instant feedback and works
+ * reliably in modern desktop browsers. If the popup is blocked or the user is
+ * on a mobile browser that doesn't support popups, we fall back to
+ * `signInWithRedirect`. The redirect result is picked up by `getRedirectResult`
+ * inside `hydrate()`.
  */
-async function signInWithProvider(provider: AuthProvider): Promise<void> {
-  await signInWithRedirect(auth, provider);
-  // Note: `signInWithRedirect` navigates the browser away, so code after this
-  // line typically does not execute on success.
+async function signInWithProvider(provider: AuthProvider): Promise<'popup' | 'redirect'> {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    // Popup succeeded — caller can immediately read auth.currentUser.
+    void result; // result is used by onAuthStateChanged
+    return 'popup';
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    // Only fall back to redirect when the browser actively blocked the popup.
+    // `popup-closed-by-user` and `cancelled-popup-request` mean the user
+    // dismissed it themselves — re-throw so the caller can silently ignore it.
+    if (code === 'auth/popup-blocked') {
+      await signInWithRedirect(auth, provider);
+      return 'redirect';
+    }
+    throw err;
+  }
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -84,12 +92,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginWithGoogle: async () => {
     set({ isLoading: true });
     try {
-      await signInWithProvider(googleProvider);
-      // If popup path completed, onAuthStateChanged in hydrate() will fire and
-      // populate the store; explicit syncProfile is also safe here.
-      if (auth.currentUser) {
+      const mode = await signInWithProvider(googleProvider);
+      // Popup completed synchronously — sync profile now so the store is
+      // populated before the caller returns. onAuthStateChanged will also fire
+      // but the duplicate syncProfile call is idempotent.
+      if (mode === 'popup' && auth.currentUser) {
         await get().syncProfile(auth.currentUser);
       }
+      // 'redirect' mode: page navigates away; hydrate() picks up the result.
     } catch (err) {
       set({ isLoading: false });
       throw err;
@@ -99,8 +109,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginWithApple: async () => {
     set({ isLoading: true });
     try {
-      await signInWithProvider(appleProvider);
-      if (auth.currentUser) {
+      const mode = await signInWithProvider(appleProvider);
+      if (mode === 'popup' && auth.currentUser) {
         await get().syncProfile(auth.currentUser);
       }
     } catch (err) {

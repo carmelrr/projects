@@ -82,13 +82,21 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      // signInWithRedirect navigates the browser away. Code after the await
-      // will NOT run on success â€” the page reloads after the provider flow and
-      // the useEffect above handles post-login routing.
       if (provider === 'google') {
         await loginWithGoogle();
       } else {
         await loginWithApple();
+      }
+      // Popup completed — route based on profile state.
+      // (If the browser fell back to signInWithRedirect, the page will have
+      // already navigated away and this code won't run.)
+      const state = useAuthStore.getState();
+      if (state.user) {
+        router.push(state.user.role === 'CLIENT' ? '/client' : '/dashboard');
+      } else if (state.firebaseUser) {
+        router.push('/register');
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       const msg = handleFirebaseError(err);
