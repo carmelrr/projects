@@ -389,6 +389,7 @@ export class WorkoutInstancesService {
       notes?: string;
       items?: Array<{
         exerciseId: string;
+        note?: string;
         sets: Array<{
           setIndex: number;
           reps?: number;

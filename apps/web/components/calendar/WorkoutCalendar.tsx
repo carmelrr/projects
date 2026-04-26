@@ -11,6 +11,7 @@ import {
   Loader2,
   SkipForward,
   Calendar as CalendarIcon,
+  MessageSquare,
 } from 'lucide-react';
 import {
   DndContext,
@@ -32,6 +33,7 @@ import {
   useSkipInstance,
   useDeleteInstance,
   useWorkout,
+  useWorkoutInstance,
   type WorkoutInstance,
 } from '@/hooks/useWorkouts';
 import { useI18n, useT } from '@/lib/i18n/client';
@@ -393,6 +395,7 @@ function InstanceDialog({
   const { locale } = useI18n();
   const lc = bcp47(locale);
   const { data: tpl } = useWorkout(instance?.templateId ?? '');
+  const { data: fullInstance } = useWorkoutInstance(instance?.id ?? '');
   const move = useMoveInstance();
   const skip = useSkipInstance();
   const del = useDeleteInstance();
@@ -453,6 +456,35 @@ function InstanceDialog({
               {instance.notes}
             </p>
           )}
+          {/* Completed workout log */}
+          {instance.status === 'COMPLETED' && fullInstance?.log && (() => {
+            const log = fullInstance.log;
+            const exerciseItems = (fullInstance.template?.items ?? tpl?.items ?? []).filter(
+              (it) => (it.kind ?? 'EXERCISE') === 'EXERCISE' && !!it.exerciseId,
+            );
+            const nameMap = new Map(exerciseItems.map((it) => [it.exerciseId!, it.exercise?.name ?? it.exerciseId!]));
+            const itemsWithNotes = log.items?.filter((it) => it.note) ?? [];
+            if (!log.notes && itemsWithNotes.length === 0) return null;
+            return (
+              <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <MessageSquare className="size-3.5" />
+                  <span>Client notes</span>
+                </div>
+                {log.notes && (
+                  <p className="text-sm text-foreground">{log.notes}</p>
+                )}
+                {itemsWithNotes.map((it) => (
+                  <div key={it.exerciseId} className="space-y-0.5">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {nameMap.get(it.exerciseId) ?? it.exerciseId}
+                    </p>
+                    <p className="text-sm text-foreground">{it.note}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           {isScheduled && (
             <div className="space-y-1.5">
               <Label htmlFor="move-date">

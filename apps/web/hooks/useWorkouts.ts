@@ -102,6 +102,7 @@ export interface WorkoutLog {
   notes?: string;
   items: {
     exerciseId: string;
+    note?: string;
     sets: Array<{
       setIndex: number;
       reps?: number;
@@ -359,6 +360,7 @@ export interface SubmitLogPayload {
   notes?: string;
   items: {
     exerciseId: string;
+    note?: string;
     sets: Array<{
       setIndex: number;
       reps?: number;

@@ -1000,42 +1000,41 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                                     className="h-8"
                                   />
                                 </div>
-                                <div className="space-y-1">
-                                  <Label className="text-[11px]">Time Mode</Label>
-                                  <Select
-                                    value={
-                                      perRep
-                                        ? 'COUNTDOWN'
-                                        : it.prescription.timeMode === 'STOPWATCH' ||
-                                          it.prescription.timeMode === 'COUNTDOWN'
+                                {perRep ? (
+                                  <div className="space-y-1">
+                                    <Label className="text-[11px]">Time Mode</Label>
+                                    <div className="flex h-8 items-center rounded-md border border-border bg-muted/40 px-3 text-xs text-muted-foreground">
+                                      Countdown (fixed)
+                                    </div>
+                                  </div>
+                                ) : hasDuration ? (
+                                  <div className="space-y-1">
+                                    <Label className="text-[11px]">Time Mode</Label>
+                                    <Select
+                                      value={
+                                        it.prescription.timeMode === 'STOPWATCH' ||
+                                        it.prescription.timeMode === 'COUNTDOWN'
                                           ? (it.prescription.timeMode as
                                               | 'STOPWATCH'
                                               | 'COUNTDOWN')
                                           : undefined
-                                    }
-                                    onValueChange={(v) =>
-                                      updatePrescription(idx, {
-                                        timeMode: v as 'STOPWATCH' | 'COUNTDOWN',
-                                      })
-                                    }
-                                    disabled={perRep}
-                                  >
-                                    <SelectTrigger
-                                      className="h-8"
-                                      title={
-                                        perRep
-                                          ? 'Per-rep duration always uses countdown'
-                                          : undefined
+                                      }
+                                      onValueChange={(v) =>
+                                        updatePrescription(idx, {
+                                          timeMode: v as 'STOPWATCH' | 'COUNTDOWN',
+                                        })
                                       }
                                     >
-                                      <SelectValue placeholder="Pick" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="STOPWATCH">Stopwatch</SelectItem>
-                                      <SelectItem value="COUNTDOWN">Countdown</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
+                                      <SelectTrigger className="h-8">
+                                        <SelectValue placeholder="Pick" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="STOPWATCH">Stopwatch</SelectItem>
+                                        <SelectItem value="COUNTDOWN">Countdown</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : null}
                               </div>
                             );
                           })()}

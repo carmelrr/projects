@@ -59,6 +59,7 @@ interface ExerciseState {
   sets: SetState[];
   prescription: Record<string, unknown>;
   coachNotes?: string;
+  exerciseNote: string;
 }
 
 interface BlockCompletion {
@@ -127,6 +128,7 @@ function buildInitialExercises(items: WorkoutItem[] | undefined): ExerciseState[
         sets,
         prescription: it.prescription ?? {},
         coachNotes: it.coachNotes,
+        exerciseNote: '',
       };
     });
 }
@@ -510,16 +512,22 @@ function ExerciseTimerDialog({
   exerciseName,
   prescription,
   setCount,
+  nextExerciseName,
   onClose,
   onSetComplete,
+  onStartNext,
 }: {
   open: boolean;
   exerciseName: string;
   prescription: Record<string, unknown>;
   setCount: number;
+  /** Name of the next exercise that also has a timer, or undefined. */
+  nextExerciseName?: string;
   onClose: () => void;
   /** Called when WORK for a given (0-based) set finishes. */
   onSetComplete: (setIndex: number) => void;
+  /** Called when user wants to jump straight to the next exercise timer. */
+  onStartNext?: () => void;
 }) {
   const segments = useMemo(
     () => buildExerciseSegments(prescription, setCount),
@@ -685,6 +693,11 @@ function ExerciseTimerDialog({
               All sets complete!
             </p>
           )}
+          {isDone && nextExerciseName && (
+            <p className="text-center text-xs text-muted-foreground">
+              Next up: <span className="font-medium text-foreground">{nextExerciseName}</span>
+            </p>
+          )}
         </div>
 
         <DialogFooter className="flex-row justify-between gap-2 sm:justify-between">
@@ -693,9 +706,16 @@ function ExerciseTimerDialog({
           </Button>
           <div className="flex gap-2">
             {isDone ? (
-              <Button type="button" variant="outline" onClick={restart}>
-                <RotateCcw className="size-4" /> Restart
-              </Button>
+              <>
+                <Button type="button" variant="outline" onClick={restart}>
+                  <RotateCcw className="size-4" /> Restart
+                </Button>
+                {nextExerciseName && onStartNext && (
+                  <Button type="button" variant="default" onClick={onStartNext}>
+                    <PlayIcon className="size-4" /> Start next
+                  </Button>
+                )}
+              </>
             ) : (
               <>
                 <Button
@@ -787,7 +807,7 @@ export default function WorkoutLogPage() {
         const draftMap = new Map(draft.exercises.map((e) => [e.exerciseId, e]));
         const merged = initial.map((ex) => {
           const d = draftMap.get(ex.exerciseId);
-          return d ? { ...ex, sets: d.sets } : ex;
+          return d ? { ...ex, sets: d.sets, exerciseNote: d.exerciseNote ?? '' } : ex;
         });
         setExercises(merged);
         setBlockCompletions(draft.blockCompletions ?? {});
@@ -885,12 +905,19 @@ export default function WorkoutLogPage() {
     );
   };
 
+  const updateExerciseNote = (exIdx: number, note: string) => {
+    setExercises((prev) =>
+      prev.map((ex, i) => (i === exIdx ? { ...ex, exerciseNote: note } : ex)),
+    );
+  };
+
   const handleSubmit = async () => {
     const payload: SubmitLogPayload = {
       durationMinutes: Math.max(1, Math.round(session.seconds / 60)),
       notes: sessionNotes.trim() || undefined,
       items: exercises.map((ex) => ({
         exerciseId: ex.exerciseId,
+        note: ex.exerciseNote.trim() || undefined,
         sets: ex.sets.map((s, idx) => ({
           setIndex: idx,
           reps: s.reps ? Number(s.reps) : undefined,
@@ -1184,6 +1211,21 @@ export default function WorkoutLogPage() {
                           ))}
                         </div>
                       )}
+
+                      {/* Per-exercise note */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <StickyNote className="size-3" />
+                          <span>Exercise note</span>
+                        </div>
+                        <Textarea
+                          value={ex.exerciseNote}
+                          onChange={(e) => updateExerciseNote(exIdx, e.target.value)}
+                          placeholder="Note for this exercise…"
+                          rows={2}
+                          className="text-sm"
+                        />
+                      </div>
                     </>
                   )}
                 </CardContent>
@@ -1276,19 +1318,31 @@ export default function WorkoutLogPage() {
       </Dialog>
 
       {/* Exercise timer dialog */}
-      {timerExIdx !== null && exercises[timerExIdx] && (
-        <ExerciseTimerDialog
-          open={timerExIdx !== null}
-          exerciseName={exercises[timerExIdx].name}
-          prescription={exercises[timerExIdx].prescription}
-          setCount={exercises[timerExIdx].sets.length}
-          onClose={() => setTimerExIdx(null)}
-          onSetComplete={(setIdx) => {
-            const idx = timerExIdx;
-            if (idx !== null) markSetComplete(idx, setIdx);
-          }}
-        />
-      )}
+      {timerExIdx !== null && exercises[timerExIdx] && (() => {
+        const nextIdx = exercises.findIndex(
+          (ex, i) => i > timerExIdx && exerciseHasTimer(ex.prescription),
+        );
+        const nextEx = nextIdx !== -1 ? exercises[nextIdx] : undefined;
+        return (
+          <ExerciseTimerDialog
+            open={timerExIdx !== null}
+            exerciseName={exercises[timerExIdx].name}
+            prescription={exercises[timerExIdx].prescription}
+            setCount={exercises[timerExIdx].sets.length}
+            nextExerciseName={nextEx?.name}
+            onClose={() => setTimerExIdx(null)}
+            onSetComplete={(setIdx) => {
+              const idx = timerExIdx;
+              if (idx !== null) markSetComplete(idx, setIdx);
+            }}
+            onStartNext={
+              nextEx
+                ? () => setTimerExIdx(nextIdx)
+                : undefined
+            }
+          />
+        );
+      })()}
     </div>
   );
 }
