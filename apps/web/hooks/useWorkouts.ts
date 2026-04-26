@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -82,6 +83,14 @@ export interface WorkoutInstance {
   programAssignmentId?: string;
   template?: Workout;
   log?: WorkoutLog;
+  summary?: {
+    title?: string;
+    itemCount?: number;
+    estimatedDuration?: number;
+    type?: string;
+    blockKinds?: string[];
+    primaryMuscleGroups?: string[];
+  };
 }
 
 export interface WorkoutLog {
@@ -272,6 +281,119 @@ export function useOverrideInstanceItem() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['workout-instance', vars.instanceId] });
       qc.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
+// ── Client-facing hooks (the logged-in user IS the client) ────────────────
+
+/** Today's workouts for the logged-in client. */
+export function useTodayWorkouts() {
+  const { user } = useAuthStore();
+  const today = new Date().toISOString().split('T')[0];
+
+  return useQuery<WorkoutInstance[]>({
+    queryKey: ['today-workouts', user?.id, today],
+    queryFn: () =>
+      api.get<WorkoutInstance[]>(
+        `/workouts/calendar/${user!.id}?startDate=${today}&endDate=${today}`,
+      ),
+    enabled: !!user?.id,
+  });
+}
+
+/** Upcoming workouts (today through `days` ahead) for the logged-in client. */
+export function useUpcomingWorkouts(days = 7) {
+  const { user } = useAuthStore();
+  const today = new Date();
+  const end = new Date(today);
+  end.setDate(end.getDate() + days);
+  const startDate = today.toISOString().split('T')[0];
+  const endDate = end.toISOString().split('T')[0];
+
+  return useQuery<WorkoutInstance[]>({
+    queryKey: ['upcoming-workouts', user?.id, startDate, endDate],
+    queryFn: () =>
+      api.get<WorkoutInstance[]>(
+        `/workouts/calendar/${user!.id}?startDate=${startDate}&endDate=${endDate}`,
+      ),
+    enabled: !!user?.id,
+  });
+}
+
+export interface SubmitLogPayload {
+  durationMinutes?: number;
+  notes?: string;
+  items: {
+    exerciseId: string;
+    sets: Array<{
+      setIndex: number;
+      reps?: number;
+      weight?: number;
+      duration?: number;
+      restSeconds?: number;
+      completed: boolean;
+    }>;
+  }[];
+  blockCompletions?: Record<
+    string,
+    { kind: 'INTERVAL_TIMER' | 'NOTE'; totalWorkSec?: number }
+  >;
+}
+
+export function useSubmitLog(instanceId: string) {
+  const qc = useQueryClient();
+  const { user } = useAuthStore();
+  return useMutation({
+    mutationFn: (payload: SubmitLogPayload) =>
+      api.post<WorkoutLog>(`/workouts/instances/${instanceId}/log`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['today-workouts', user?.id] });
+      qc.invalidateQueries({ queryKey: ['upcoming-workouts', user?.id] });
+      qc.invalidateQueries({ queryKey: ['workout-instance', instanceId] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
+export interface PersonalRecord {
+  id: string;
+  clientUserId: string;
+  exerciseId: string;
+  exerciseName: string;
+  weight: number;
+  unit: string;
+  reps?: number;
+  recordedAt: string;
+  source: 'manual' | 'logged';
+  notes?: string;
+}
+
+export function usePersonalRecords() {
+  const { user } = useAuthStore();
+  return useQuery<PersonalRecord[]>({
+    queryKey: ['personal-records', user?.id],
+    queryFn: () => api.get<PersonalRecord[]>(`/clients/${user!.id}/personal-records`),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpsertPersonalRecord() {
+  const qc = useQueryClient();
+  const { user } = useAuthStore();
+  return useMutation({
+    mutationFn: (body: {
+      exerciseId: string;
+      exerciseName: string;
+      weight: number;
+      unit?: string;
+      reps?: number;
+      notes?: string;
+    }) =>
+      api.post<PersonalRecord>(`/clients/${user!.id}/personal-records`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['personal-records', user?.id] });
     },
   });
 }

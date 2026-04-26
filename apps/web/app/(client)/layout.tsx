@@ -2,19 +2,14 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useAuthStore } from '@/stores/auth.store';
-import { OwlLogo } from '@/components/brand/OwlLogo';
+import { ClientSidebar } from '@/components/layout/ClientSidebar';
+import { ClientMobileTopBar } from '@/components/layout/ClientMobileTopBar';
 import { BrandWatermark } from '@/components/brand/BrandWatermark';
-import { ThemeToggle } from '@/components/layout/ThemeToggle';
-import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
-import { Button } from '@/components/ui/button';
-import { useT } from '@/lib/i18n/client';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const t = useT();
-  const { user, isHydrated, hydrate, logout } = useAuthStore();
+  const { user, isHydrated, hydrate } = useAuthStore();
 
   useEffect(() => {
     if (!isHydrated) hydrate();
@@ -32,27 +27,21 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }, [isHydrated, user, router]);
 
   if (!isHydrated || !user || user.role !== 'CLIENT') {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-background lg:flex-row">
       <BrandWatermark />
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 lg:px-6">
-          <Link href="/client" className="flex items-center gap-2">
-            <OwlLogo variant="lockup" />
-          </Link>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <LocaleSwitcher />
-            <Button variant="ghost" size="sm" onClick={() => logout().then(() => router.push('/login'))}>
-              {t('common.signOut')}
-            </Button>
-          </div>
-        </div>
-      </header>
-      <main className="relative z-[2] flex-1">{children}</main>
+      <ClientMobileTopBar />
+      <div className="relative z-[2] hidden lg:block lg:w-64 lg:shrink-0">
+        <ClientSidebar />
+      </div>
+      <main className="relative z-[2] flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 }

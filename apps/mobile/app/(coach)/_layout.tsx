@@ -1,20 +1,17 @@
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { useEffect } from 'react';
-import { Redirect } from 'expo-router';
 import {
-  CalendarCheck,
-  LineChart,
-  Sprout,
+  LayoutDashboard,
+  Users,
+  ClipboardList,
   MessageSquare,
-  User,
+  MoreHorizontal,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
 import { registerForPushNotifications } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
-
-// ── Tab icon helper ────────────────────────────────────────────────────────
 
 function TabIcon({
   focused,
@@ -33,7 +30,7 @@ function TabIcon({
   );
 }
 
-export default function ClientLayout() {
+export default function CoachLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user, isHydrated } = useAuthStore();
@@ -46,7 +43,7 @@ export default function ClientLayout() {
 
   if (!isHydrated) return null;
   if (!user) return <Redirect href="/(auth)/login" />;
-  if (user.role !== 'CLIENT') return <Redirect href="/(coach)/dashboard" />;
+  if (user.role === 'CLIENT') return <Redirect href="/(client)/today" />;
 
   return (
     <Tabs
@@ -71,36 +68,37 @@ export default function ClientLayout() {
       }}
     >
       <Tabs.Screen
-        name="today"
+        name="dashboard"
         options={{
-          title: 'Today',
+          title: 'Dashboard',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={CalendarCheck} />
+            <TabIcon focused={focused} icon={LayoutDashboard} />
           ),
         }}
       />
       <Tabs.Screen
-        name="log/[instanceId]"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="metrics"
+        name="clients/index"
         options={{
-          title: 'Metrics',
+          title: 'Clients',
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={Users} />,
+        }}
+      />
+      <Tabs.Screen name="clients/[clientId]" options={{ href: null }} />
+      <Tabs.Screen
+        name="programs/index"
+        options={{
+          title: 'Programs',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={LineChart} />
+            <TabIcon focused={focused} icon={ClipboardList} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="habits"
-        options={{
-          title: 'Habits',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={Sprout} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="programs/[programId]/index" options={{ href: null }} />
+      <Tabs.Screen name="programs/[programId]/assign" options={{ href: null }} />
+      <Tabs.Screen name="workouts/index" options={{ href: null }} />
+      <Tabs.Screen name="workouts/[workoutId]" options={{ href: null }} />
+      <Tabs.Screen name="exercises/index" options={{ href: null }} />
+      <Tabs.Screen name="exercises/[exerciseId]" options={{ href: null }} />
       <Tabs.Screen
         name="messages/index"
         options={{
@@ -110,24 +108,13 @@ export default function ClientLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="messages/[threadId]" options={{ href: null }} />
       <Tabs.Screen
-        name="messages/[threadId]"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="metric/[metricId]"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="profile"
+        name="more"
         options={{
-          title: 'Profile',
+          title: 'More',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={User} />
+            <TabIcon focused={focused} icon={MoreHorizontal} />
           ),
         }}
       />

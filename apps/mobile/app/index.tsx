@@ -6,7 +6,13 @@ export default function Index() {
 
   if (!isHydrated) return null;
 
-  if (user) return <Redirect href="/(client)/today" />;
+  if (user) {
+    const role = user.role;
+    if (role === 'COACH' || role === 'ADMIN_COACH' || role === 'OWNER') {
+      return <Redirect href="/(coach)/dashboard" />;
+    }
+    return <Redirect href="/(client)/today" />;
+  }
   // Authenticated with Firebase but no Firestore profile — needs invite.
   if (firebaseUser) return <Redirect href="/(auth)/needs-invite" />;
   return <Redirect href="/(auth)/login" />;

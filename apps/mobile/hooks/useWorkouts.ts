@@ -258,3 +258,93 @@ export function useUpsertPersonalRecord() {
     },
   });
 }
+
+// ── Coach hooks ─────────────────────────────────────────────────────────────
+
+export function useWorkouts(query?: { search?: string; type?: string }) {
+  return useQuery({
+    queryKey: ['workouts', query],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (query?.search) params.set('search', query.search);
+      if (query?.type) params.set('type', query.type);
+      const qs = params.toString();
+      return api.get<{ items: WorkoutTemplate[]; total: number }>(
+        `/workouts${qs ? `?${qs}` : ''}`,
+      );
+    },
+  });
+}
+
+export function useWorkout(id: string) {
+  return useQuery({
+    queryKey: ['workout', id],
+    queryFn: () => api.get<WorkoutTemplate>(`/workouts/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useCreateWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<WorkoutTemplate> & { title: string }) =>
+      api.post<WorkoutTemplate>('/workouts', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workouts'] });
+    },
+  });
+}
+
+export function useUpdateWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<WorkoutTemplate> & { id: string }) =>
+      api.patch<WorkoutTemplate>(`/workouts/${id}`, body),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['workouts'] });
+      qc.invalidateQueries({ queryKey: ['workout', vars.id] });
+    },
+  });
+}
+
+export function useDeleteWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/workouts/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workouts'] });
+    },
+  });
+}
+
+export function useClientCalendar(
+  clientId: string,
+  startDate: string,
+  endDate: string,
+) {
+  return useQuery({
+    queryKey: ['calendar', clientId, startDate, endDate],
+    queryFn: () =>
+      api.get<WorkoutInstance[]>(
+        `/workouts/calendar/${clientId}?startDate=${startDate}&endDate=${endDate}`,
+      ),
+    enabled: !!clientId,
+  });
+}
+
+export function useScheduleWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      templateId: string;
+      clientId: string;
+      scheduledDate: string;
+      title?: string;
+      notes?: string;
+    }) => api.post<WorkoutInstance>('/workouts/schedule', body),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['calendar', vars.clientId] });
+    },
+  });
+}
+
