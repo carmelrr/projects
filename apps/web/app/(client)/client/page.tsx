@@ -209,11 +209,11 @@ export default function ClientHomePage() {
             <p className="font-semibold text-foreground">{t('client.mobileHint.title')}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{t('client.mobileHint.desc')}</p>
             <div className="mt-3 flex gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled>
                 <Apple className="size-3" />
                 {t('client.downloadIOS')}
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled>
                 <Play className="size-3" />
                 {t('client.downloadAndroid')}
               </Button>

@@ -160,10 +160,46 @@ export class WorkoutInstancesService {
             _hasOverride: true,
           };
         });
+
+        // Hydrate exercise details (name/videoUrl/etc.) so the client UI
+        // can render the workout runner without N+1 fetches.
+        const exerciseIds = Array.from(
+          new Set(
+            effectiveItems
+              .map((it) => it.exerciseId)
+              .filter((x): x is string => typeof x === 'string'),
+          ),
+        );
+        const exerciseById = new Map<string, Record<string, unknown>>();
+        await Promise.all(
+          exerciseIds.map(async (exId) => {
+            let snap = await this.firebase.orgExercises(orgId).doc(exId).get();
+            if (!snap.exists) snap = await this.firebase.exercises().doc(exId).get();
+            if (snap.exists) exerciseById.set(exId, { id: snap.id, ...snap.data() });
+          }),
+        );
+
+        const hydratedItems = effectiveItems.map((it) => {
+          const ex = exerciseById.get(it.exerciseId as string);
+          if (!ex) return it;
+          return {
+            ...it,
+            exercise: {
+              id: ex.id,
+              name: ex.name,
+              category: ex.category,
+              muscleGroups: ex.muscleGroups,
+              equipment: ex.equipment,
+              videoUrl: ex.videoUrl,
+              isPrBased: ex.isPrBased ?? false,
+            },
+          };
+        });
+
         (instance as Record<string, unknown>).template = {
           id: tplDoc.id,
           ...tplData,
-          items: effectiveItems,
+          items: hydratedItems,
         };
       }
     }
