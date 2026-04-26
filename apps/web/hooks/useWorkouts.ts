@@ -16,6 +16,7 @@ export interface WorkoutItem {
     distance?: string;
     weight?: string;
     rest?: string | number;
+    restBetweenReps?: string | number;
     timeMode?: 'STOPWATCH' | 'COUNTDOWN';
     [key: string]: unknown;
   };

@@ -156,6 +156,24 @@ function useTimer(running: boolean) {
 
 // ── Set Row ────────────────────────────────────────────────────────────────
 
+/**
+ * Parse a reps prescription into a numeric target.
+ * "10" → 10, "8-10" → 10 (upper bound, allow Stop early), "AMRAP"/"" → null.
+ */
+function parseRepTarget(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0) return Math.floor(v);
+  if (typeof v !== 'string') return null;
+  const raw = v.trim();
+  if (!raw) return null;
+  const range = raw.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+  if (range) return Number(range[2]);
+  const single = raw.match(/^(\d+)/);
+  if (single) return Number(single[1]);
+  return null;
+}
+
+type SetPhase = 'idle' | 'rep-work' | 'rep-rest' | 'done';
+
 function SetRow({
   setIndex,
   set,
@@ -173,16 +191,87 @@ function SetRow({
   const hasDuration = !!prescription.duration;
   const timeMode =
     prescription.timeMode === 'COUNTDOWN' ? 'COUNTDOWN' : 'STOPWATCH';
+
+  // Per-rep Tabata mode: reps + duration + a parseable rep count.
+  const workSeconds = parseSeconds(prescription.duration);
+  const repRestSeconds = parseSeconds(prescription.restBetweenReps);
+  const repTarget = parseRepTarget(prescription.reps);
+  const perRepMode = hasReps && hasDuration && !!repTarget && workSeconds > 0;
+  // In per-rep mode, time is intrinsically a countdown per rep.
+  const effectiveTimeMode: 'STOPWATCH' | 'COUNTDOWN' = perRepMode
+    ? 'COUNTDOWN'
+    : timeMode;
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [targetSeconds, setTargetSeconds] = useState<number | null>(null);
+  // Per-rep state (only used when perRepMode is true)
+  const [phase, setPhase] = useState<SetPhase>('idle');
+  const [currentRep, setCurrentRep] = useState(0); // 1..repTarget while running
+  const [activeWorkAccum, setActiveWorkAccum] = useState(0); // total work seconds completed
+
+  // Reset phase if prescription mode changes underneath us.
+  useEffect(() => {
+    if (!perRepMode && phase !== 'idle') {
+      setPhase('idle');
+      setCurrentRep(0);
+      setActiveWorkAccum(0);
+    }
+  }, [perRepMode, phase]);
 
   useEffect(() => {
     if (!timerRunning) return;
     const id = setInterval(() => {
       setTimerSeconds((prev) => {
         if (prev === null) return prev;
-        if (timeMode === 'COUNTDOWN') {
+
+        // Per-rep Tabata flow ─────────────────────────────────────────────
+        if (perRepMode) {
+          if (prev > 1) return prev - 1;
+          // prev <= 1 → segment finished
+          if (phase === 'rep-work') {
+            const nextWorkAccum = activeWorkAccum + workSeconds;
+            const isLastRep = currentRep >= (repTarget ?? 1);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            if (isLastRep) {
+              // Set complete
+              setActiveWorkAccum(nextWorkAccum);
+              setPhase('done');
+              setTimerRunning(false);
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success,
+              ).catch(() => {});
+              onChange({
+                duration: String(nextWorkAccum),
+                reps: String(currentRep),
+                completed: true,
+              });
+              return 0;
+            }
+            // More reps: go to rep-rest (or skip if 0)
+            setActiveWorkAccum(nextWorkAccum);
+            if (repRestSeconds > 0) {
+              setPhase('rep-rest');
+              setTargetSeconds(repRestSeconds);
+              return repRestSeconds;
+            }
+            // No rep rest → straight into the next rep
+            setCurrentRep((r) => r + 1);
+            setPhase('rep-work');
+            setTargetSeconds(workSeconds);
+            return workSeconds;
+          }
+          if (phase === 'rep-rest') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            setCurrentRep((r) => r + 1);
+            setPhase('rep-work');
+            setTargetSeconds(workSeconds);
+            return workSeconds;
+          }
+          return 0;
+        }
+
+        // Single-segment flow (legacy: COUNTDOWN of duration, or STOPWATCH).
+        if (effectiveTimeMode === 'COUNTDOWN') {
           if (prev <= 1) {
             setTimerRunning(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -195,7 +284,19 @@ function SetRow({
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [onChange, targetSeconds, timeMode, timerRunning]);
+  }, [
+    activeWorkAccum,
+    currentRep,
+    effectiveTimeMode,
+    onChange,
+    perRepMode,
+    phase,
+    repRestSeconds,
+    repTarget,
+    targetSeconds,
+    timerRunning,
+    workSeconds,
+  ]);
 
   const inputStyle = {
     borderWidth: 1,
@@ -280,8 +381,31 @@ function SetRow({
           <Pressable
             onPress={() => {
               if (timerRunning) {
+                // Stop / cancel
+                if (perRepMode) {
+                  // Sum the work from completed reps + partial current rep (work phase only)
+                  const partial =
+                    phase === 'rep-work'
+                      ? Math.max(0, workSeconds - (timerSeconds ?? 0))
+                      : 0;
+                  const total = activeWorkAccum + partial;
+                  onChange({
+                    duration: String(total),
+                    reps: String(
+                      Math.max(
+                        0,
+                        phase === 'rep-work' ? currentRep - 1 : currentRep,
+                      ),
+                    ),
+                  });
+                  setPhase('idle');
+                  setCurrentRep(0);
+                  setActiveWorkAccum(0);
+                  setTimerRunning(false);
+                  return;
+                }
                 const current = timerSeconds ?? 0;
-                if (timeMode === 'COUNTDOWN') {
+                if (effectiveTimeMode === 'COUNTDOWN') {
                   const target = targetSeconds ?? parseSeconds(prescription.duration);
                   const elapsed = Math.max(0, target - current);
                   onChange({ duration: String(elapsed) });
@@ -292,7 +416,17 @@ function SetRow({
                 return;
               }
 
-              if (timeMode === 'COUNTDOWN') {
+              // Start
+              if (perRepMode) {
+                setActiveWorkAccum(0);
+                setCurrentRep(1);
+                setPhase('rep-work');
+                setTargetSeconds(workSeconds);
+                setTimerSeconds(workSeconds);
+                setTimerRunning(true);
+                return;
+              }
+              if (effectiveTimeMode === 'COUNTDOWN') {
                 const target = parseSeconds(prescription.duration);
                 if (!target) return;
                 setTargetSeconds(target);
@@ -318,8 +452,12 @@ function SetRow({
           >
             <Text variant="caption" color="primary" tabular>
               {timerRunning
-                ? `Stop ${formatSeconds(timerSeconds ?? 0)}`
-                : `${timeMode === 'COUNTDOWN' ? 'Timer' : 'Stopwatch'} Start`}
+                ? perRepMode
+                  ? `${phase === 'rep-rest' ? 'Rest' : 'Rep'} ${currentRep}/${repTarget} · ${formatSeconds(timerSeconds ?? 0)}`
+                  : `Stop ${formatSeconds(timerSeconds ?? 0)}`
+                : perRepMode
+                  ? `Start ${repTarget}×${workSeconds}s`
+                  : `${effectiveTimeMode === 'COUNTDOWN' ? 'Timer' : 'Stopwatch'} Start`}
             </Text>
           </Pressable>
         </View>
@@ -478,8 +616,19 @@ function ExerciseBlock({
           {p.weight ? (
             <Badge variant="info">{prescStr(p.weight)} kg</Badge>
           ) : null}
-          {p.duration ? <Badge variant="info">{prescStr(p.duration)}</Badge> : null}
-          {p.timeMode ? <Badge variant="info">{prescStr(p.timeMode)}</Badge> : null}
+          {p.duration ? (
+            <Badge variant="info">
+              {p.reps ? `${prescStr(p.duration)} per rep` : prescStr(p.duration)}
+            </Badge>
+          ) : null}
+          {p.timeMode && !(p.reps && p.duration) ? (
+            <Badge variant="info">{prescStr(p.timeMode)}</Badge>
+          ) : null}
+          {p.restBetweenReps ? (
+            <Badge variant="muted">
+              Rest between reps {prescStr(p.restBetweenReps)}
+            </Badge>
+          ) : null}
           {p.rest ? (
             <Badge variant="muted">Rest between sets {prescStr(p.rest)}</Badge>
           ) : null}

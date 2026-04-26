@@ -25,17 +25,24 @@ type PrescriptionFields = {
   reps: string;
   weight: string;
   rest: string;
+  restBetweenReps: string;
   duration: string;
   distance: string;
   timeMode: '' | 'STOPWATCH' | 'COUNTDOWN';
 };
+
+function toStr(v: unknown): string {
+  if (v === undefined || v === null) return '';
+  return String(v);
+}
 
 function toPrescriptionFields(p: WorkoutItem['prescription']): PrescriptionFields {
   return {
     sets: p.sets !== undefined ? String(p.sets) : '',
     reps: p.reps ?? '',
     weight: p.weight ?? '',
-    rest: p.rest ?? '',
+    rest: toStr(p.rest),
+    restBetweenReps: toStr(p.restBetweenReps),
     duration: p.duration ?? '',
     distance: p.distance ?? '',
     timeMode:
@@ -49,6 +56,7 @@ function toPayload(f: PrescriptionFields): Record<string, unknown> {
   if (f.reps !== '') out.reps = f.reps;
   if (f.weight !== '') out.weight = f.weight;
   if (f.rest !== '') out.rest = f.rest;
+  if (f.restBetweenReps !== '') out.restBetweenReps = f.restBetweenReps;
   if (f.duration !== '') out.duration = f.duration;
   if (f.distance !== '') out.distance = f.distance;
   if (f.timeMode !== '') out.timeMode = f.timeMode;
@@ -188,6 +196,17 @@ function ExerciseOverrideRow({
               value={fields.rest}
               onChange={(e) => set('rest', e.target.value)}
               placeholder="e.g. 90s"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">
+              {t('instanceOverride.fields.restBetweenReps')}
+            </Label>
+            <Input
+              value={fields.restBetweenReps}
+              onChange={(e) => set('restBetweenReps', e.target.value)}
+              placeholder="e.g. 2s"
               className="h-8 text-sm"
             />
           </div>

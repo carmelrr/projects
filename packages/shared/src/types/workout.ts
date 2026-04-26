@@ -3,8 +3,20 @@ export interface WorkoutPrescription {
   reps?: string; // "8-10" or "12"
   weight?: { type: 'absolute' | 'percentage_1rm' | 'rpe_target'; value: number };
   tempo?: string; // "3-1-1-0"
-  rest?: number; // seconds
-  duration?: number; // seconds
+  rest?: number; // seconds — rest between sets
+  /**
+   * Rest between individual reps (seconds).
+   * Only meaningful when both `reps` and `duration` are set, in which case
+   * the trainee runs each rep as a Tabata-style segment with this rest in
+   * between. Ignored otherwise.
+   */
+  restBetweenReps?: number;
+  /**
+   * Seconds of work. When `reps` is also set, this is interpreted as the
+   * hold/work time PER REP (e.g. reps=10 + duration=3 → 10×3s holds).
+   * When `reps` is not set, this is the duration of the whole set.
+   */
+  duration?: number;
   timeMode?: 'STOPWATCH' | 'COUNTDOWN';
   notes?: string;
   intervals?: { work: number; rest: number; rounds: number };

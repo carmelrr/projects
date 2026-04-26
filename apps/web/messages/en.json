@@ -650,7 +650,8 @@
       "reps": "Reps",
       "weight": "Weight",
       "rpe": "RPE",
-      "rest": "Rest",
+      "rest": "Rest between sets",
+      "restBetweenReps": "Rest between reps",
       "duration": "Duration"
     }
   },

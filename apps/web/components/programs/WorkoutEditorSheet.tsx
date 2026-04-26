@@ -689,7 +689,7 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                             <div className="space-y-1">
                               <Label className="text-[11px]">Sets</Label>
                               <Input
@@ -727,53 +727,93 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                                 className="h-8"
                               />
                             </div>
-                            <div className="space-y-1">
-                              <Label className="text-[11px]">Rest Between Sets</Label>
-                              <Input
-                                value={String(it.prescription.rest ?? '')}
-                                onChange={(e) =>
-                                  updatePrescription(idx, { rest: e.target.value })
-                                }
-                                placeholder="90s"
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[11px]">Duration</Label>
-                              <Input
-                                value={String(it.prescription.duration ?? '')}
-                                onChange={(e) =>
-                                  updatePrescription(idx, { duration: e.target.value })
-                                }
-                                placeholder="60s"
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[11px]">Time Mode</Label>
-                              <Select
-                                value={
-                                  it.prescription.timeMode === 'STOPWATCH' ||
-                                  it.prescription.timeMode === 'COUNTDOWN'
-                                    ? (it.prescription.timeMode as 'STOPWATCH' | 'COUNTDOWN')
-                                    : undefined
-                                }
-                                onValueChange={(v) =>
-                                  updatePrescription(idx, {
-                                    timeMode: v as 'STOPWATCH' | 'COUNTDOWN',
-                                  })
-                                }
-                              >
-                                <SelectTrigger className="h-8">
-                                  <SelectValue placeholder="Pick" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="STOPWATCH">Stopwatch</SelectItem>
-                                  <SelectItem value="COUNTDOWN">Countdown</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
                           </div>
+
+                          {(() => {
+                            const hasReps = !!String(it.prescription.reps ?? '').trim();
+                            const hasDuration = !!String(
+                              it.prescription.duration ?? '',
+                            ).trim();
+                            const perRep = hasReps && hasDuration;
+                            return (
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                <div className="space-y-1">
+                                  <Label className="text-[11px]">Rest Between Sets</Label>
+                                  <Input
+                                    value={String(it.prescription.rest ?? '')}
+                                    onChange={(e) =>
+                                      updatePrescription(idx, { rest: e.target.value })
+                                    }
+                                    placeholder="90s"
+                                    className="h-8"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px]">
+                                    {perRep ? 'Duration (per rep)' : 'Duration'}
+                                  </Label>
+                                  <Input
+                                    value={String(it.prescription.duration ?? '')}
+                                    onChange={(e) =>
+                                      updatePrescription(idx, { duration: e.target.value })
+                                    }
+                                    placeholder={perRep ? '3s per rep' : '60s'}
+                                    className="h-8"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px]">Rest Between Reps</Label>
+                                  <Input
+                                    value={String(it.prescription.restBetweenReps ?? '')}
+                                    onChange={(e) =>
+                                      updatePrescription(idx, {
+                                        restBetweenReps: e.target.value,
+                                      })
+                                    }
+                                    placeholder={hasReps ? '2s' : '— add reps & duration'}
+                                    disabled={!perRep}
+                                    className="h-8"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px]">Time Mode</Label>
+                                  <Select
+                                    value={
+                                      perRep
+                                        ? 'COUNTDOWN'
+                                        : it.prescription.timeMode === 'STOPWATCH' ||
+                                          it.prescription.timeMode === 'COUNTDOWN'
+                                          ? (it.prescription.timeMode as
+                                              | 'STOPWATCH'
+                                              | 'COUNTDOWN')
+                                          : undefined
+                                    }
+                                    onValueChange={(v) =>
+                                      updatePrescription(idx, {
+                                        timeMode: v as 'STOPWATCH' | 'COUNTDOWN',
+                                      })
+                                    }
+                                    disabled={perRep}
+                                  >
+                                    <SelectTrigger
+                                      className="h-8"
+                                      title={
+                                        perRep
+                                          ? 'Per-rep duration always uses countdown'
+                                          : undefined
+                                      }
+                                    >
+                                      <SelectValue placeholder="Pick" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="STOPWATCH">Stopwatch</SelectItem>
+                                      <SelectItem value="COUNTDOWN">Countdown</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           <div className="grid gap-2 sm:grid-cols-[120px_1fr]">
                             <div className="space-y-1">
