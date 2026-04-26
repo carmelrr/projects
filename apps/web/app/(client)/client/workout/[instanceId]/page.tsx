@@ -12,6 +12,8 @@ import {
   Loader2,
   Pause,
   Play as PlayIcon,
+  RotateCcw,
+  SkipForward,
   StickyNote,
   Timer,
   X,
@@ -375,7 +377,333 @@ function NoteBlock({
   );
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────
+// ── Exercise Timer (auto-cycle work / rest across all sets) ──────────────
+
+type ExPhase = 'PREPARE' | 'WORK' | 'REP_REST' | 'SET_REST' | 'DONE';
+
+interface ExSegment {
+  phase: ExPhase;
+  seconds: number;
+  /** 0-based set index this segment belongs to. */
+  setIndex: number;
+  /** 0-based rep index within the set (for per-rep modes). */
+  repIndex?: number;
+  /** Total reps in this set, when per-rep. */
+  repsInSet?: number;
+  /** Whether this WORK segment is the final one for its set. */
+  lastWorkOfSet?: boolean;
+}
+
+function buildExerciseSegments(
+  prescription: Record<string, unknown>,
+  setCount: number,
+): ExSegment[] {
+  const num = (v: unknown): number => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  const duration = num(prescription.duration);
+  const reps = num(prescription.reps);
+  const restBetweenReps = num(prescription.restBetweenReps);
+  const restBetweenSets = num(prescription.rest);
+  const perRep = duration > 0 && reps > 1 && restBetweenReps > 0;
+
+  const segs: ExSegment[] = [];
+  segs.push({ phase: 'PREPARE', seconds: 5, setIndex: 0 });
+
+  for (let s = 0; s < setCount; s += 1) {
+    if (perRep) {
+      for (let r = 0; r < reps; r += 1) {
+        segs.push({
+          phase: 'WORK',
+          seconds: duration,
+          setIndex: s,
+          repIndex: r,
+          repsInSet: reps,
+          lastWorkOfSet: r === reps - 1,
+        });
+        if (r < reps - 1) {
+          segs.push({
+            phase: 'REP_REST',
+            seconds: restBetweenReps,
+            setIndex: s,
+            repIndex: r,
+          });
+        }
+      }
+    } else if (duration > 0) {
+      segs.push({
+        phase: 'WORK',
+        seconds: duration,
+        setIndex: s,
+        lastWorkOfSet: true,
+      });
+    }
+    if (s < setCount - 1 && restBetweenSets > 0) {
+      segs.push({ phase: 'SET_REST', seconds: restBetweenSets, setIndex: s });
+    }
+  }
+  segs.push({ phase: 'DONE', seconds: 0, setIndex: setCount - 1 });
+  return segs;
+}
+
+function exerciseHasTimer(prescription: Record<string, unknown>): boolean {
+  const n = Number(prescription.duration);
+  return Number.isFinite(n) && n > 0;
+}
+
+/** Plays a short beep using the Web Audio API. */
+function playBeep(freq: number, durationMs: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    const Ctx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationMs / 1000);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + durationMs / 1000 + 0.05);
+    osc.onended = () => ctx.close().catch(() => undefined);
+  } catch {
+    /* audio not available */
+  }
+}
+
+function ExerciseTimerDialog({
+  open,
+  exerciseName,
+  prescription,
+  setCount,
+  onClose,
+  onSetComplete,
+}: {
+  open: boolean;
+  exerciseName: string;
+  prescription: Record<string, unknown>;
+  setCount: number;
+  onClose: () => void;
+  /** Called when WORK for a given (0-based) set finishes. */
+  onSetComplete: (setIndex: number) => void;
+}) {
+  const segments = useMemo(
+    () => buildExerciseSegments(prescription, setCount),
+    [prescription, setCount],
+  );
+  const [segIdx, setSegIdx] = useState(0);
+  const [remaining, setRemaining] = useState(segments[0]?.seconds ?? 0);
+  const [running, setRunning] = useState(false);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const completedRef = useRef<Set<number>>(new Set());
+
+  // Reset whenever the dialog re-opens or segments change.
+  useEffect(() => {
+    if (open) {
+      setSegIdx(0);
+      setRemaining(segments[0]?.seconds ?? 0);
+      setRunning(true);
+      completedRef.current = new Set();
+    } else {
+      setRunning(false);
+    }
+  }, [open, segments]);
+
+  const advance = (fromIdx: number) => {
+    const cur = segments[fromIdx];
+    if (cur?.phase === 'WORK' && cur.lastWorkOfSet) {
+      if (!completedRef.current.has(cur.setIndex)) {
+        completedRef.current.add(cur.setIndex);
+        onSetComplete(cur.setIndex);
+      }
+    }
+    const nextIdx = fromIdx + 1;
+    const next = segments[nextIdx];
+    if (!next || next.phase === 'DONE') {
+      playBeep(880, 250);
+      setTimeout(() => playBeep(1175, 350), 200);
+      setRunning(false);
+      setSegIdx(segments.length - 1);
+      setRemaining(0);
+      return;
+    }
+    // Cue beep for transitions
+    if (next.phase === 'WORK') playBeep(880, 180);
+    else playBeep(523, 140);
+    setSegIdx(nextIdx);
+    setRemaining(next.seconds);
+  };
+
+  // Tick
+  useEffect(() => {
+    if (!running) {
+      if (tickRef.current) {
+        clearInterval(tickRef.current);
+        tickRef.current = null;
+      }
+      return;
+    }
+    tickRef.current = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          // Defer state mutation outside this updater
+          queueMicrotask(() => advance(segIdx));
+          return 0;
+        }
+        // Final-3-seconds countdown beeps
+        if (r <= 4 && r > 1) playBeep(660, 80);
+        return r - 1;
+      });
+    }, 1000);
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current);
+      tickRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, segIdx]);
+
+  const cur = segments[segIdx] ?? segments[0];
+  const total = cur?.seconds || 1;
+  const elapsed = total - remaining;
+  const progress = total > 0 ? Math.min(100, (elapsed / total) * 100) : 0;
+  const isDone = !cur || cur.phase === 'DONE' || segIdx >= segments.length - 1;
+
+  const phaseLabel = (() => {
+    if (!cur) return '';
+    switch (cur.phase) {
+      case 'PREPARE':
+        return 'Get ready';
+      case 'WORK':
+        return cur.repsInSet
+          ? `Rep ${(cur.repIndex ?? 0) + 1} / ${cur.repsInSet}`
+          : 'Work';
+      case 'REP_REST':
+        return 'Rest';
+      case 'SET_REST':
+        return 'Rest between sets';
+      case 'DONE':
+        return 'Done';
+    }
+  })();
+
+  const phaseTone =
+    cur?.phase === 'WORK'
+      ? 'text-success'
+      : cur?.phase === 'PREPARE'
+        ? 'text-info'
+        : 'text-warning';
+
+  const barTone =
+    cur?.phase === 'WORK'
+      ? 'bg-success'
+      : cur?.phase === 'PREPARE'
+        ? 'bg-info'
+        : 'bg-warning';
+
+  // Find the next WORK segment to preview "Up next"
+  const upNext = (() => {
+    for (let i = segIdx + 1; i < segments.length; i += 1) {
+      const s = segments[i];
+      if (s.phase === 'WORK') return s;
+    }
+    return undefined;
+  })();
+
+  const restart = () => {
+    setSegIdx(0);
+    setRemaining(segments[0]?.seconds ?? 0);
+    completedRef.current = new Set();
+    setRunning(true);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="truncate">{exerciseName}</DialogTitle>
+          <DialogDescription>
+            Set {Math.min(setCount, (cur?.setIndex ?? 0) + 1)} of {setCount}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col items-center gap-4 py-4">
+          <p className={cn('text-sm font-semibold uppercase tracking-wide', phaseTone)}>
+            {phaseLabel}
+          </p>
+          <p className="font-mono text-7xl font-bold tabular-nums text-foreground">
+            {fmtSeconds(remaining)}
+          </p>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn('h-full transition-[width]', barTone)}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          {!isDone && upNext && (
+            <p className="text-xs text-muted-foreground">
+              Up next: Set {upNext.setIndex + 1}
+              {upNext.repsInSet ? ` · Rep ${(upNext.repIndex ?? 0) + 1}` : ''} ·{' '}
+              {upNext.seconds}s
+            </p>
+          )}
+          {isDone && (
+            <p className="text-sm font-medium text-success">
+              All sets complete!
+            </p>
+          )}
+        </div>
+
+        <DialogFooter className="flex-row justify-between gap-2 sm:justify-between">
+          <Button type="button" variant="outline" onClick={onClose}>
+            <X className="size-4" /> Close
+          </Button>
+          <div className="flex gap-2">
+            {isDone ? (
+              <Button type="button" variant="outline" onClick={restart}>
+                <RotateCcw className="size-4" /> Restart
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => advance(segIdx)}
+                  aria-label="Skip"
+                >
+                  <SkipForward className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant={running ? 'outline' : 'default'}
+                  onClick={() => setRunning((r) => !r)}
+                >
+                  {running ? (
+                    <>
+                      <Pause className="size-4" /> Pause
+                    </>
+                  ) : (
+                    <>
+                      <PlayIcon className="size-4" /> {elapsed === 0 ? 'Start' : 'Resume'}
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 
 export default function WorkoutLogPage() {
   const t = useT();
@@ -393,6 +721,7 @@ export default function WorkoutLogPage() {
   const [sessionNotes, setSessionNotes] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [timerExIdx, setTimerExIdx] = useState<number | null>(null);
 
   const session = useSessionTimer();
 
@@ -459,6 +788,20 @@ export default function WorkoutLogPage() {
           ...ex,
           sets: ex.sets.map((s, j) =>
             j === setIdx ? { ...s, completed: !s.completed } : s,
+          ),
+        };
+      }),
+    );
+  };
+
+  const markSetComplete = (exIdx: number, setIdx: number) => {
+    setExercises((prev) =>
+      prev.map((ex, i) => {
+        if (i !== exIdx) return ex;
+        return {
+          ...ex,
+          sets: ex.sets.map((s, j) =>
+            j === setIdx && !s.completed ? { ...s, completed: true } : s,
           ),
         };
       }),
@@ -643,36 +986,51 @@ export default function WorkoutLogPage() {
             return (
               <Card key={item.id} className={cn(allDone && 'border-success/40')}>
                 <CardContent className="space-y-3 p-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCollapsed((p) => ({ ...p, [exIdx]: !p[exIdx] }))
-                    }
-                    className="flex w-full items-center gap-2 text-start"
-                  >
-                    {allDone ? (
-                      <CheckCircle2 className="size-5 shrink-0 text-success" />
-                    ) : (
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
-                        {completedCount}/{ex.sets.length}
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-foreground">
-                        {ex.name}
-                      </p>
-                      {item.groupLabel && (
-                        <p className="text-xs text-muted-foreground">
-                          {item.groupLabel}
-                        </p>
+                  <div className="flex w-full items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCollapsed((p) => ({ ...p, [exIdx]: !p[exIdx] }))
+                      }
+                      className="flex min-w-0 flex-1 items-center gap-2 text-start"
+                    >
+                      {allDone ? (
+                        <CheckCircle2 className="size-5 shrink-0 text-success" />
+                      ) : (
+                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
+                          {completedCount}/{ex.sets.length}
+                        </span>
                       )}
-                    </div>
-                    {isCollapsed ? (
-                      <ChevronDown className="size-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronUp className="size-4 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-foreground">
+                          {ex.name}
+                        </p>
+                        {item.groupLabel && (
+                          <p className="text-xs text-muted-foreground">
+                            {item.groupLabel}
+                          </p>
+                        )}
+                      </div>
+                      {isCollapsed ? (
+                        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+                      )}
+                    </button>
+                    {exerciseHasTimer(ex.prescription) && (
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        onClick={() => setTimerExIdx(exIdx)}
+                        aria-label="Run timer for this exercise"
+                        title="Run timer"
+                        className="size-8 shrink-0"
+                      >
+                        <Timer className="size-4" />
+                      </Button>
                     )}
-                  </button>
+                  </div>
 
                   {ex.coachNotes && !isCollapsed && (
                     <p className="rounded-md bg-muted/40 p-2 text-xs text-muted-foreground">
@@ -808,6 +1166,21 @@ export default function WorkoutLogPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Exercise timer dialog */}
+      {timerExIdx !== null && exercises[timerExIdx] && (
+        <ExerciseTimerDialog
+          open={timerExIdx !== null}
+          exerciseName={exercises[timerExIdx].name}
+          prescription={exercises[timerExIdx].prescription}
+          setCount={exercises[timerExIdx].sets.length}
+          onClose={() => setTimerExIdx(null)}
+          onSetComplete={(setIdx) => {
+            const idx = timerExIdx;
+            if (idx !== null) markSetComplete(idx, setIdx);
+          }}
+        />
+      )}
     </div>
   );
 }
