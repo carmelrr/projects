@@ -38,9 +38,15 @@ const STATUS_MAP: Record<
 function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
   const theme = useTheme();
   const cfg = STATUS_MAP[instance.status] ?? STATUS_MAP.SCHEDULED;
-  const title = instance.template?.title ?? instance.title ?? 'Workout';
-  const itemCount = instance.template?.items?.length ?? 0;
-  const duration = instance.template?.estimatedDuration;
+  const summary = instance.summary;
+  const title =
+    summary?.title || instance.template?.title || instance.title || 'Workout';
+  const itemCount = summary?.itemCount ?? instance.template?.items?.length ?? 0;
+  const duration =
+    summary?.estimatedDuration ?? instance.template?.estimatedDuration ?? null;
+  const type = summary?.type ?? instance.template?.type ?? null;
+  const hasTimerBlock = (summary?.blockKinds ?? []).includes('INTERVAL_TIMER');
+  const muscles = summary?.primaryMuscleGroups ?? [];
   const isActionable = instance.status === 'SCHEDULED';
 
   const handlePress = () => {
@@ -71,7 +77,7 @@ function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
       </View>
 
       {/* Meta row */}
-      {(itemCount > 0 || duration || instance.template?.type) && (
+      {(itemCount > 0 || duration || type) && (
         <View
           style={{
             flexDirection: 'row',
@@ -82,7 +88,7 @@ function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
         >
           {itemCount > 0 && (
             <Text variant="caption" color="mutedForeground">
-              {itemCount} exercise{itemCount !== 1 ? 's' : ''}
+              {itemCount} block{itemCount !== 1 ? 's' : ''}
             </Text>
           )}
           {duration ? (
@@ -96,14 +102,33 @@ function WorkoutCard({ instance }: { instance: WorkoutInstance }) {
               </View>
             </>
           ) : null}
-          {instance.template?.type ? (
+          {type ? (
             <>
               <Dot />
               <Text variant="caption" color="mutedForeground">
-                {instance.template.type}
+                {type}
               </Text>
             </>
           ) : null}
+        </View>
+      )}
+
+      {/* Muscle groups + interval timer chip */}
+      {(muscles.length > 0 || hasTimerBlock) && (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: theme.spacing[1.5],
+            marginTop: theme.spacing[2],
+          }}
+        >
+          {hasTimerBlock && <Badge variant="info">Interval timer</Badge>}
+          {muscles.map((m) => (
+            <Badge key={m} variant="muted">
+              {m}
+            </Badge>
+          ))}
         </View>
       )}
 

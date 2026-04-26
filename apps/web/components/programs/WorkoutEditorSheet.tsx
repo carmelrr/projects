@@ -8,11 +8,18 @@ import {
   Search,
   Loader2,
   GripVertical,
+  Timer,
+  StickyNote,
+  Dumbbell,
+  Pencil,
 } from 'lucide-react';
 import {
   useWorkout,
   useUpdateWorkout,
   type WorkoutItem,
+  type IntervalTimerConfig,
+  type NoteConfig,
+  type WorkoutBlockKind,
 } from '@/hooks/useWorkouts';
 import { useExercises, useCreateExercise, type Exercise } from '@/hooks/useExercises';
 import { useExerciseCategories, useCreateExerciseCategory, useExerciseMuscleGroups, useCreateExerciseMuscleGroup } from '@/hooks/useExercises';
@@ -48,13 +55,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
+import { IntervalTimerBlockDialog } from './IntervalTimerBlockDialog';
+import { NoteBlockDialog } from './NoteBlockDialog';
 
 type DraftItem = Omit<WorkoutItem, 'id'> & { id?: string };
 
+function blockKind(item: { kind?: WorkoutBlockKind }): WorkoutBlockKind {
+  return item.kind ?? 'EXERCISE';
+}
+
 function newItem(exercise: Exercise, orderIndex: number): DraftItem {
   return {
+    kind: 'EXERCISE',
     exerciseId: exercise.id,
     orderIndex,
     prescription: { sets: 3, reps: '10', rest: 90 },
@@ -66,6 +86,24 @@ function newItem(exercise: Exercise, orderIndex: number): DraftItem {
       equipment: exercise.equipment,
       videoUrl: exercise.videoUrl,
     },
+  };
+}
+
+function newTimerItem(cfg: IntervalTimerConfig, orderIndex: number): DraftItem {
+  return {
+    kind: 'INTERVAL_TIMER',
+    orderIndex,
+    prescription: {},
+    intervalTimer: cfg,
+  };
+}
+
+function newNoteItem(cfg: NoteConfig, orderIndex: number): DraftItem {
+  return {
+    kind: 'NOTE',
+    orderIndex,
+    prescription: {},
+    note: cfg,
   };
 }
 
@@ -413,11 +451,14 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
     mutationFn: ({ id, items }: { id: string; items: DraftItem[] }) =>
       api.patch(`/workouts/${id}/items`, {
         items: items.map((it, i) => ({
-          exerciseId: it.exerciseId,
+          kind: blockKind(it),
+          exerciseId: blockKind(it) === 'EXERCISE' ? it.exerciseId : undefined,
           orderIndex: i,
           groupLabel: it.groupLabel,
           coachNotes: it.coachNotes,
-          prescription: it.prescription,
+          prescription: it.prescription ?? {},
+          intervalTimer: it.intervalTimer,
+          note: it.note,
         })),
       }),
     onSuccess: (_, vars) => {
@@ -434,6 +475,8 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
   });
   const [items, setItems] = useState<DraftItem[]>([]);
   const [pickOpen, setPickOpen] = useState(false);
+  const [timerEditor, setTimerEditor] = useState<{ index: number | null }>({ index: null });
+  const [noteEditor, setNoteEditor] = useState<{ index: number | null }>({ index: null });
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -490,6 +533,30 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
     markDirty();
   };
 
+  const addTimerBlock = (cfg: IntervalTimerConfig) => {
+    setItems((prev) => [...prev, newTimerItem(cfg, prev.length)]);
+    markDirty();
+  };
+
+  const addNoteBlock = (cfg: NoteConfig) => {
+    setItems((prev) => [...prev, newNoteItem(cfg, prev.length)]);
+    markDirty();
+  };
+
+  const updateTimerBlock = (idx: number, cfg: IntervalTimerConfig) => {
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, intervalTimer: cfg } : it)),
+    );
+    markDirty();
+  };
+
+  const updateNoteBlock = (idx: number, cfg: NoteConfig) => {
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, note: cfg } : it)),
+    );
+    markDirty();
+  };
+
   const reorderItems = (fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
     setItems((prev) => {
@@ -531,7 +598,18 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
   const pending = updateMeta.isPending || updateItems.isPending;
 
   const totalSets = useMemo(
-    () => items.reduce((n, it) => n + Number(it.prescription.sets ?? 0), 0),
+    () =>
+      items.reduce(
+        (n, it) =>
+          blockKind(it) === 'EXERCISE'
+            ? n + Number(it.prescription?.sets ?? 0)
+            : n,
+        0,
+      ),
+    [items],
+  );
+  const exerciseCount = useMemo(
+    () => items.filter((it) => blockKind(it) === 'EXERCISE').length,
     [items],
   );
 
@@ -580,7 +658,7 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                   </div>
                   <div className="flex items-end">
                     <p className="text-xs text-muted-foreground">
-                      {items.length} exercises · {totalSets} total sets
+                      {exerciseCount} exercise{exerciseCount === 1 ? '' : 's'} · {totalSets} total sets · {items.length} block{items.length === 1 ? '' : 's'}
                     </p>
                   </div>
                 </div>
@@ -615,43 +693,185 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
               {/* Items */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-foreground">Exercises</h3>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPickOpen(true)}
-                  >
-                    <Plus className="size-3.5" />
-                    Add exercise
-                  </Button>
+                  <h3 className="text-sm font-semibold text-foreground">Blocks</h3>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        <Plus className="size-3.5" />
+                        Add block
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setPickOpen(true)}>
+                        <Dumbbell className="size-4" />
+                        Exercise
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setTimerEditor({ index: -1 })}
+                      >
+                        <Timer className="size-4" />
+                        Interval timer
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setNoteEditor({ index: -1 })}
+                      >
+                        <StickyNote className="size-4" />
+                        Note
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {items.length === 0 ? (
                   <Card>
                     <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                      No exercises yet. Click <em>Add exercise</em> to get started.
+                      No blocks yet. Click <em>Add block</em> to get started.
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-2">
-                    {items.map((it, idx) => (
+                    {items.map((it, idx) => {
+                      const kind = blockKind(it);
+                      const dndProps = {
+                        draggable: true,
+                        onDragStart: (e: React.DragEvent) => {
+                          e.dataTransfer.effectAllowed = 'move';
+                          setDragIndex(idx);
+                        },
+                        onDragOver: (e: React.DragEvent) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                          if (dragOverIndex !== idx) setDragOverIndex(idx);
+                        },
+                        onDragLeave: () => setDragOverIndex(null),
+                        onDrop: () => {
+                          if (dragIndex !== null) reorderItems(dragIndex, idx);
+                          setDragIndex(null);
+                          setDragOverIndex(null);
+                        },
+                        onDragEnd: () => {
+                          setDragIndex(null);
+                          setDragOverIndex(null);
+                        },
+                        className: cn(
+                          dragIndex === idx && 'opacity-50 ring-2 ring-primary shadow-lg',
+                          dragOverIndex === idx && dragIndex !== idx && 'ring-2 ring-dashed ring-primary/60 bg-primary/5',
+                        ),
+                      };
+
+                      if (kind === 'INTERVAL_TIMER') {
+                        const cfg = it.intervalTimer;
+                        return (
+                          <div key={`timer-${idx}`} className="space-y-2">
+                            <Card {...dndProps}>
+                              <CardContent className="space-y-2 p-4">
+                                <div className="flex items-start gap-2">
+                                  <div className="cursor-grab pt-1 text-muted-foreground active:cursor-grabbing">
+                                    <GripVertical className="size-4" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-semibold text-muted-foreground">
+                                        {idx + 1}.
+                                      </span>
+                                      <Timer className="size-4 text-primary" />
+                                      <p className="truncate font-medium text-foreground">
+                                        {cfg?.title ?? 'Interval timer'}
+                                      </p>
+                                      {cfg?.preset === 'CLASSIC_TABATA' && (
+                                        <Badge variant="muted" className="shrink-0">
+                                          Classic Tabata
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                      {cfg
+                                        ? `${cfg.workSec}s work / ${cfg.restSec}s rest · ${cfg.rounds} rounds${cfg.sets > 1 ? ` × ${cfg.sets} sets` : ''}`
+                                        : '—'}
+                                    </p>
+                                  </div>
+                                  <div className="flex shrink-0 gap-1">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="size-7"
+                                      onClick={() => setTimerEditor({ index: idx })}
+                                      aria-label="Edit timer"
+                                    >
+                                      <Pencil className="size-4" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="size-7 text-destructive hover:text-destructive"
+                                      onClick={() => removeItem(idx)}
+                                      aria-label="Remove"
+                                    >
+                                      <Trash2 className="size-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        );
+                      }
+
+                      if (kind === 'NOTE') {
+                        const cfg = it.note;
+                        return (
+                          <div key={`note-${idx}`} className="space-y-2">
+                            <Card {...dndProps}>
+                              <CardContent className="space-y-2 p-4">
+                                <div className="flex items-start gap-2">
+                                  <div className="cursor-grab pt-1 text-muted-foreground active:cursor-grabbing">
+                                    <GripVertical className="size-4" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-semibold text-muted-foreground">
+                                        {idx + 1}.
+                                      </span>
+                                      <StickyNote className="size-4 text-amber-500" />
+                                      <p className="truncate font-medium text-foreground">
+                                        {cfg?.title || 'Note'}
+                                      </p>
+                                    </div>
+                                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                                      {cfg?.body || '—'}
+                                    </p>
+                                  </div>
+                                  <div className="flex shrink-0 gap-1">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="size-7"
+                                      onClick={() => setNoteEditor({ index: idx })}
+                                      aria-label="Edit note"
+                                    >
+                                      <Pencil className="size-4" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="size-7 text-destructive hover:text-destructive"
+                                      onClick={() => removeItem(idx)}
+                                      aria-label="Remove"
+                                    >
+                                      <Trash2 className="size-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        );
+                      }
+
+                      // EXERCISE block (default) — existing UI
+                      return (
                       <div key={`${it.exerciseId}-${idx}`} className="space-y-2">
-                        <Card
-                          draggable
-                          onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragIndex(idx); }}
-                          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverIndex !== idx) setDragOverIndex(idx); }}
-                          onDragLeave={() => setDragOverIndex(null)}
-                          onDrop={() => {
-                            if (dragIndex !== null) reorderItems(dragIndex, idx);
-                            setDragIndex(null);
-                            setDragOverIndex(null);
-                          }}
-                          onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
-                          className={cn(
-                            dragIndex === idx && 'opacity-50 ring-2 ring-primary shadow-lg',
-                            dragOverIndex === idx && dragIndex !== idx && 'ring-2 ring-dashed ring-primary/60 bg-primary/5',
-                          )}
-                        >
+                        <Card {...dndProps}>
                         <CardContent className="space-y-3 p-4">
                           <div className="flex items-start gap-2">
                             <div className="cursor-grab pt-1 text-muted-foreground active:cursor-grabbing">
@@ -846,7 +1066,7 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                           </div>
                         </CardContent>
                         </Card>
-                        {idx < items.length - 1 && (() => {
+                        {idx < items.length - 1 && blockKind(items[idx + 1]) === 'EXERCISE' && (() => {
                           const linked =
                             it.groupLabel &&
                             items[idx + 1].groupLabel &&
@@ -891,7 +1111,8 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                           );
                         })()}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -939,6 +1160,42 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
         open={pickOpen}
         onOpenChange={setPickOpen}
         onPick={addExercise}
+      />
+
+      <IntervalTimerBlockDialog
+        open={timerEditor.index !== null}
+        onOpenChange={(o) => {
+          if (!o) setTimerEditor({ index: null });
+        }}
+        initial={
+          timerEditor.index !== null && timerEditor.index >= 0
+            ? items[timerEditor.index]?.intervalTimer
+            : undefined
+        }
+        onSave={(cfg) => {
+          if (timerEditor.index === null) return;
+          if (timerEditor.index < 0) addTimerBlock(cfg);
+          else updateTimerBlock(timerEditor.index, cfg);
+          setTimerEditor({ index: null });
+        }}
+      />
+
+      <NoteBlockDialog
+        open={noteEditor.index !== null}
+        onOpenChange={(o) => {
+          if (!o) setNoteEditor({ index: null });
+        }}
+        initial={
+          noteEditor.index !== null && noteEditor.index >= 0
+            ? items[noteEditor.index]?.note
+            : undefined
+        }
+        onSave={(cfg) => {
+          if (noteEditor.index === null) return;
+          if (noteEditor.index < 0) addNoteBlock(cfg);
+          else updateNoteBlock(noteEditor.index, cfg);
+          setNoteEditor({ index: null });
+        }}
       />
     </>
   );

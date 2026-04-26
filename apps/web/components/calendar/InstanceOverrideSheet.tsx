@@ -68,7 +68,7 @@ function ExerciseOverrideRow({
   item,
 }: {
   instanceId: string;
-  item: WorkoutItem & { _hasOverride?: boolean };
+  item: WorkoutItem & { exerciseId: string; _hasOverride?: boolean };
 }): JSX.Element {
   const t = useT();
   const override = useOverrideInstanceItem();
@@ -252,7 +252,9 @@ export function InstanceOverrideSheet({
 }): JSX.Element {
   const t = useT();
   const { data: instance, isLoading } = useWorkoutInstance(instanceId);
-  const items = (instance?.template?.items ?? []) as Array<WorkoutItem & { _hasOverride?: boolean }>;
+  const items = (instance?.template?.items ?? []).filter(
+    (it) => (it.kind ?? 'EXERCISE') === 'EXERCISE' && !!it.exerciseId,
+  ) as Array<WorkoutItem & { exerciseId: string; _hasOverride?: boolean }>;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

@@ -2,6 +2,21 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { parsePagination, paginatedResponse } from '../../common/utils/pagination';
 
+type WorkoutBlockKind = 'EXERCISE' | 'INTERVAL_TIMER' | 'NOTE';
+
+interface WorkoutItemInput {
+  /** Required for EXERCISE blocks; optional for INTERVAL_TIMER / NOTE. */
+  exerciseId?: string;
+  orderIndex: number;
+  groupLabel?: string;
+  prescription: Record<string, unknown>;
+  coachNotes?: string;
+  /** Discriminator. Defaults to 'EXERCISE' when omitted (legacy rows). */
+  kind?: WorkoutBlockKind;
+  intervalTimer?: Record<string, unknown>;
+  note?: Record<string, unknown>;
+}
+
 interface CreateWorkoutInput {
   title: string;
   description?: string;
@@ -9,18 +24,70 @@ interface CreateWorkoutInput {
   estimatedDuration?: number;
   instructions?: string;
   tags?: string[];
-  items?: {
-    exerciseId: string;
-    orderIndex: number;
-    groupLabel?: string;
-    prescription: Record<string, unknown>;
-    coachNotes?: string;
-  }[];
+  items?: WorkoutItemInput[];
 }
 
 @Injectable()
 export class WorkoutsService {
   constructor(private firebase: FirebaseService) {}
+
+  /**
+   * Validate + normalize a workout item into its on-disk shape.
+   * Defaults `kind` to 'EXERCISE' for backwards compatibility. Strips the
+   * `exerciseId` field for non-EXERCISE blocks so list endpoints know to
+   * skip exercise hydration.
+   */
+  private normalizeItem(item: WorkoutItemInput): Record<string, unknown> {
+    const kind: WorkoutBlockKind = item.kind ?? 'EXERCISE';
+    const base: Record<string, unknown> = {
+      id: this.firebase.generateId(),
+      orderIndex: item.orderIndex,
+      groupLabel: item.groupLabel || null,
+      prescription: { ...(item.prescription ?? {}), kind },
+      coachNotes: item.coachNotes || null,
+      kind,
+    };
+
+    if (kind === 'EXERCISE') {
+      if (!item.exerciseId) {
+        throw new Error('Exercise block requires exerciseId');
+      }
+      base.exerciseId = item.exerciseId;
+      return base;
+    }
+
+    if (kind === 'INTERVAL_TIMER') {
+      const cfg = (item.intervalTimer ?? {}) as Record<string, unknown>;
+      const num = (k: string, def = 0): number => {
+        const v = cfg[k];
+        return typeof v === 'number' && Number.isFinite(v) ? v : def;
+      };
+      const intervalTimer = {
+        title: typeof cfg.title === 'string' ? cfg.title : 'Interval Timer',
+        preset: cfg.preset === 'CLASSIC_TABATA' ? 'CLASSIC_TABATA' : 'CUSTOM',
+        prepareSec: Math.max(0, num('prepareSec', 0)),
+        workSec: Math.max(1, num('workSec', 20)),
+        restSec: Math.max(0, num('restSec', 10)),
+        rounds: Math.max(1, num('rounds', 8)),
+        sets: Math.max(1, num('sets', 1)),
+        restBetweenSetsSec: Math.max(0, num('restBetweenSetsSec', 0)),
+        intervals: Array.isArray(cfg.intervals) ? cfg.intervals : [],
+      };
+      base.intervalTimer = intervalTimer;
+      return base;
+    }
+
+    if (kind === 'NOTE') {
+      const note = (item.note ?? {}) as Record<string, unknown>;
+      base.note = {
+        title: typeof note.title === 'string' ? note.title : null,
+        body: typeof note.body === 'string' ? note.body : '',
+      };
+      return base;
+    }
+
+    throw new Error(`Unknown block kind: ${String(kind)}`);
+  }
 
   private async hydrateItems(
     orgId: string,
@@ -99,14 +166,7 @@ export class WorkoutsService {
     const id = this.firebase.generateId();
     const now = new Date().toISOString();
 
-    const items = (input.items || []).map(item => ({
-      id: this.firebase.generateId(),
-      exerciseId: item.exerciseId,
-      orderIndex: item.orderIndex,
-      groupLabel: item.groupLabel || null,
-      prescription: item.prescription,
-      coachNotes: item.coachNotes || null,
-    }));
+    const items = (input.items || []).map(item => this.normalizeItem(item));
 
     const data = {
       orgId,
@@ -146,19 +206,12 @@ export class WorkoutsService {
   async updateWorkoutItems(
     workoutId: string,
     orgId: string,
-    items: { exerciseId: string; orderIndex: number; groupLabel?: string; prescription: Record<string, unknown>; coachNotes?: string }[],
+    items: WorkoutItemInput[],
   ) {
     const doc = await this.firebase.workouts(orgId).doc(workoutId).get();
     if (!doc.exists) throw new NotFoundException('Workout not found');
 
-    const newItems = items.map(item => ({
-      id: this.firebase.generateId(),
-      exerciseId: item.exerciseId,
-      orderIndex: item.orderIndex,
-      groupLabel: item.groupLabel || null,
-      prescription: item.prescription,
-      coachNotes: item.coachNotes || null,
-    }));
+    const newItems = items.map(item => this.normalizeItem(item));
 
     await this.firebase.workouts(orgId).doc(workoutId).update({
       items: newItems,

@@ -55,7 +55,81 @@ export class WorkoutInstancesService {
       if (aOrder !== bOrder) return aOrder - bOrder;
       return ((a.createdAt as string | undefined) || '').localeCompare((b.createdAt as string | undefined) || '');
     });
-    return items;
+
+    // Hydrate a lightweight `summary` for each instance so list cards
+    // (Today/Upcoming) can render title/count/duration without each client
+    // doing N detail fetches. Templates are batched + de-duped.
+    const templateIds = Array.from(
+      new Set(
+        items
+          .map((i) => i.templateId)
+          .filter((id): id is string => typeof id === 'string' && !!id),
+      ),
+    );
+    const templateMap = new Map<string, Record<string, unknown>>();
+    await Promise.all(
+      templateIds.map(async (tid) => {
+        const tplDoc = await this.firebase.workouts(orgId).doc(tid).get();
+        if (tplDoc.exists) templateMap.set(tid, tplDoc.data() as Record<string, unknown>);
+      }),
+    );
+
+    // Collect exerciseIds across all referenced templates so we can resolve
+    // `primaryMuscleGroups` once per call.
+    const exerciseIds = new Set<string>();
+    for (const tpl of templateMap.values()) {
+      const tplItems = (tpl.items as Array<Record<string, unknown>> | undefined) ?? [];
+      for (const it of tplItems) {
+        const kind = (it.kind as string | undefined) ?? 'EXERCISE';
+        if (kind === 'EXERCISE' && typeof it.exerciseId === 'string') {
+          exerciseIds.add(it.exerciseId);
+        }
+      }
+    }
+    const exerciseMuscles = new Map<string, string[]>();
+    await Promise.all(
+      Array.from(exerciseIds).map(async (exId) => {
+        let snap = await this.firebase.orgExercises(orgId).doc(exId).get();
+        if (!snap.exists) snap = await this.firebase.exercises().doc(exId).get();
+        if (snap.exists) {
+          const data = snap.data() as Record<string, unknown>;
+          const groups = Array.isArray(data.muscleGroups)
+            ? (data.muscleGroups as string[])
+            : [];
+          exerciseMuscles.set(exId, groups);
+        }
+      }),
+    );
+
+    return items.map((instance) => {
+      const tplId = instance.templateId as string | undefined;
+      const tpl = tplId ? templateMap.get(tplId) : undefined;
+      if (!tpl) return instance;
+      const tplItems = (tpl.items as Array<Record<string, unknown>> | undefined) ?? [];
+      const blockKinds = Array.from(
+        new Set(
+          tplItems.map(
+            (it) => (it.kind as string | undefined) ?? 'EXERCISE',
+          ),
+        ),
+      );
+      const muscleSet = new Set<string>();
+      for (const it of tplItems) {
+        const kind = (it.kind as string | undefined) ?? 'EXERCISE';
+        if (kind !== 'EXERCISE') continue;
+        const groups = exerciseMuscles.get(it.exerciseId as string) ?? [];
+        for (const g of groups) muscleSet.add(g);
+      }
+      const summary = {
+        title: (tpl.title as string | undefined) ?? null,
+        type: (tpl.type as string | undefined) ?? null,
+        estimatedDuration: (tpl.estimatedDuration as number | undefined) ?? null,
+        itemCount: tplItems.length,
+        blockKinds,
+        primaryMuscleGroups: Array.from(muscleSet).slice(0, 3),
+      };
+      return { ...instance, summary };
+    });
   }
 
   async getInstance(id: string, orgId: string) {
@@ -288,6 +362,11 @@ export class WorkoutInstancesService {
           completed: boolean;
         }>;
       }>;
+      /** Per-block completion flags for non-exercise blocks (timer/note). */
+      blockCompletions?: Record<
+        string,
+        { kind: 'INTERVAL_TIMER' | 'NOTE'; totalWorkSec?: number }
+      >;
     },
   ) {
     const doc = await this.firebase.workoutInstances(orgId).doc(instanceId).get();
@@ -308,6 +387,7 @@ export class WorkoutInstancesService {
       durationMinutes: body.durationMinutes ?? null,
       notes: body.notes ?? null,
       items: body.items ?? [],
+      blockCompletions: body.blockCompletions ?? {},
       completedAt: now,
       createdAt: now,
     };

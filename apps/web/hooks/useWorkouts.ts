@@ -3,9 +3,29 @@ import { api } from '@/lib/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
+export type WorkoutBlockKind = 'EXERCISE' | 'INTERVAL_TIMER' | 'NOTE';
+
+export interface IntervalTimerConfig {
+  title: string;
+  preset?: 'CLASSIC_TABATA' | 'CUSTOM';
+  prepareSec: number;
+  workSec: number;
+  restSec: number;
+  rounds: number;
+  sets: number;
+  restBetweenSetsSec: number;
+  intervals?: Array<{ name?: string; description?: string }>;
+}
+
+export interface NoteConfig {
+  title?: string | null;
+  body: string;
+}
+
 export interface WorkoutItem {
   id: string;
-  exerciseId: string;
+  /** Required for EXERCISE blocks; absent on INTERVAL_TIMER / NOTE. */
+  exerciseId?: string;
   orderIndex: number;
   groupLabel?: string;
   coachNotes?: string;
@@ -29,6 +49,10 @@ export interface WorkoutItem {
     equipment?: string[];
     videoUrl?: string;
   };
+  /** Block discriminator. Defaults to 'EXERCISE' when absent. */
+  kind?: WorkoutBlockKind;
+  intervalTimer?: IntervalTimerConfig;
+  note?: NoteConfig;
 }
 
 export interface Workout {

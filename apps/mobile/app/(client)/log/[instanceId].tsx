@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, router } from 'expo-router';
-import { X, Play, Check, Plus } from 'lucide-react-native';
+import { X, Play, Check, Plus, Timer, StickyNote } from 'lucide-react-native';
 import {
   useWorkoutInstance,
   useSubmitLog,
@@ -21,8 +21,11 @@ import {
   type LogItem,
   type LogSet,
   type PersonalRecord,
+  type IntervalTimerConfig,
+  type NoteConfig,
 } from '@/hooks/useWorkouts';
 import { ExerciseVideoModal } from '@/components/ExerciseVideoModal';
+import { IntervalTimerRunner } from '@/components/IntervalTimerRunner';
 import { useTheme, withAlpha } from '@/lib/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { convertWeightString, type WeightUnit } from '@coaching/shared';
@@ -94,8 +97,15 @@ function buildInitialState(
   prMap: Record<string, PersonalRecord> = {},
   traineeUnit: WeightUnit = 'kg',
 ): ExerciseState[] {
+  // Only EXERCISE blocks contribute to exercise state. Timer/Note blocks are
+  // rendered separately and don't have set logs.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (items ?? []).map((item: any) => {
+  return (items ?? [])
+    .filter((item: any) => {
+      const kind = item?.kind ?? 'EXERCISE';
+      return kind === 'EXERCISE' && !!item.exerciseId;
+    })
+    .map((item: any) => {
     const setCount = item.prescription?.sets ?? 3;
     const isPrBased = item.exercise?.isPrBased ?? false;
     const rawWeight = item.prescription?.weight;
@@ -945,6 +955,164 @@ function FinishModal({
   );
 }
 
+// ── Block cards (Timer / Note) ─────────────────────────────────────────────
+
+function TimerBlockCard({
+  config,
+  completed,
+  totalWorkSec,
+  onStart,
+}: {
+  config: IntervalTimerConfig;
+  completed: boolean;
+  totalWorkSec?: number;
+  onStart: () => void;
+}) {
+  const theme = useTheme();
+  const summary = `${config.workSec}s work / ${config.restSec}s rest · ${config.rounds} round${
+    config.rounds === 1 ? '' : 's'
+  }${config.sets > 1 ? ` × ${config.sets} sets` : ''}`;
+  return (
+    <Card style={{ marginBottom: theme.spacing[3] }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing[2.5],
+          marginBottom: theme.spacing[2],
+        }}
+      >
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: theme.radii.full,
+            backgroundColor: withAlpha(theme.colors.primary, 0.15),
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon icon={Timer} size={16} color="primary" accessible={false} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyMedium">{config.title}</Text>
+          <Text
+            variant="caption"
+            color="mutedForeground"
+            style={{ marginTop: 2 }}
+          >
+            {summary}
+          </Text>
+        </View>
+        {config.preset === 'CLASSIC_TABATA' ? (
+          <Badge variant="muted">Tabata</Badge>
+        ) : null}
+      </View>
+
+      {completed ? (
+        <View
+          style={{
+            backgroundColor: withAlpha(theme.colors.success, 0.12),
+            borderRadius: theme.radii.md,
+            paddingHorizontal: theme.spacing[3],
+            paddingVertical: theme.spacing[2],
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing[2],
+          }}
+        >
+          <Icon icon={Check} size={14} color="success" accessible={false} />
+          <Text variant="captionMedium" color="success">
+            Done
+            {typeof totalWorkSec === 'number' && totalWorkSec > 0
+              ? ` · ${Math.round(totalWorkSec)}s work`
+              : ''}
+          </Text>
+        </View>
+      ) : (
+        <Button
+          onPress={onStart}
+          accessibilityLabel={`Start ${config.title}`}
+          iconLeft={<Icon icon={Play} size={14} color="primaryForeground" accessible={false} />}
+        >
+          Start timer
+        </Button>
+      )}
+    </Card>
+  );
+}
+
+function NoteBlockCard({
+  config,
+  acked,
+  onAck,
+}: {
+  config: NoteConfig;
+  acked: boolean;
+  onAck: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Card
+      style={{
+        marginBottom: theme.spacing[3],
+        backgroundColor: withAlpha(theme.colors.warning, 0.08),
+        borderColor: withAlpha(theme.colors.warning, 0.3),
+      }}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing[2.5],
+          marginBottom: theme.spacing[2],
+        }}
+      >
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: theme.radii.full,
+            backgroundColor: withAlpha(theme.colors.warning, 0.2),
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon icon={StickyNote} size={16} color="warning" accessible={false} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyMedium">{config.title || 'Note'}</Text>
+        </View>
+      </View>
+      <Text
+        variant="body"
+        color="foreground"
+        style={{ lineHeight: 20, marginBottom: theme.spacing[3] }}
+      >
+        {config.body}
+      </Text>
+      {acked ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing[1.5],
+          }}
+        >
+          <Icon icon={Check} size={14} color="success" accessible={false} />
+          <Text variant="captionMedium" color="success">
+            Got it
+          </Text>
+        </View>
+      ) : (
+        <Button onPress={onAck} variant="outline" size="sm">
+          Got it
+        </Button>
+      )}
+    </Card>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function WorkoutLogScreen() {
@@ -963,6 +1131,12 @@ export default function WorkoutLogScreen() {
   const [videoForIndex, setVideoForIndex] = useState<number | null>(null);
   const [prPromptQueue, setPrPromptQueue] = useState<{ exerciseId: string; name: string }[]>([]);
   const [savingPr, setSavingPr] = useState(false);
+  /** Active interval-timer block index, or null when no runner is open. */
+  const [activeTimerBlock, setActiveTimerBlock] = useState<number | null>(null);
+  /** Map of orderIndex → completion record for non-exercise blocks. */
+  const [blockCompletions, setBlockCompletions] = useState<
+    Record<number, { kind: 'INTERVAL_TIMER' | 'NOTE'; totalWorkSec?: number }>
+  >({});
   const { seconds, formatted } = useTimer(timerRunning);
 
   // Build PR lookup map by exerciseId
@@ -1057,6 +1231,9 @@ export default function WorkoutLogScreen() {
         durationMinutes: Math.round(seconds / 60),
         notes: notes || undefined,
         items,
+        blockCompletions: Object.fromEntries(
+          Object.entries(blockCompletions).map(([k, v]) => [String(k), v]),
+        ),
       });
       if (result.queued) {
         Alert.alert(
@@ -1105,6 +1282,33 @@ export default function WorkoutLogScreen() {
     (acc, ex) => acc + ex.sets.filter((s) => s.completed).length,
     0,
   );
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawItems = (instance?.template?.items ?? []) as any[];
+  const blocks = useMemo(() => {
+    const sorted = [...rawItems].sort(
+      (a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
+    );
+    let exerciseCursor = 0;
+    return sorted.map((item, i) => {
+      const kind = (item?.kind as string | undefined) ?? 'EXERCISE';
+      if (kind === 'INTERVAL_TIMER') {
+        return { kind: 'INTERVAL_TIMER' as const, blockIndex: i, item };
+      }
+      if (kind === 'NOTE') {
+        return { kind: 'NOTE' as const, blockIndex: i, item };
+      }
+      const exerciseIndex = exerciseCursor;
+      exerciseCursor += 1;
+      return {
+        kind: 'EXERCISE' as const,
+        blockIndex: i,
+        item,
+        exerciseIndex,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instance?.template?.items]);
 
   const handleLeave = () => {
     Alert.alert('Leave workout?', 'Progress will be lost.', [
@@ -1209,7 +1413,7 @@ export default function WorkoutLogScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        {exercises.length === 0 ? (
+        {blocks.length === 0 ? (
           <View
             style={{
               padding: theme.spacing[10],
@@ -1217,21 +1421,57 @@ export default function WorkoutLogScreen() {
             }}
           >
             <Text variant="body" color="mutedForeground">
-              No exercises in this workout.
+              No blocks in this workout.
             </Text>
           </View>
         ) : (
-          exercises.map((ex, i) => (
-            <ExerciseBlock
-              key={ex.exerciseId + i}
-              exercise={ex}
-              index={i}
-              onUpdateSet={updateSet}
-              onAddSet={addSet}
-              onWatchVideo={(idx) => setVideoForIndex(idx)}
-              weightUnit={traineeUnit}
-            />
-          ))
+          blocks.map((b) => {
+            if (b.kind === 'INTERVAL_TIMER') {
+              const cfg = b.item.intervalTimer as IntervalTimerConfig | undefined;
+              if (!cfg) return null;
+              const completion = blockCompletions[b.blockIndex];
+              return (
+                <TimerBlockCard
+                  key={`timer-${b.blockIndex}`}
+                  config={cfg}
+                  completed={!!completion}
+                  totalWorkSec={completion?.totalWorkSec}
+                  onStart={() => setActiveTimerBlock(b.blockIndex)}
+                />
+              );
+            }
+            if (b.kind === 'NOTE') {
+              const cfg = b.item.note as NoteConfig | undefined;
+              if (!cfg) return null;
+              const acked = !!blockCompletions[b.blockIndex];
+              return (
+                <NoteBlockCard
+                  key={`note-${b.blockIndex}`}
+                  config={cfg}
+                  acked={acked}
+                  onAck={() =>
+                    setBlockCompletions((prev) => ({
+                      ...prev,
+                      [b.blockIndex]: { kind: 'NOTE' },
+                    }))
+                  }
+                />
+              );
+            }
+            const ex = exercises[b.exerciseIndex];
+            if (!ex) return null;
+            return (
+              <ExerciseBlock
+                key={ex.exerciseId + b.blockIndex}
+                exercise={ex}
+                index={b.exerciseIndex}
+                onUpdateSet={updateSet}
+                onAddSet={addSet}
+                onWatchVideo={(idx) => setVideoForIndex(idx)}
+                weightUnit={traineeUnit}
+              />
+            );
+          })
         )}
       </ScrollView>
 
@@ -1253,6 +1493,41 @@ export default function WorkoutLogScreen() {
         }
         onClose={() => setVideoForIndex(null)}
       />
+
+      {/* Interval timer runner — fullscreen modal */}
+      <Modal
+        visible={activeTimerBlock !== null}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setActiveTimerBlock(null)}
+      >
+        {activeTimerBlock !== null
+          ? (() => {
+              const block = blocks.find(
+                (b) => b.blockIndex === activeTimerBlock,
+              );
+              const cfg = block?.item?.intervalTimer as
+                | IntervalTimerConfig
+                | undefined;
+              if (!cfg) return null;
+              return (
+                <Screen edges={['top', 'bottom']}>
+                  <IntervalTimerRunner
+                    config={cfg}
+                    onComplete={({ totalWorkSec }) => {
+                      const idx = activeTimerBlock;
+                      setBlockCompletions((prev) => ({
+                        ...prev,
+                        [idx]: { kind: 'INTERVAL_TIMER', totalWorkSec },
+                      }));
+                    }}
+                    onCancel={() => setActiveTimerBlock(null)}
+                  />
+                </Screen>
+              );
+            })()
+          : null}
+      </Modal>
 
       {/* PR entry modal — shown for each exercise needing a PR */}
       <PrEntryModal

@@ -49,7 +49,16 @@ export class WorkoutsController {
       estimatedDuration?: number;
       instructions?: string;
       tags?: string[];
-      items?: { exerciseId: string; orderIndex: number; groupLabel?: string; prescription: Record<string, unknown>; coachNotes?: string }[];
+      items?: Array<{
+        exerciseId?: string;
+        orderIndex: number;
+        groupLabel?: string;
+        prescription: Record<string, unknown>;
+        coachNotes?: string;
+        kind?: 'EXERCISE' | 'INTERVAL_TIMER' | 'NOTE';
+        intervalTimer?: Record<string, unknown>;
+        note?: Record<string, unknown>;
+      }>;
     },
   ) {
     return this.workoutsService.createWorkout(user.orgId, user.sub, body);
@@ -70,7 +79,18 @@ export class WorkoutsController {
   async updateItems(
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: { items: { exerciseId: string; orderIndex: number; groupLabel?: string; prescription: Record<string, unknown>; coachNotes?: string }[] },
+    @Body() body: {
+      items: Array<{
+        exerciseId?: string;
+        orderIndex: number;
+        groupLabel?: string;
+        prescription: Record<string, unknown>;
+        coachNotes?: string;
+        kind?: 'EXERCISE' | 'INTERVAL_TIMER' | 'NOTE';
+        intervalTimer?: Record<string, unknown>;
+        note?: Record<string, unknown>;
+      }>;
+    },
   ) {
     return this.workoutsService.updateWorkoutItems(id, user.orgId, body.items);
   }
@@ -201,6 +221,10 @@ export class WorkoutsController {
           completed: boolean;
         }>;
       }>;
+      blockCompletions?: Record<
+        string,
+        { kind: 'INTERVAL_TIMER' | 'NOTE'; totalWorkSec?: number }
+      >;
     },
   ) {
     return this.instancesService.submitLog(id, user.orgId, user.sub, body);

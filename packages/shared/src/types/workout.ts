@@ -40,11 +40,80 @@ export interface WorkoutTemplateDTO {
 
 export interface WorkoutItemDTO {
   id: string;
-  exerciseId: string;
+  /** Required for EXERCISE blocks; absent on INTERVAL_TIMER / NOTE blocks. */
+  exerciseId?: string;
   orderIndex: number;
   groupLabel?: string;
   prescription: WorkoutPrescription;
   coachNotes?: string;
+  /**
+   * Block discriminator. When omitted, treat as 'EXERCISE' (legacy rows).
+   */
+  kind?: WorkoutBlockKind;
+  intervalTimer?: IntervalTimerConfig;
+  note?: NoteConfig;
+}
+
+// ── Block kinds (Interval Timer / Note) ────────────────────────────────────
+
+export type WorkoutBlockKind = 'EXERCISE' | 'INTERVAL_TIMER' | 'NOTE';
+
+export interface IntervalTimerConfig {
+  /** Display title shown to the trainee, e.g. "Tabata Push Day". */
+  title: string;
+  /** 'CLASSIC_TABATA' marks the one-click preset; 'CUSTOM' is anything else. */
+  preset?: 'CLASSIC_TABATA' | 'CUSTOM';
+  /** Pre-roll countdown before the first work interval. 0 to skip. */
+  prepareSec: number;
+  /** Length of one work interval. */
+  workSec: number;
+  /** Length of one rest interval (between rounds within a set). */
+  restSec: number;
+  /** Number of work/rest cycles within a single set. */
+  rounds: number;
+  /** Number of times the rounds-loop repeats. 1 disables the outer loop. */
+  sets: number;
+  /** Rest between sets. Ignored when sets <= 1. */
+  restBetweenSetsSec: number;
+  /**
+   * Optional per-round metadata. Length should equal `rounds` (or be empty).
+   * If shorter, the runner falls back to "Round N" for missing entries.
+   */
+  intervals?: Array<{ name?: string; description?: string }>;
+}
+
+export interface NoteConfig {
+  title?: string;
+  body: string;
+}
+
+/**
+ * Coach preset: 20s work / 10s rest × 8 rounds, 1 set, 60s set rest, 10s prep.
+ * Matches the classic Tabata protocol.
+ */
+export const CLASSIC_TABATA_PRESET: IntervalTimerConfig = {
+  title: 'Classic Tabata',
+  preset: 'CLASSIC_TABATA',
+  prepareSec: 10,
+  workSec: 20,
+  restSec: 10,
+  rounds: 8,
+  sets: 1,
+  restBetweenSetsSec: 60,
+  intervals: [],
+};
+
+/**
+ * Lightweight summary attached to each entry returned by the calendar list
+ * endpoint, so clients can render "Today" cards without a full template fetch.
+ */
+export interface WorkoutInstanceSummary {
+  title: string;
+  type?: string;
+  estimatedDuration?: number;
+  itemCount: number;
+  blockKinds: WorkoutBlockKind[];
+  primaryMuscleGroups?: string[];
 }
 
 // ── Workout scheduling (calendar) ──────────────────────────────────────────
@@ -77,4 +146,6 @@ export interface WorkoutInstanceDTO {
   notes?: string;
   completedAt?: string;
   programAssignmentId?: string;
+  /** Lightweight template summary attached by the calendar endpoint. */
+  summary?: WorkoutInstanceSummary;
 }

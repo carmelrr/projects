@@ -13,9 +13,29 @@ export interface ExerciseRef {
   isPrBased?: boolean;
 }
 
+export type WorkoutBlockKind = 'EXERCISE' | 'INTERVAL_TIMER' | 'NOTE';
+
+export interface IntervalTimerConfig {
+  title: string;
+  preset?: 'CLASSIC_TABATA' | 'CUSTOM';
+  prepareSec: number;
+  workSec: number;
+  restSec: number;
+  rounds: number;
+  sets: number;
+  restBetweenSetsSec: number;
+  intervals?: Array<{ name?: string; description?: string }>;
+}
+
+export interface NoteConfig {
+  title?: string | null;
+  body: string;
+}
+
 export interface WorkoutItem {
   id: string;
-  exerciseId: string;
+  /** Required for EXERCISE blocks; absent on INTERVAL_TIMER / NOTE. */
+  exerciseId?: string;
   orderIndex: number;
   groupLabel?: string;
   coachNotes?: string;
@@ -30,6 +50,19 @@ export interface WorkoutItem {
     [key: string]: unknown;
   };
   exercise?: ExerciseRef;
+  /** Block discriminator. Defaults to 'EXERCISE' when absent. */
+  kind?: WorkoutBlockKind;
+  intervalTimer?: IntervalTimerConfig;
+  note?: NoteConfig;
+}
+
+export interface WorkoutInstanceSummary {
+  title?: string | null;
+  type?: string | null;
+  estimatedDuration?: number | null;
+  itemCount: number;
+  blockKinds: WorkoutBlockKind[];
+  primaryMuscleGroups?: string[];
 }
 
 export interface WorkoutTemplate {
@@ -53,6 +86,12 @@ export interface WorkoutInstance {
   completedAt?: string;
   title?: string;
   notes?: string;
+  /**
+   * Lightweight summary attached by the calendar endpoint so list cards can
+   * render without a full template fetch. Detail endpoint returns `template`
+   * instead.
+   */
+  summary?: WorkoutInstanceSummary;
   template?: WorkoutTemplate;
   log?: WorkoutLog;
 }
@@ -130,6 +169,10 @@ export interface SubmitLogPayload {
   durationMinutes?: number;
   notes?: string;
   items: LogItem[];
+  blockCompletions?: Record<
+    string,
+    { kind: 'INTERVAL_TIMER' | 'NOTE'; totalWorkSec?: number }
+  >;
 }
 
 export interface SubmitLogResult {
