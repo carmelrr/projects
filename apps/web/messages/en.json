@@ -114,6 +114,14 @@
     },
     "openMessages": "Open messages"
   },
+  "clientNav": {
+    "today": "Today",
+    "calendar": "Calendar",
+    "metrics": "Metrics",
+    "messages": "Messages",
+    "notifications": "Notifications",
+    "profile": "Profile"
+  },
   "clients": {
     "title": "Clients",
     "totalCount": "{n} total",

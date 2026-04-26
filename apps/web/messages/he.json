@@ -114,6 +114,14 @@
     },
     "openMessages": "פתיחת הודעות"
   },
+  "clientNav": {
+    "today": "היום",
+    "calendar": "לוח שנה",
+    "metrics": "מדדים",
+    "messages": "הודעות",
+    "notifications": "התראות",
+    "profile": "פרופיל"
+  },
   "clients": {
     "title": "מתאמנים",
     "totalCount": "{n} סה״כ",
