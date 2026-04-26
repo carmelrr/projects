@@ -28,6 +28,7 @@ export class UsersService {
       status: user.status,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
+      weightUnit: (user.weightUnit as 'kg' | 'lbs') ?? 'kg',
       orgs: (user.orgs || []).map((o: { orgId: string; role: string }) => ({
         role: o.role,
         orgId: o.orgId,
@@ -57,6 +58,7 @@ export class UsersService {
       phone?: string;
       avatarUrl?: string;
       bio?: string;
+      weightUnit?: 'kg' | 'lbs';
     },
   ) {
     const doc = await this.firebase.users().doc(userId).get();
@@ -67,6 +69,11 @@ export class UsersService {
     if (data.lastName !== undefined) update.lastName = data.lastName;
     if (data.phone !== undefined) update.phone = data.phone || null;
     if (data.avatarUrl !== undefined) update.avatarUrl = data.avatarUrl || null;
+    if (data.weightUnit !== undefined) {
+      if (data.weightUnit === 'kg' || data.weightUnit === 'lbs') {
+        update.weightUnit = data.weightUnit;
+      }
+    }
 
     if (data.bio !== undefined) {
       const current = doc.data()!;

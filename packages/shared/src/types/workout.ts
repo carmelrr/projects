@@ -18,6 +18,12 @@ export interface WorkoutPrescription {
    */
   duration?: number;
   timeMode?: 'STOPWATCH' | 'COUNTDOWN';
+  /**
+   * The weight unit the coach was using when they entered the `weight` value.
+   * Defaults to 'kg'. Used by the trainee's app to auto-convert to their
+   * preferred unit.
+   */
+  weightUnit?: 'kg' | 'lbs';
   notes?: string;
   intervals?: { work: number; rest: number; rounds: number };
 }

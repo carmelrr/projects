@@ -20,6 +20,7 @@ export class UsersController {
       phone?: string;
       avatarUrl?: string;
       bio?: string;
+      weightUnit?: 'kg' | 'lbs';
     },
   ) {
     return this.usersService.updateMe(user.sub, body);

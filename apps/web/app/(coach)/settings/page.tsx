@@ -65,6 +65,7 @@ function ProfileSection() {
     lastName: '',
     phone: '',
     bio: '',
+    weightUnit: 'kg' as 'kg' | 'lbs',
   });
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -76,6 +77,7 @@ function ProfileSection() {
         lastName: me.lastName ?? '',
         phone: me.phone ?? '',
         bio: me.coachProfile?.bio ?? '',
+        weightUnit: me.weightUnit ?? 'kg',
       });
     }
   }, [me]);
@@ -169,6 +171,33 @@ function ProfileSection() {
             />
           </div>
         )}
+
+        <Separator />
+
+        <div className="space-y-2">
+          <Label>Weight unit</Label>
+          <p className="text-xs text-muted-foreground">
+            Weights you enter in workout prescriptions will be displayed in this
+            unit. Trainees see weights converted to their own preference.
+          </p>
+          <div className="flex gap-2">
+            {(['kg', 'lbs'] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => setForm({ ...form, weightUnit: u })}
+                className={cn(
+                  'rounded-md border px-4 py-1.5 text-sm font-medium transition-colors',
+                  form.weightUnit === u
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-background text-muted-foreground hover:border-primary/50',
+                )}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex items-center justify-end gap-3">
           <StatusLine pending={update.isPending} error={err} saved={saved} />

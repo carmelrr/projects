@@ -11,6 +11,7 @@ export interface Me {
   status?: string;
   lastLoginAt?: string;
   createdAt?: string;
+  weightUnit?: 'kg' | 'lbs';
   orgs: { role: string; orgId: string }[];
   coachProfile?: { id: string; bio?: string | null; specialties?: string[] } | null;
   clientProfile?: { id: string; status: string; goals?: string | null } | null;
@@ -34,6 +35,7 @@ export function useUpdateMe() {
       phone?: string;
       avatarUrl?: string;
       bio?: string;
+      weightUnit?: 'kg' | 'lbs';
     }) => api.patch<Me>('/users/me', body),
     onSuccess: (data) => {
       qc.setQueryData(['me'], data);

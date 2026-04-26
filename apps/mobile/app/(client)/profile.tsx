@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Alert, ScrollView, I18nManager } from 'react-native';
+import { View, Alert, ScrollView, I18nManager, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
@@ -66,6 +66,10 @@ export default function ProfileScreen() {
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
   const [saving, setSaving] = useState(false);
+  const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>(
+    user?.weightUnit ?? 'kg',
+  );
+  const [unitSaving, setUnitSaving] = useState(false);
 
   const initials =
     `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase() ||
@@ -77,6 +81,7 @@ export default function ProfileScreen() {
       const updated = await api.patch<{
         firstName: string;
         lastName: string;
+        weightUnit?: 'kg' | 'lbs';
       }>('/users/me', {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -95,6 +100,23 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Could not save profile. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleWeightUnit = async (unit: 'kg' | 'lbs') => {
+    setWeightUnit(unit);
+    setUnitSaving(true);
+    try {
+      await api.patch('/users/me', { weightUnit: unit });
+      useAuthStore.setState((s) => ({
+        user: s.user ? { ...s.user, weightUnit: unit } : null,
+      }));
+    } catch {
+      // revert on failure
+      setWeightUnit(unit === 'kg' ? 'lbs' : 'kg');
+      Alert.alert('Error', 'Could not save weight unit preference.');
+    } finally {
+      setUnitSaving(false);
     }
   };
 
@@ -217,6 +239,64 @@ export default function ProfileScreen() {
                 value={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
               />
             )}
+          </Card>
+        </View>
+
+        <View style={{ gap: theme.spacing[2] }}>
+          <Text
+            variant="eyebrow"
+            color="mutedForeground"
+            style={{ paddingHorizontal: theme.spacing[1] }}
+          >
+            Preferences
+          </Text>
+          <Card>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: theme.spacing[1],
+              }}
+            >
+              <View style={{ gap: 2 }}>
+                <Text variant="bodyMedium">Weight unit</Text>
+                <Text variant="caption" color="mutedForeground">
+                  Weights in workouts are displayed in this unit
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: theme.spacing[1.5] }}>
+                {(['kg', 'lbs'] as const).map((u) => (
+                  <Pressable
+                    key={u}
+                    onPress={() => !unitSaving && handleWeightUnit(u)}
+                    style={{
+                      paddingHorizontal: theme.spacing[3],
+                      paddingVertical: theme.spacing[1.5],
+                      borderRadius: theme.radii.md,
+                      borderWidth: 1.5,
+                      borderColor:
+                        weightUnit === u
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                      backgroundColor:
+                        weightUnit === u
+                          ? theme.colors.primary
+                          : 'transparent',
+                      opacity: unitSaving ? 0.5 : 1,
+                    }}
+                  >
+                    <Text
+                      variant="bodyMedium"
+                      weight="600"
+                      color={weightUnit === u ? 'primaryForeground' : 'mutedForeground'}
+                    >
+                      {u}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </Card>
         </View>
 

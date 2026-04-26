@@ -24,6 +24,8 @@ import {
 } from '@/hooks/useWorkouts';
 import { ExerciseVideoModal } from '@/components/ExerciseVideoModal';
 import { useTheme, withAlpha } from '@/lib/theme';
+import { useAuthStore } from '@/stores/auth.store';
+import { convertWeightString, type WeightUnit } from '@coaching/shared';
 import {
   Screen,
   Text,
@@ -90,12 +92,15 @@ function buildInitialState(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   items: any[] | undefined,
   prMap: Record<string, PersonalRecord> = {},
+  traineeUnit: WeightUnit = 'kg',
 ): ExerciseState[] {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (items ?? []).map((item: any) => {
     const setCount = item.prescription?.sets ?? 3;
     const isPrBased = item.exercise?.isPrBased ?? false;
     const rawWeight = item.prescription?.weight;
+    const prescriptionUnit: WeightUnit =
+      item.prescription?.weightUnit === 'lbs' ? 'lbs' : 'kg';
     let resolvedWeight = prescStr(rawWeight);
     let needsPrEntry = false;
 
@@ -103,11 +108,23 @@ function buildInitialState(
       const pct = parseFloat(rawWeight) / 100;
       const pr = prMap[item.exerciseId];
       if (pr && !isNaN(pct)) {
-        resolvedWeight = String(Math.round(pr.weight * pct * 10) / 10);
+        // PR is stored in the unit the trainee used at entry time.
+        // Convert the computed absolute weight to trainee's current display unit.
+        const prUnit: WeightUnit = pr.unit === 'lbs' ? 'lbs' : 'kg';
+        const absoluteInPrUnit = Math.round(pr.weight * pct * 10) / 10;
+        const converted = convertWeightString(
+          String(absoluteInPrUnit),
+          prUnit,
+          traineeUnit,
+        );
+        resolvedWeight = converted;
       } else {
         resolvedWeight = '';
         needsPrEntry = true;
       }
+    } else if (resolvedWeight) {
+      // Absolute weight from prescription — convert from coach's unit to trainee's unit.
+      resolvedWeight = convertWeightString(resolvedWeight, prescriptionUnit, traineeUnit);
     }
 
     const sets: SetState[] = Array.from({ length: setCount }, () => ({
@@ -508,6 +525,7 @@ function ExerciseBlock({
   onUpdateSet,
   onAddSet,
   onWatchVideo,
+  weightUnit,
 }: {
   exercise: ExerciseState;
   index: number;
@@ -518,6 +536,7 @@ function ExerciseBlock({
   ) => void;
   onAddSet: (exIndex: number) => void;
   onWatchVideo: (exIndex: number) => void;
+  weightUnit?: WeightUnit;
 }) {
   const theme = useTheme();
   const completedSets = exercise.sets.filter((s) => s.completed).length;
@@ -614,7 +633,7 @@ function ExerciseBlock({
           {p.sets ? <Badge variant="info">{prescStr(p.sets)} sets</Badge> : null}
           {p.reps ? <Badge variant="info">{prescStr(p.reps)} reps</Badge> : null}
           {p.weight ? (
-            <Badge variant="info">{prescStr(p.weight)} kg</Badge>
+            <Badge variant="info">{prescStr(p.weight)} {weightUnit ?? 'kg'}</Badge>
           ) : null}
           {p.duration ? (
             <Badge variant="info">
@@ -727,12 +746,14 @@ function PrEntryModal({
   saving,
   onSave,
   onSkip,
+  unit,
 }: {
   visible: boolean;
   exerciseName: string;
   saving: boolean;
   onSave: (weight: number, reps: number) => void;
   onSkip: () => void;
+  unit?: WeightUnit;
 }) {
   const theme = useTheme();
   const [weight, setWeight] = useState('');
@@ -773,7 +794,7 @@ function PrEntryModal({
 
           <View style={{ gap: theme.spacing[3] }}>
             <View>
-              <Text variant="captionMedium" color="mutedForeground">Max weight (kg)</Text>
+              <Text variant="captionMedium" color="mutedForeground">Max weight ({unit ?? 'kg'})</Text>
               <TextInput
                 style={inputStyle}
                 value={weight}
@@ -933,6 +954,7 @@ export default function WorkoutLogScreen() {
   const submitLog = useSubmitLog(instanceId);
   const { data: personalRecords } = usePersonalRecords();
   const upsertPr = useUpsertPersonalRecord();
+  const traineeUnit = useAuthStore((s): WeightUnit => s.user?.weightUnit ?? 'kg');
 
   const [exercises, setExercises] = useState<ExerciseState[]>([]);
   const [initialized, setInitialized] = useState(false);
@@ -952,7 +974,7 @@ export default function WorkoutLogScreen() {
   useEffect(() => {
     if (instance?.template?.items && !initialized) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const built = buildInitialState(instance.template.items as any, prMap);
+      const built = buildInitialState(instance.template.items as any, prMap, traineeUnit);
       setExercises(built);
       setInitialized(true);
       // Queue any exercises that need PR entry
@@ -1207,6 +1229,7 @@ export default function WorkoutLogScreen() {
               onUpdateSet={updateSet}
               onAddSet={addSet}
               onWatchVideo={(idx) => setVideoForIndex(idx)}
+              weightUnit={traineeUnit}
             />
           ))
         )}
@@ -1236,6 +1259,7 @@ export default function WorkoutLogScreen() {
         visible={prPromptQueue.length > 0}
         exerciseName={prPromptQueue[0]?.name ?? ''}
         saving={savingPr}
+        unit={traineeUnit}
         onSave={async (weight, reps) => {
           const current = prPromptQueue[0];
           if (!current) return;
@@ -1246,6 +1270,7 @@ export default function WorkoutLogScreen() {
               exerciseName: current.name,
               weight,
               reps,
+              unit: traineeUnit,
             });
             // Recalculate weight for this exercise in state
             setExercises((prev) =>

@@ -49,6 +49,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth.store';
 
 type DraftItem = Omit<WorkoutItem, 'id'> & { id?: string };
 
@@ -407,6 +408,7 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
   const { data: workout, isLoading } = useWorkout(workoutId ?? '');
   const updateMeta = useUpdateWorkout();
   const qc = useQueryClient();
+  const coachUnit = useAuthStore((s) => s.user?.weightUnit ?? 'kg');
   const updateItems = useMutation({
     mutationFn: ({ id, items }: { id: string; items: DraftItem[] }) =>
       api.patch(`/workouts/${id}/items`, {
@@ -717,13 +719,16 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-[11px]">Weight</Label>
+                              <Label className="text-[11px]">Weight ({coachUnit})</Label>
                               <Input
                                 value={String(it.prescription.weight ?? '')}
                                 onChange={(e) =>
-                                  updatePrescription(idx, { weight: e.target.value })
+                                  updatePrescription(idx, {
+                                    weight: e.target.value,
+                                    weightUnit: coachUnit,
+                                  })
                                 }
-                                placeholder="75kg"
+                                placeholder={coachUnit === 'lbs' ? '165 lbs' : '75 kg'}
                                 className="h-8"
                               />
                             </div>

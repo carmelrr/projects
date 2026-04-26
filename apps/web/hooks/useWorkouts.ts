@@ -18,6 +18,7 @@ export interface WorkoutItem {
     rest?: string | number;
     restBetweenReps?: string | number;
     timeMode?: 'STOPWATCH' | 'COUNTDOWN';
+    weightUnit?: 'kg' | 'lbs';
     [key: string]: unknown;
   };
   exercise?: {

@@ -21,6 +21,7 @@ export interface AuthUser {
   orgId: string;
   role: 'OWNER' | 'ADMIN_COACH' | 'COACH' | 'CLIENT';
   avatarUrl?: string | null;
+  weightUnit?: 'kg' | 'lbs';
 }
 
 interface AuthState {
