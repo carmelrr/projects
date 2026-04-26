@@ -424,6 +424,7 @@
     },
     "actions": {
       "edit": "Edit",
+      "duplicate": "Duplicate",
       "delete": "Delete",
       "deleteConfirm": "Delete this workout?"
     }

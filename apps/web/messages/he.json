@@ -424,6 +424,7 @@
     },
     "actions": {
       "edit": "עריכה",
+      "duplicate": "שכפול",
       "delete": "מחיקה",
       "deleteConfirm": "למחוק את האימון הזה?"
     }

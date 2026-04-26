@@ -5,6 +5,7 @@ import {
   Plus,
   Search,
   Dumbbell,
+  Copy,
   MoreVertical,
   Pencil,
   Trash2,
@@ -13,6 +14,7 @@ import {
   useWorkouts,
   useCreateWorkout,
   useDeleteWorkout,
+  useDuplicateWorkout,
   type Workout,
 } from '@/hooks/useWorkouts';
 import { useT } from '@/lib/i18n/client';
@@ -155,10 +157,12 @@ function WorkoutCard({
   workout,
   onEdit,
   onDelete,
+  onDuplicate,
 }: {
   workout: Workout;
   onEdit: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const t = useT();
 
@@ -187,6 +191,10 @@ function WorkoutCard({
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil className="me-2 size-4" />
                 {t('workoutsLibrary.actions.edit')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDuplicate}>
+                <Copy className="me-2 size-4" />
+                {t('workoutsLibrary.actions.duplicate')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
@@ -223,6 +231,7 @@ function WorkoutCard({
 export default function WorkoutsPage() {
   const t = useT();
   const removeWorkout = useDeleteWorkout();
+  const duplicateWorkout = useDuplicateWorkout();
 
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -281,6 +290,13 @@ export default function WorkoutsPage() {
               key={workout.id}
               workout={workout}
               onEdit={() => setEditingWorkoutId(workout.id)}
+              onDuplicate={async () => {
+                const created = await duplicateWorkout.mutateAsync({
+                  workout,
+                  existingTitles: workouts.map((w) => w.title),
+                });
+                setEditingWorkoutId(created.id);
+              }}
               onDelete={async () => {
                 if (!confirm(t('workoutsLibrary.actions.deleteConfirm'))) return;
                 await removeWorkout.mutateAsync(workout.id);

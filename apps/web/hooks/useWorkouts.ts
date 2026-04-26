@@ -254,6 +254,39 @@ export function useDeleteWorkout() {
   });
 }
 
+export function useDuplicateWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      workout,
+      existingTitles,
+    }: {
+      workout: Workout;
+      existingTitles: string[];
+    }) => {
+      const base = `Copy of ${workout.title}`;
+      let title = base;
+      let n = 2;
+      while (existingTitles.includes(title)) {
+        title = `${base} (${n})`;
+        n++;
+      }
+      return api.post<Workout>('/workouts', {
+        title,
+        description: workout.description,
+        type: workout.type,
+        estimatedDuration: workout.estimatedDuration,
+        instructions: workout.instructions,
+        tags: workout.tags,
+        items: workout.items,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workouts'] });
+    },
+  });
+}
+
 export function useWorkoutInstance(instanceId: string) {
   return useQuery({
     queryKey: ['workout-instance', instanceId],

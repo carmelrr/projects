@@ -196,7 +196,6 @@ function SetRow({
             value={set.reps}
             onChange={(e) => onChange({ reps: e.target.value })}
             className="h-9 text-sm"
-            disabled={set.completed}
           />
         </div>
       )}
@@ -208,7 +207,6 @@ function SetRow({
             value={set.weight}
             onChange={(e) => onChange({ weight: e.target.value })}
             className="h-9 text-sm"
-            disabled={set.completed}
           />
         </div>
       )}
@@ -220,7 +218,6 @@ function SetRow({
             value={set.duration}
             onChange={(e) => onChange({ duration: e.target.value })}
             className="h-9 text-sm"
-            disabled={set.completed}
           />
         </div>
       )}
@@ -761,6 +758,16 @@ export default function WorkoutLogPage() {
       else next.add(exIdx);
       return next;
     });
+
+  // Auto-open finish dialog when every set is marked complete
+  useEffect(() => {
+    if (!hydrated) return;
+    if (exercises.length === 0) return;
+    const total = exercises.reduce((s, e) => s + e.sets.length, 0);
+    if (total === 0) return;
+    const done = exercises.reduce((s, e) => s + e.sets.filter((x) => x.completed).length, 0);
+    if (done === total) setConfirmOpen(true);
+  }, [exercises, hydrated]);
 
   const session = useSessionTimer();
 
