@@ -11,6 +11,11 @@ export class UsersController {
     return this.usersService.getMe(user.sub);
   }
 
+  @Get('me/coach')
+  async getMyCoach(@CurrentUser() user: CurrentUserPayload) {
+    return this.usersService.getMyCoach(user.sub, user.orgId, user.clientProfileId);
+  }
+
   @Patch('me')
   async updateMe(
     @CurrentUser() user: CurrentUserPayload,

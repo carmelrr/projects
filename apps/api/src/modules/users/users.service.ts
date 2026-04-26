@@ -50,6 +50,45 @@ export class UsersService {
     };
   }
 
+  async getMyCoach(userId: string, orgId: string, clientProfileId?: string) {
+    if (!orgId || !clientProfileId) return null;
+
+    // Find the active coach assignment for this client
+    const assignSnap = await this.firebase
+      .clientAssignments(orgId)
+      .where('clientId', '==', clientProfileId)
+      .where('status', '==', 'ACTIVE')
+      .limit(1)
+      .get();
+
+    if (assignSnap.empty) return null;
+
+    const assignment = assignSnap.docs[0].data();
+    const coachProfileId = assignment.coachId as string;
+    if (!coachProfileId) return null;
+
+    // Find the coach user by their coachProfile.id
+    const coachSnap = await this.firebase
+      .users()
+      .where('coachProfile.id', '==', coachProfileId)
+      .limit(1)
+      .get();
+
+    if (coachSnap.empty) return null;
+
+    const coachDoc = coachSnap.docs[0];
+    const coachUser = coachDoc.data();
+
+    return {
+      id: coachProfileId,
+      userId: coachDoc.id,
+      firstName: coachUser.firstName as string,
+      lastName: coachUser.lastName as string,
+      email: coachUser.email as string,
+      avatarUrl: (coachUser.avatarUrl as string | null) ?? null,
+    };
+  }
+
   async updateMe(
     userId: string,
     data: {

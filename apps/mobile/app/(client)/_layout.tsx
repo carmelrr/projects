@@ -4,7 +4,6 @@ import { Redirect } from 'expo-router';
 import {
   CalendarCheck,
   LineChart,
-  Sprout,
   MessageSquare,
   User,
 } from 'lucide-react-native';
@@ -94,12 +93,7 @@ export default function ClientLayout() {
       />
       <Tabs.Screen
         name="habits"
-        options={{
-          title: 'Habits',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={Sprout} />
-          ),
-        }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="messages/index"

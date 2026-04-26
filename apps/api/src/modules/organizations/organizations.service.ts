@@ -71,16 +71,10 @@ export class OrganizationsService {
           id: cp.id || d.id,
           userId: d.id,
           role: membership?.role ?? 'COACH',
-          bio: cp.bio ?? null,
-          specialties: cp.specialties ?? [],
-          capacity: cp.capacity ?? null,
-          user: {
-            id: d.id,
-            email: u.email,
-            firstName: u.firstName,
-            lastName: u.lastName,
-            avatarUrl: u.avatarUrl ?? null,
-          },
+          firstName: u.firstName as string,
+          lastName: u.lastName as string,
+          email: u.email as string,
+          avatarUrl: (u.avatarUrl as string | null) ?? null,
         };
       })
       .filter((c): c is NonNullable<typeof c> => c !== null);

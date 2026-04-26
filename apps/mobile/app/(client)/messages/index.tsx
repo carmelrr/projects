@@ -15,7 +15,7 @@ import {
   useCreateDirectThread,
   type Thread,
 } from '@/hooks/useMessaging';
-import { useCoaches } from '@/hooks/useCoaches';
+import { useCoaches, useMyCoach } from '@/hooks/useCoaches';
 import { useTheme, withAlpha } from '@/lib/theme';
 import {
   Screen,
@@ -132,8 +132,17 @@ export default function MessagesScreen() {
   const { user } = useAuthStore();
   const { data: threads, isLoading, refetch, isRefetching } = useThreads();
   const { data: coaches } = useCoaches();
+  const { data: myCoach } = useMyCoach();
   const createDirect = useCreateDirectThread();
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Build the list for the "New conversation" picker:
+  // prefer org coaches list, fall back to assigned coach if org list is empty.
+  const pickerCoaches = coaches?.length
+    ? coaches
+    : myCoach
+      ? [myCoach]
+      : [];
 
   const startConversation = async (coachId: string) => {
     setPickerOpen(false);
@@ -239,16 +248,36 @@ export default function MessagesScreen() {
                 <Icon icon={MessageSquare} size={28} color="primary" />
               </View>
               <Text variant="h2">No conversations yet</Text>
-              <Text
-                variant="body"
-                color="mutedForeground"
-                style={{
-                  textAlign: 'center',
-                  paddingHorizontal: theme.spacing[6],
-                }}
-              >
-                Your coach can start a conversation with you from the web app.
-              </Text>
+              {myCoach ? (
+                <View style={{ alignItems: 'center', gap: theme.spacing[2] }}>
+                  <Text
+                    variant="body"
+                    color="mutedForeground"
+                    style={{ textAlign: 'center', paddingHorizontal: theme.spacing[6] }}
+                  >
+                    Start a conversation with your coach.
+                  </Text>
+                  <Button
+                    size="sm"
+                    onPress={() => startConversation(myCoach.id)}
+                    loading={createDirect.isPending}
+                    iconLeft={<Icon icon={MessageSquare} size={14} color={theme.colors.primaryForeground} />}
+                  >
+                    Message {myCoach.firstName}
+                  </Button>
+                </View>
+              ) : (
+                <Text
+                  variant="body"
+                  color="mutedForeground"
+                  style={{
+                    textAlign: 'center',
+                    paddingHorizontal: theme.spacing[6],
+                  }}
+                >
+                  Your coach can start a conversation with you from the web app.
+                </Text>
+              )}
             </View>
           )
         }
@@ -296,7 +325,7 @@ export default function MessagesScreen() {
                 <Icon icon={X} size={20} color="mutedForeground" />
               </Pressable>
             </View>
-            {!coaches?.length ? (
+            {!pickerCoaches.length ? (
               <View
                 style={{
                   padding: theme.spacing[10],
@@ -309,7 +338,7 @@ export default function MessagesScreen() {
               </View>
             ) : (
               <FlatList
-                data={coaches}
+                data={pickerCoaches}
                 keyExtractor={(c) => c.id}
                 renderItem={({ item: c }) => (
                   <Pressable
