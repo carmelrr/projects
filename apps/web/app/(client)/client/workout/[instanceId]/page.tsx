@@ -11,6 +11,7 @@ import {
   Clock,
   Loader2,
   Pause,
+  Pencil,
   Play as PlayIcon,
   RotateCcw,
   SkipForward,
@@ -76,6 +77,35 @@ function prescStr(v: unknown): string {
 function fmtSeconds(total: number): string {
   const safe = Math.max(0, Math.floor(total));
   return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+}
+
+function buildPrescriptionParts(
+  p: Record<string, unknown>,
+  setCount: number,
+): Array<{ key: string; value: string; label: string }> {
+  const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+  const str = (v: unknown) => { const s = String(v ?? '').trim(); return s || null; };
+  const parts: Array<{ key: string; value: string; label: string }> = [];
+
+  const sets = num(p.sets) ?? setCount;
+  parts.push({ key: 'sets', value: String(sets), label: sets === 1 ? 'set' : 'sets' });
+
+  const reps = str(p.reps);
+  if (reps) parts.push({ key: 'reps', value: reps, label: 'reps' });
+
+  const weight = num(p.weight);
+  if (weight) parts.push({ key: 'weight', value: String(weight), label: str(p.weightUnit) ?? 'kg' });
+
+  const duration = num(p.duration);
+  if (duration) parts.push({ key: 'duration', value: `${duration}s`, label: 'duration' });
+
+  const rest = num(p.rest);
+  if (rest) parts.push({ key: 'rest', value: `${rest}s`, label: 'rest' });
+
+  const restBetweenReps = num(p.restBetweenReps);
+  if (restBetweenReps) parts.push({ key: 'repRest', value: `${restBetweenReps}s`, label: 'rest/rep' });
+
+  return parts;
 }
 
 function buildInitialExercises(items: WorkoutItem[] | undefined): ExerciseState[] {
@@ -722,6 +752,15 @@ export default function WorkoutLogPage() {
   const [hydrated, setHydrated] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [timerExIdx, setTimerExIdx] = useState<number | null>(null);
+  const [logExpanded, setLogExpanded] = useState<Set<number>>(new Set());
+
+  const toggleLogExpanded = (exIdx: number) =>
+    setLogExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(exIdx)) next.delete(exIdx);
+      else next.add(exIdx);
+      return next;
+    });
 
   const session = useSessionTimer();
 
@@ -1032,6 +1071,25 @@ export default function WorkoutLogPage() {
                     )}
                   </div>
 
+                  {/* Prescription summary — always visible */}
+                  {(() => {
+                    const parts = buildPrescriptionParts(ex.prescription, ex.sets.length);
+                    if (!parts.length) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1.5">
+                        {parts.map((p) => (
+                          <span
+                            key={p.key}
+                            className="inline-flex items-baseline gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs"
+                          >
+                            <span className="font-semibold tabular-nums text-foreground">{p.value}</span>
+                            <span className="text-muted-foreground">{p.label}</span>
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
                   {ex.coachNotes && !isCollapsed && (
                     <p className="rounded-md bg-muted/40 p-2 text-xs text-muted-foreground">
                       {ex.coachNotes}
@@ -1040,18 +1098,30 @@ export default function WorkoutLogPage() {
 
                   {!isCollapsed && (
                     <>
-                      <div className="space-y-2">
+                      {/* Set chips */}
+                      <div className="flex flex-wrap items-center gap-2">
                         {ex.sets.map((set, setIdx) => (
-                          <div key={setIdx} className="flex items-center gap-1">
-                            <div className="flex-1">
-                              <SetRow
-                                setIndex={setIdx}
-                                set={set}
-                                prescription={ex.prescription}
-                                onChange={(p) => updateSet(exIdx, setIdx, p)}
-                                onComplete={() => toggleSetComplete(exIdx, setIdx)}
-                              />
-                            </div>
+                          <div key={setIdx} className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => toggleSetComplete(exIdx, setIdx)}
+                              aria-label={set.completed ? `Set ${setIdx + 1} — mark incomplete` : `Set ${setIdx + 1} — mark complete`}
+                              className={cn(
+                                'flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors',
+                                set.completed
+                                  ? 'border-success/40 bg-success/10 text-success'
+                                  : 'border-border bg-muted/30 text-foreground hover:border-primary/50',
+                              )}
+                            >
+                              {set.completed ? (
+                                <Check className="size-3.5 shrink-0" />
+                              ) : (
+                                <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                                  {setIdx + 1}
+                                </span>
+                              )}
+                              <span>Set {setIdx + 1}</span>
+                            </button>
                             {ex.sets.length > 1 && (
                               <Button
                                 type="button"
@@ -1059,23 +1129,54 @@ export default function WorkoutLogPage() {
                                 size="icon"
                                 onClick={() => removeSet(exIdx, setIdx)}
                                 aria-label="Remove set"
-                                className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
                               >
-                                <X className="size-3.5" />
+                                <X className="size-3" />
                               </Button>
                             )}
                           </div>
                         ))}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 text-muted-foreground"
+                          onClick={() => addSet(exIdx)}
+                        >
+                          + Add set
+                        </Button>
                       </div>
+
+                      {/* Log actual values toggle */}
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="w-full"
-                        onClick={() => addSet(exIdx)}
+                        className="w-full text-xs text-muted-foreground"
+                        onClick={() => toggleLogExpanded(exIdx)}
                       >
-                        + Add set
+                        <Pencil className="size-3" />
+                        {logExpanded.has(exIdx) ? 'Hide actual values' : 'Log actual values'}
                       </Button>
+
+                      {/* Expanded per-set inputs */}
+                      {logExpanded.has(exIdx) && (
+                        <div className="space-y-2">
+                          {ex.sets.map((set, setIdx) => (
+                            <div key={setIdx} className="flex items-center gap-1">
+                              <div className="flex-1">
+                                <SetRow
+                                  setIndex={setIdx}
+                                  set={set}
+                                  prescription={ex.prescription}
+                                  onChange={(p) => updateSet(exIdx, setIdx, p)}
+                                  onComplete={() => toggleSetComplete(exIdx, setIdx)}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </>
                   )}
                 </CardContent>
