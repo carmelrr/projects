@@ -9,7 +9,8 @@
     "build:android": "eas build --platform android",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "eas-build-pre-install": "node ./scripts/eas-pre-install.js"
+    "eas-build-pre-install": "node ./scripts/eas-pre-install.js",
+    "eas-build-post-install": "pnpm --filter @coaching/shared build"
   },
   "dependencies": {
     "@coaching/shared": "workspace:*",
