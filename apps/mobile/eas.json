@@ -19,6 +19,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://coachingapi-production-0832.up.railway.app/api/v1"
       }

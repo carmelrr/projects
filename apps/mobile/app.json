@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "owl.performance.com",
-      "buildNumber": "8",
+      "buildNumber": "9",
       "googleServicesFile": "./GoogleService-Info.plist",
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -43,7 +43,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "owl.performance.com",
-      "versionCode": 8,
+      "versionCode": 9,
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
