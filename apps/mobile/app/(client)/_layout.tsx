@@ -92,10 +92,6 @@ export default function ClientLayout() {
         }}
       />
       <Tabs.Screen
-        name="habits"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
         name="messages/index"
         options={{
           title: 'Messages',

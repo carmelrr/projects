@@ -28,11 +28,13 @@ export class MessagingService {
         .limit(1)
         .get();
 
-      const lastMessage = msgSnap.empty ? null : { id: msgSnap.docs[0].id, ...msgSnap.docs[0].data() };
+      const lastMessage: Record<string, unknown> | null = msgSnap.empty
+        ? null
+        : { id: msgSnap.docs[0].id, ...msgSnap.docs[0].data() };
 
       // Calculate unread count
-      const participants = (thread.participants as Array<Record<string, unknown>>) || [];
-      const myEntry = participants.find((p: Record<string, unknown>) => p.userId === userId);
+      const participantEntries = (thread.participants as Array<Record<string, unknown>>) || [];
+      const myEntry = participantEntries.find((p: Record<string, unknown>) => p.userId === userId);
       const lastReadAt = myEntry?.lastReadAt as string | undefined;
 
       let unreadCount = 0;
@@ -50,10 +52,33 @@ export class MessagingService {
         unreadCount = allSnap.docs.filter(m => !m.data().deletedAt).length;
       }
 
+      const participantIds = participantEntries
+        .map((p) => p.userId)
+        .filter((id): id is string => typeof id === 'string');
+      const usersById = await this.getUsersById(participantIds);
+      const participants = participantEntries.map((p) => {
+        const participantUserId = p.userId as string | undefined;
+        return {
+          ...p,
+          unreadCount: participantUserId === userId ? unreadCount : 0,
+          user: participantUserId ? usersById.get(participantUserId) : undefined,
+        };
+      });
+
+      const lastMessageBody = lastMessage?.['body'];
+
       threads.push({
         id: doc.id,
         ...thread,
+        participants,
         lastMessage,
+        lastMessageAt: (lastMessage?.['createdAt'] as string | undefined) ?? thread.updatedAt,
+        lastMessagePreview:
+          typeof lastMessageBody === 'string' && lastMessageBody.length > 0
+            ? lastMessageBody
+            : lastMessage
+              ? '[attachment]'
+              : undefined,
         unreadCount,
       });
     }
@@ -69,6 +94,9 @@ export class MessagingService {
   }
 
   async getOrCreateDirectThread(orgId: string, userId: string, otherUserId: string) {
+    const normalizedOtherUserId = await this.resolveParticipantUserId(orgId, otherUserId);
+    if (!normalizedOtherUserId) throw new NotFoundException('User not found');
+
     // Find existing direct thread between these two users
     const snap = await this.firebase
       .threads(orgId)
@@ -79,11 +107,34 @@ export class MessagingService {
     const existingThread = snap.docs.find(doc => {
       const data = doc.data();
       const ids = (data.participantIds as string[]) || [];
-      return ids.includes(otherUserId);
+      return ids.includes(normalizedOtherUserId) || ids.includes(otherUserId);
     });
 
     if (existingThread) {
-      return { id: existingThread.id, ...existingThread.data() };
+      const existingData = existingThread.data();
+      if (otherUserId !== normalizedOtherUserId) {
+        const participantIds = ((existingData.participantIds as string[]) || []).map((id) =>
+          id === otherUserId ? normalizedOtherUserId : id,
+        );
+        const repairedParticipantIds = [...new Set(participantIds)];
+        const participants = ((existingData.participants as Array<Record<string, unknown>>) || []).map((p) =>
+          p.userId === otherUserId ? { ...p, userId: normalizedOtherUserId } : p,
+        );
+
+        await this.firebase.threads(orgId).doc(existingThread.id).update({
+          participantIds: repairedParticipantIds,
+          participants,
+        });
+
+        return {
+          id: existingThread.id,
+          ...existingData,
+          participantIds: repairedParticipantIds,
+          participants,
+        };
+      }
+
+      return { id: existingThread.id, ...existingData };
     }
 
     // Create new direct thread
@@ -94,10 +145,10 @@ export class MessagingService {
       orgId,
       type: 'DIRECT',
       createdBy: userId,
-      participantIds: [userId, otherUserId],
+      participantIds: [userId, normalizedOtherUserId],
       participants: [
         { userId, role: 'member', lastReadAt: null },
-        { userId: otherUserId, role: 'member', lastReadAt: null },
+        { userId: normalizedOtherUserId, role: 'member', lastReadAt: null },
       ],
       createdAt: now,
       updatedAt: now,
@@ -130,12 +181,22 @@ export class MessagingService {
     // Reverse to return oldest first
     messages.reverse();
 
+    const usersById = await this.getUsersById(
+      messages
+        .map((m) => (m as Record<string, unknown>).senderId)
+        .filter((id): id is string => typeof id === 'string'),
+    );
+    const items = messages.map((m) => {
+      const senderId = (m as Record<string, unknown>).senderId as string | undefined;
+      return {
+        ...m,
+        sender: senderId ? usersById.get(senderId) : undefined,
+      };
+    });
+
     return {
-      data: messages,
-      meta: {
-        hasMore,
-        nextCursor: hasMore ? (messages[0] as Record<string, unknown>)?.createdAt : null,
-      },
+      items,
+      nextCursor: hasMore ? ((items[0] as Record<string, unknown>)?.createdAt as string) : undefined,
     };
   }
 
@@ -195,5 +256,54 @@ export class MessagingService {
     if (!ids.includes(userId)) {
       throw new ForbiddenException('Not a participant of this thread');
     }
+  }
+
+  private async getUsersById(userIds: string[]) {
+    const uniqueIds = [...new Set(userIds)].filter(Boolean);
+    const entries = await Promise.all(
+      uniqueIds.map(async (id) => {
+        const doc = await this.firebase.users().doc(id).get();
+        if (!doc.exists) return null;
+        const user = doc.data()!;
+        return [
+          id,
+          {
+            id,
+            firstName: (user.firstName as string) ?? '',
+            lastName: (user.lastName as string) ?? '',
+            avatarUrl: (user.avatarUrl as string | null) ?? null,
+          },
+        ] as const;
+      }),
+    );
+
+    return new Map(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null));
+  }
+
+  private async resolveParticipantUserId(orgId: string, userOrProfileId: string) {
+    const directUserDoc = await this.firebase.users().doc(userOrProfileId).get();
+    if (directUserDoc.exists && this.userBelongsToOrg(directUserDoc.data(), orgId)) {
+      return directUserDoc.id;
+    }
+
+    for (const field of ['coachProfile.id', 'clientProfile.id']) {
+      const snap = await this.firebase
+        .users()
+        .where(field, '==', userOrProfileId)
+        .limit(1)
+        .get();
+      const profileUserDoc = snap.docs[0];
+      if (profileUserDoc && this.userBelongsToOrg(profileUserDoc.data(), orgId)) {
+        return profileUserDoc.id;
+      }
+    }
+
+    return null;
+  }
+
+  private userBelongsToOrg(user: FirebaseFirestore.DocumentData | undefined, orgId: string) {
+    return ((user?.orgs as Array<{ orgId: string }> | undefined) ?? []).some(
+      (org) => org.orgId === orgId,
+    );
   }
 }

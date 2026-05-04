@@ -15,11 +15,10 @@ The mobile app is the **client-side companion** to OWL Performance, a coaching p
 │   ├─ forgot-password    Password reset
 │   ├─ accept-invite      Claim coach-issued invite code
 │   └─ needs-invite       Firebase user without a coach-issued profile
-└─ (client)/              Authenticated tab bar (Today / Metrics / Habits / Messages / Profile)
+└─ (client)/              Authenticated tab bar (Today / Metrics / Messages / Profile)
     ├─ today              Today's scheduled workouts + completion progress
     ├─ metrics            Client-tracked metrics (weight, sleep, etc.) with sparklines
     ├─ metric/[metricId]  Single-metric detail + log entry
-    ├─ habits             Daily habit checklist (simple + counted)
     ├─ messages/          Inbox of conversations with the coach
     ├─ messages/[threadId] Single thread
     ├─ log/[instanceId]   Live workout logger (sets, reps, RPE, video cues)
@@ -29,7 +28,7 @@ The mobile app is the **client-side companion** to OWL Performance, a coaching p
 
 ### Primary user flows
 
-The client opens the app to **Today**, taps a scheduled workout to open the **logger**, fills in sets as they train, and submits. Between sessions they log **metrics** and tick off **habits**. If something is off they **message** their coach. The coach sees everything on the web side.
+The client opens the app to **Today**, taps a scheduled workout to open the **logger**, fills in sets as they train, and submits. Between sessions they log **metrics**. If something is off they **message** their coach. The coach sees everything on the web side.
 
 ## Design target — match the web vibe
 
@@ -69,7 +68,7 @@ apps/mobile/
 │   │   ├─ Text.tsx          variant-driven Text (display/h1/body/caption/eyebrow)
 │   │   ├─ Input.tsx         themed TextInput w/ label + error state
 │   │   ├─ Avatar.tsx        circle initials + presence dot (matches web)
-│   │   ├─ ProgressBar.tsx   1.5px bar used on Today + Habits
+│   │   ├─ ProgressBar.tsx   1.5px bar used on Today + metrics
 │   │   └─ Icon.tsx          lucide-react-native wrapper, theme-aware color/size
 │   ├─ brand/
 │   │   └─ OwlLogo.tsx       SVG lockup matching web OwlLogo (mark + wordmark variants)
@@ -90,12 +89,11 @@ apps/mobile/
 
 ### Phase 1 — Client tab surfaces
 - **P1.1** `metrics.tsx` — migrate cards, sparklines, primary color
-- **P1.2** `habits.tsx` — habit rows, progress bars, pill states
-- **P1.3** `messages/index.tsx` — thread list with avatars + presence
-- **P1.4** `messages/[threadId].tsx` — chat bubbles using `--primary` / `--muted`
-- **P1.5** `profile.tsx` — settings rows, destructive sign-out
+- **P1.2** `messages/index.tsx` — thread list with avatars + presence
+- **P1.3** `messages/[threadId].tsx` — chat bubbles using `--primary` / `--muted`
+- **P1.4** `profile.tsx` — settings rows, destructive sign-out
 
-**Acceptance**: All 5 primary tabs use only tokens + primitives. Dark mode parity.
+**Acceptance**: All 4 primary tabs use only tokens + primitives. Dark mode parity.
 
 ### Phase 2 — Detail & modal surfaces
 - **P2.1** `log/[instanceId].tsx` — workout logger (highest UI density, most work)

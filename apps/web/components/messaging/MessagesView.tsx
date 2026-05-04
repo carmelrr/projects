@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Send, MessageSquare, Search } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
@@ -8,6 +8,7 @@ import {
   useThreads,
   useMessages,
   useSendMessage,
+  useGetOrCreateDirect,
   useMarkRead,
   useMessagingSocket,
   type Thread,
@@ -259,18 +260,26 @@ function MessageArea({
 export interface MessagesViewProps {
   emptyTitle?: string;
   emptyDescription?: string;
+  directStartUserId?: string | null;
+  directStartButtonLabel?: string;
+  autoStartUserId?: string | null;
 }
 
 export function MessagesView({
   emptyTitle = 'No conversations',
   emptyDescription = 'Start a conversation with your coach.',
+  directStartUserId = null,
+  directStartButtonLabel = 'Start conversation',
+  autoStartUserId = null,
 }: MessagesViewProps) {
   const { user } = useAuthStore();
   const { data: threads, isLoading } = useThreads();
+  const createDirect = useGetOrCreateDirect();
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const qc = useQueryClient();
+  const autoStartedRef = useRef<string | null>(null);
 
   const myId = user?.id ?? '';
   const threadsList = threads ?? [];
@@ -283,6 +292,22 @@ export function MessagesView({
   useEffect(() => {
     if (!activeThreadId && threadsList.length > 0) setActiveThreadId(threadsList[0].id);
   }, [activeThreadId, threadsList]);
+
+  const startDirectConversation = useCallback(
+    async (userId: string) => {
+      const thread = await createDirect.mutateAsync(userId);
+      setActiveThreadId(thread.id);
+    },
+    [createDirect],
+  );
+
+  useEffect(() => {
+    if (!autoStartUserId || autoStartedRef.current === autoStartUserId) return;
+    autoStartedRef.current = autoStartUserId;
+    startDirectConversation(autoStartUserId).catch(() => {
+      autoStartedRef.current = null;
+    });
+  }, [autoStartUserId, startDirectConversation]);
 
   const { sendTyping, sendStopTyping } = useMessagingSocket(
     myId,
@@ -335,6 +360,18 @@ export function MessagesView({
                 icon={MessageSquare}
                 title={emptyTitle}
                 description={search ? 'Try a different search.' : emptyDescription}
+                action={
+                  !search && directStartUserId ? (
+                    <Button
+                      variant="gradient"
+                      onClick={() => startDirectConversation(directStartUserId)}
+                      disabled={createDirect.isPending}
+                    >
+                      <MessageSquare className="me-2 size-4" />
+                      {directStartButtonLabel}
+                    </Button>
+                  ) : undefined
+                }
               />
             </div>
           ) : (

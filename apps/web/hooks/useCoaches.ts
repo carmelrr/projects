@@ -17,9 +17,25 @@ export interface Coach {
   };
 }
 
+export interface AssignedCoach {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatarUrl: string | null;
+}
+
 export function useCoaches() {
   return useQuery<Coach[]>({
     queryKey: ['coaches'],
     queryFn: () => api.get('/organizations/coaches'),
+  });
+}
+
+export function useMyCoach() {
+  return useQuery<AssignedCoach | null>({
+    queryKey: ['my-coach'],
+    queryFn: () => api.get('/users/me/coach'),
   });
 }

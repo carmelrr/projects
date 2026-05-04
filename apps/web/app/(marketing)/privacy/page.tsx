@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
           <li><strong>Account information:</strong> name, email address, and password when you register.</li>
           <li><strong>Profile data:</strong> profile photo, role (coach or client), and organization details.</li>
           <li><strong>Workout &amp; training data:</strong> programs, workout logs, exercise history, and compliance metrics.</li>
-          <li><strong>Body metrics:</strong> weight, body measurements, progress photos, and habit tracking data you choose to submit.</li>
+          <li><strong>Body metrics:</strong> weight, body measurements, and progress photos you choose to submit.</li>
           <li><strong>Messages:</strong> content of messages exchanged between coaches and clients within the Service.</li>
           <li><strong>Device information:</strong> device type, operating system, push notification tokens, and app version.</li>
           <li><strong>Usage data:</strong> pages visited, features used, and interaction timestamps.</li>

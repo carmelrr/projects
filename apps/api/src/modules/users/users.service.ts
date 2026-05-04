@@ -51,19 +51,30 @@ export class UsersService {
   }
 
   async getMyCoach(userId: string, orgId: string, clientProfileId?: string) {
-    if (!orgId || !clientProfileId) return null;
+    if (!orgId) return null;
 
-    // Find the active coach assignment for this client
-    const assignSnap = await this.firebase
+    const userAssignmentSnap = await this.firebase
       .clientAssignments(orgId)
-      .where('clientId', '==', clientProfileId)
+      .where('clientUserId', '==', userId)
       .where('status', '==', 'ACTIVE')
       .limit(1)
       .get();
 
-    if (assignSnap.empty) return null;
+    let assignmentDoc = userAssignmentSnap.docs[0];
 
-    const assignment = assignSnap.docs[0].data();
+    if (!assignmentDoc && clientProfileId) {
+      const profileAssignmentSnap = await this.firebase
+        .clientAssignments(orgId)
+        .where('clientId', '==', clientProfileId)
+        .where('status', '==', 'ACTIVE')
+        .limit(1)
+        .get();
+      assignmentDoc = profileAssignmentSnap.docs[0];
+    }
+
+    if (!assignmentDoc) return null;
+
+    const assignment = assignmentDoc.data();
     const coachProfileId = assignment.coachId as string;
     if (!coachProfileId) return null;
 

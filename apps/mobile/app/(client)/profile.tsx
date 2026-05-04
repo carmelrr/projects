@@ -300,24 +300,6 @@ export default function ProfileScreen() {
           </Card>
         </View>
 
-        {__DEV__ && (
-          <View style={{ gap: theme.spacing[2] }}>
-            <Text
-              variant="eyebrow"
-              color="mutedForeground"
-              style={{ paddingHorizontal: theme.spacing[1] }}
-            >
-              App
-            </Text>
-            <Card>
-              <Row
-                label="API endpoint"
-                value={process.env.EXPO_PUBLIC_API_URL ?? 'localhost:3001'}
-              />
-            </Card>
-          </View>
-        )}
-
         <Button
           variant="outline"
           onPress={handleLogout}

@@ -67,22 +67,36 @@ export class OrganizationsService {
         const membership = (u.orgs || []).find(
           (o: { orgId: string }) => o.orgId === orgId,
         ) as { role?: string } | undefined;
+        const firstName = (u.firstName as string) ?? '';
+        const lastName = (u.lastName as string) ?? '';
+        const email = (u.email as string) ?? '';
+        const avatarUrl = (u.avatarUrl as string | null) ?? null;
         return {
           id: cp.id || d.id,
           userId: d.id,
           role: membership?.role ?? 'COACH',
-          firstName: u.firstName as string,
-          lastName: u.lastName as string,
-          email: u.email as string,
-          avatarUrl: (u.avatarUrl as string | null) ?? null,
+          firstName,
+          lastName,
+          email,
+          avatarUrl,
+          bio: (cp.bio as string | null) ?? null,
+          specialties: (cp.specialties as string[]) ?? [],
+          capacity: (cp.capacity as number | null) ?? null,
+          user: {
+            id: d.id,
+            email,
+            firstName,
+            lastName,
+            avatarUrl,
+          },
         };
       })
       .filter((c): c is NonNullable<typeof c> => c !== null);
 
     // Sort by first name
     coaches.sort((a, b) => {
-      const na = (a.user.firstName as string) || '';
-      const nb = (b.user.firstName as string) || '';
+      const na = (a.firstName as string) || '';
+      const nb = (b.firstName as string) || '';
       return na.localeCompare(nb);
     });
 

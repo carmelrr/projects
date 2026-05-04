@@ -1,21 +1,18 @@
-import { useState } from 'react';
 import {
   View,
   FlatList,
-  Pressable,
   RefreshControl,
-  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MessageSquare, Plus, X } from 'lucide-react-native';
+import { MessageSquare, Plus } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
 import {
   useThreads,
   useCreateDirectThread,
   type Thread,
 } from '@/hooks/useMessaging';
-import { useCoaches, useMyCoach } from '@/hooks/useCoaches';
+import { useMyCoach } from '@/hooks/useCoaches';
 import { useTheme, withAlpha } from '@/lib/theme';
 import {
   Screen,
@@ -131,23 +128,12 @@ export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { data: threads, isLoading, refetch, isRefetching } = useThreads();
-  const { data: coaches } = useCoaches();
-  const { data: myCoach } = useMyCoach();
+  const { data: myCoach, isLoading: isCoachLoading } = useMyCoach();
   const createDirect = useCreateDirectThread();
-  const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Build the list for the "New conversation" picker:
-  // prefer org coaches list, fall back to assigned coach if org list is empty.
-  const pickerCoaches = coaches?.length
-    ? coaches
-    : myCoach
-      ? [myCoach]
-      : [];
-
-  const startConversation = async (coachId: string) => {
-    setPickerOpen(false);
+  const startConversation = async (coachUserId: string) => {
     try {
-      const thread = await createDirect.mutateAsync(coachId);
+      const thread = await createDirect.mutateAsync(coachUserId);
       router.push(`/(client)/messages/${thread.id}`);
     } catch {
       // Thread may already exist; threads will refetch
@@ -174,36 +160,74 @@ export default function MessagesScreen() {
           />
         }
         ListHeaderComponent={
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'flex-end',
-              justifyContent: 'space-between',
-              gap: theme.spacing[3],
-              marginBottom: theme.spacing[5],
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text variant="eyebrow" color="mutedForeground">
-                Inbox
-              </Text>
-              <Text variant="h1" style={{ marginTop: theme.spacing[1] }}>
-                Messages
-              </Text>
-            </View>
-            <Button
-              onPress={() => setPickerOpen(true)}
-              size="sm"
-              iconLeft={
-                <Icon
-                  icon={Plus}
-                  size={16}
-                  color={theme.colors.primaryForeground}
-                />
-              }
+          <View style={{ gap: theme.spacing[4], marginBottom: theme.spacing[5] }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-end',
+                justifyContent: 'space-between',
+                gap: theme.spacing[3],
+              }}
             >
-              New
-            </Button>
+              <View style={{ flex: 1 }}>
+                <Text variant="eyebrow" color="mutedForeground">
+                  Inbox
+                </Text>
+                <Text variant="h1" style={{ marginTop: theme.spacing[1] }}>
+                  Messages
+                </Text>
+              </View>
+              <Button
+                onPress={() => myCoach && startConversation(myCoach.userId)}
+                size="sm"
+                disabled={!myCoach || createDirect.isPending}
+                loading={createDirect.isPending}
+                iconLeft={
+                  !createDirect.isPending ? (
+                    <Icon
+                      icon={Plus}
+                      size={16}
+                      color={theme.colors.primaryForeground}
+                    />
+                  ) : null
+                }
+              >
+                New
+              </Button>
+            </View>
+            {myCoach ? (
+              <Card>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: theme.spacing[3],
+                  }}
+                >
+                  <Avatar initials={initials(myCoach.firstName, myCoach.lastName)} size="md" />
+                  <View style={{ flex: 1, gap: theme.spacing[0.5] }}>
+                    <Text variant="caption" color="mutedForeground">
+                      Your coach
+                    </Text>
+                    <Text variant="bodyMedium" numberOfLines={1}>
+                      {myCoach.firstName} {myCoach.lastName}
+                    </Text>
+                  </View>
+                  <Button
+                    size="sm"
+                    onPress={() => startConversation(myCoach.userId)}
+                    loading={createDirect.isPending}
+                    iconLeft={
+                      !createDirect.isPending ? (
+                        <Icon icon={MessageSquare} size={14} color={theme.colors.primaryForeground} />
+                      ) : null
+                    }
+                  >
+                    Message
+                  </Button>
+                </View>
+              </Card>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -259,7 +283,7 @@ export default function MessagesScreen() {
                   </Text>
                   <Button
                     size="sm"
-                    onPress={() => startConversation(myCoach.id)}
+                    onPress={() => startConversation(myCoach.userId)}
                     loading={createDirect.isPending}
                     iconLeft={<Icon icon={MessageSquare} size={14} color={theme.colors.primaryForeground} />}
                   >
@@ -275,7 +299,9 @@ export default function MessagesScreen() {
                     paddingHorizontal: theme.spacing[6],
                   }}
                 >
-                  Your coach can start a conversation with you from the web app.
+                  {isCoachLoading
+                    ? 'Looking up your coach...'
+                    : 'No coach is assigned yet.'}
                 </Text>
               )}
             </View>
@@ -286,102 +312,6 @@ export default function MessagesScreen() {
         )}
       />
 
-      {/* Contact picker modal */}
-      <Modal visible={pickerOpen} animationType="slide" transparent>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: withAlpha(theme.colors.foreground, 0.35),
-            justifyContent: 'flex-end',
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: theme.colors.card,
-              borderTopLeftRadius: theme.radii['2xl'],
-              borderTopRightRadius: theme.radii['2xl'],
-              maxHeight: '60%',
-              paddingBottom: theme.spacing[10],
-            }}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                paddingHorizontal: theme.spacing[5],
-                paddingVertical: theme.spacing[4],
-                borderBottomWidth: 1,
-                borderBottomColor: theme.colors.border,
-              }}
-            >
-              <Text variant="h3">New conversation</Text>
-              <Pressable
-                onPress={() => setPickerOpen(false)}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={8}
-              >
-                <Icon icon={X} size={20} color="mutedForeground" />
-              </Pressable>
-            </View>
-            {!pickerCoaches.length ? (
-              <View
-                style={{
-                  padding: theme.spacing[10],
-                  alignItems: 'center',
-                }}
-              >
-                <Text variant="body" color="mutedForeground">
-                  No coaches available
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={pickerCoaches}
-                keyExtractor={(c) => c.id}
-                renderItem={({ item: c }) => (
-                  <Pressable
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: theme.spacing[3],
-                      paddingHorizontal: theme.spacing[5],
-                      paddingVertical: theme.spacing[3],
-                      backgroundColor: pressed
-                        ? theme.colors.muted
-                        : 'transparent',
-                    })}
-                    onPress={() => startConversation(c.id)}
-                  >
-                    <Avatar
-                      initials={initials(c.firstName, c.lastName)}
-                      size="md"
-                    />
-                    <View>
-                      <Text variant="bodyMedium">
-                        {c.firstName} {c.lastName}
-                      </Text>
-                      <Text variant="caption" color="mutedForeground">
-                        {c.email}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-                ItemSeparatorComponent={() => (
-                  <View
-                    style={{
-                      height: 1,
-                      backgroundColor: theme.colors.border,
-                      marginStart: theme.spacing[5] + 36 + theme.spacing[3],
-                    }}
-                  />
-                )}
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
     </Screen>
   );
 }
