@@ -1361,7 +1361,6 @@
 
         showMedia();
         startWatchdog();
-        startHeartbeat();
 
         // Periodic sync (refresh file list + download new / delete removed)
         refreshTimer = setInterval(refreshFiles, REFRESH_INTERVAL);
@@ -1374,18 +1373,6 @@
         setupError.textContent = err.message || 'An unexpected error occurred';
         setupError.style.display = 'block';
       }
-    }
-
-    // ── Heartbeat: log every 60s so logcat shows the app is alive ──
-    let heartbeatTimer = null;
-    function startHeartbeat() {
-      clearInterval(heartbeatTimer);
-      heartbeatTimer = setInterval(() => {
-        const idx = currentIndex;
-        const total = playlist.length;
-        const paused = isPaused ? 'paused' : 'playing';
-        console.log(`[TotemTV] heartbeat | ${paused} | slide ${idx + 1}/${total} | ${new Date().toISOString()}`);
-      }, 60000);
     }
 
     // ── Watchdog: detect stuck slideshow and force-advance ──
@@ -1407,7 +1394,6 @@
       clearTimeout(advanceTimer);
       clearInterval(refreshTimer);
       clearInterval(watchdogTimer);
-      clearInterval(heartbeatTimer);
       slideshowScreen.style.display = 'none';
       setupScreen.style.display = 'flex';
       files = [];
