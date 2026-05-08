@@ -8,21 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
-import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  Save,
-  ChevronUp,
-  ChevronDown,
-  Dumbbell,
-  Timer,
-  StickyNote,
-  X,
-  Search,
-  ChevronDown as Chevron,
-  ChevronRight,
-} from 'lucide-react-native';
+import { Sparkles, ArrowLeft, Plus, Trash2, Save, ChevronUp, ChevronDown, Dumbbell, Timer, StickyNote, X, Search, ChevronDown as Chevron, ChevronRight } from 'lucide-react-native';
 import {
   useWorkout,
   useCreateWorkout,
@@ -32,7 +18,10 @@ import {
   type WorkoutItem,
   type WorkoutBlockKind,
 } from '@/hooks/useWorkouts';
-import { useExercises, type Exercise } from '@/hooks/useExercises';
+import { useExercises, useExerciseMuscleGroups, type Exercise } from '@/hooks/useExercises';
+import { useSuggestPrescription } from '@/hooks/useAI';
+import { AISparkleButton } from '@/components/AISparkleButton';
+import { AISuggestExercisesModal } from '@/components/AISuggestExercisesModal';
 import { useTheme, withAlpha } from '@/lib/theme';
 import {
   Screen,
@@ -108,6 +97,7 @@ function ItemRow({
   onMoveUp,
   onMoveDown,
   onRemove,
+  clientId,
 }: {
   item: WorkoutItem;
   index: number;
@@ -118,10 +108,39 @@ function ItemRow({
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemove: () => void;
+  clientId?: string;
 }) {
   const theme = useTheme();
   const kind = item.kind ?? 'EXERCISE';
   const Icon = blockIcon(kind);
+  const prescribe = useSuggestPrescription();
+
+  const runPrescription = async () => {
+    if (!clientId || !item.exerciseId) return;
+    try {
+      const res = await prescribe.mutateAsync({
+        exerciseId: item.exerciseId,
+        clientId,
+        locale: 'he',
+      });
+      const next: Record<string, unknown> = { ...item.prescription };
+      if (res.sets != null) next['sets'] = res.sets;
+      if (res.reps) next['reps'] = res.reps;
+      if (res.rest != null) next['rest'] = res.rest;
+      if (res.tempo) next['tempo'] = res.tempo;
+      if (res.duration != null) next['duration'] = res.duration;
+      if (res.weight) {
+        next['weight'] =
+          res.weight.type === 'absolute' ? String(res.weight.value) : `${res.weight.value}${res.weight.type === 'percentage_1rm' ? '%1RM' : ' RPE'}`;
+      }
+      const notes = [item.coachNotes, res.notes, res.rationale ? `✨ ${res.rationale}` : null]
+        .filter(Boolean)
+        .join('\n');
+      onPatch({ prescription: next, coachNotes: notes });
+    } catch (err) {
+      Alert.alert('AI לא זמין', err instanceof Error ? err.message : 'Error');
+    }
+  };
 
   const title =
     kind === 'EXERCISE'
@@ -188,6 +207,16 @@ function ItemRow({
         >
           {kind === 'EXERCISE' && (
             <>
+              {clientId && item.exerciseId ? (
+                <View style={{ alignItems: 'flex-end' }}>
+                  <AISparkleButton
+                    onPress={runPrescription}
+                    loading={prescribe.isPending}
+                    size="sm"
+                    label="המלצת AI למתאמן"
+                  />
+                </View>
+              ) : null}
               <View
                 style={{ flexDirection: 'row', gap: theme.spacing[2] }}
               >
@@ -508,13 +537,16 @@ function ExercisePicker({
 
 export default function CoachWorkoutEditor() {
   const theme = useTheme();
-  const { workoutId } = useLocalSearchParams<{ workoutId: string }>();
+  const params = useLocalSearchParams<{ workoutId: string; clientId?: string }>();
+  const workoutId = params.workoutId;
+  const clientId = params.clientId;
   const isNew = !workoutId || workoutId === 'new';
 
   const { data: existing, isLoading } = useWorkout(isNew ? '' : workoutId!);
   const create = useCreateWorkout();
   const update = useUpdateWorkout();
   const remove = useDeleteWorkout();
+  const { data: muscleGroups } = useExerciseMuscleGroups();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -523,6 +555,7 @@ export default function CoachWorkoutEditor() {
   const [items, setItems] = useState<WorkoutItem[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [aiPickerOpen, setAiPickerOpen] = useState(false);
 
   useEffect(() => {
     if (existing) {
@@ -564,6 +597,23 @@ export default function CoachWorkoutEditor() {
 
   const addExercise = (e: Exercise) => {
     setItems((prev) => [...prev, emptyExerciseItem(e, prev.length)]);
+  };
+
+  const addAISuggestions = async (
+    suggestions: Array<{ exerciseId: string; name: string }>,
+  ) => {
+    setItems((prev) => {
+      const next = prev.slice();
+      suggestions.forEach((s) => {
+        next.push(
+          emptyExerciseItem(
+            { id: s.exerciseId, name: s.name, isSystem: false, createdAt: '' } as Exercise,
+            next.length,
+          ),
+        );
+      });
+      return next;
+    });
   };
 
   const addTimer = () => {
@@ -734,6 +784,7 @@ export default function CoachWorkoutEditor() {
                     onMoveUp={() => moveItem(i, -1)}
                     onMoveDown={() => moveItem(i, 1)}
                     onRemove={() => removeItem(it.id)}
+                    clientId={clientId}
                   />
                 ))
               )}
@@ -748,6 +799,14 @@ export default function CoachWorkoutEditor() {
                 fullWidth
               >
                 Add exercise
+              </Button>
+              <Button
+                variant="outline"
+                iconLeft={<Sparkles size={16} color={theme.colors.primary} />}
+                onPress={() => setAiPickerOpen(true)}
+                fullWidth
+              >
+                הצע תרגילים עם AI
               </Button>
               <View style={{ flexDirection: 'row', gap: theme.spacing[2] }}>
                 <Button
@@ -790,6 +849,15 @@ export default function CoachWorkoutEditor() {
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onPick={addExercise}
+      />
+
+      <AISuggestExercisesModal
+        open={aiPickerOpen}
+        onClose={() => setAiPickerOpen(false)}
+        onAccept={addAISuggestions}
+        existingExerciseIds={items.map((i) => i.exerciseId).filter(Boolean) as string[]}
+        workoutType={type}
+        availableMuscleGroups={muscleGroups ?? []}
       />
     </Screen>
   );

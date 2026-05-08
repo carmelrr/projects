@@ -10,6 +10,8 @@ import {
   useExerciseCategories,
   useExerciseMuscleGroups,
 } from '@/hooks/useExercises';
+import { useExerciseAutofill } from '@/hooks/useAI';
+import { AISparkleButton } from '@/components/AISparkleButton';
 import { useTheme, withAlpha } from '@/lib/theme';
 import { Screen, Text, Card, Input, Button, Skeleton } from '@/components/ui';
 
@@ -24,6 +26,7 @@ export default function CoachExerciseEditor() {
   const create = useCreateExercise();
   const update = useUpdateExercise();
   const remove = useDeleteExercise();
+  const autofill = useExerciseAutofill();
   const { data: categories } = useExerciseCategories();
   const { data: muscleGroups } = useExerciseMuscleGroups();
 
@@ -53,6 +56,24 @@ export default function CoachExerciseEditor() {
     setSelectedMuscles((prev) =>
       prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
     );
+  };
+
+  const runAutofill = async () => {
+    if (!name.trim()) {
+      Alert.alert('הכנס שם תרגיל תחילה');
+      return;
+    }
+    try {
+      const res = await autofill.mutateAsync({ name: name.trim(), locale: 'he' });
+      if (!description && res.description) setDescription(res.description);
+      if (!instructions && res.instructions) setInstructions(res.instructions);
+      if (!category && res.category) setCategory(res.category);
+      if (selectedMuscles.length === 0 && res.muscleGroups.length) {
+        setSelectedMuscles(res.muscleGroups);
+      }
+    } catch (err) {
+      Alert.alert('AI לא זמין', err instanceof Error ? err.message : 'Error');
+    }
   };
 
   const save = async () => {
@@ -138,9 +159,26 @@ export default function CoachExerciseEditor() {
         ) : (
           <>
             <View style={{ gap: theme.spacing[1.5] }}>
-              <Text variant="caption" color="mutedForeground">
-                Name *
-              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text variant="caption" color="mutedForeground">
+                  Name *
+                </Text>
+                {isNew ? (
+                  <AISparkleButton
+                    onPress={runAutofill}
+                    loading={autofill.isPending}
+                    disabled={!name.trim()}
+                    size="sm"
+                    label="השלם עם AI"
+                  />
+                ) : null}
+              </View>
               <Input
                 value={name}
                 onChangeText={setName}

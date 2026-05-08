@@ -12,6 +12,7 @@ import {
   StickyNote,
   Dumbbell,
   Pencil,
+  Sparkles,
 } from 'lucide-react';
 import {
   useWorkout,
@@ -65,6 +66,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { IntervalTimerBlockDialog } from './IntervalTimerBlockDialog';
 import { NoteBlockDialog } from './NoteBlockDialog';
+import { AISuggestExercisesDialog } from '@/components/ai/AISuggestExercisesDialog';
 
 type DraftItem = Omit<WorkoutItem, 'id'> & { id?: string };
 
@@ -475,6 +477,7 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
   });
   const [items, setItems] = useState<DraftItem[]>([]);
   const [pickOpen, setPickOpen] = useState(false);
+  const [aiPickerOpen, setAiPickerOpen] = useState(false);
   const [timerEditor, setTimerEditor] = useState<{ index: number | null }>({ index: null });
   const [noteEditor, setNoteEditor] = useState<{ index: number | null }>({ index: null });
   const [dirty, setDirty] = useState(false);
@@ -531,6 +534,42 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
   const addExercise = (ex: Exercise) => {
     setItems((prev) => [...prev, newItem(ex, prev.length)]);
     markDirty();
+  };
+
+  // AI: resolve suggested exercise ids against the library and append.
+  const { data: exLibrary } = useExercises();
+  const { data: muscleGroupsData } = useExerciseMuscleGroups();
+  const acceptAISuggestions = (
+    suggestions: { exerciseId: string; name: string; reason: string }[],
+  ) => {
+    const lib = exLibrary?.items ?? [];
+    const byId = new Map(lib.map((e) => [e.id, e]));
+    const existingIds = new Set(
+      items.filter((i) => blockKind(i) === 'EXERCISE' && i.exerciseId).map((i) => i.exerciseId!),
+    );
+    let added = 0;
+    let skipped = 0;
+    setItems((prev) => {
+      let next = prev;
+      for (const s of suggestions) {
+        const ex = byId.get(s.exerciseId);
+        if (!ex || existingIds.has(s.exerciseId)) {
+          skipped += 1;
+          continue;
+        }
+        next = [...next, newItem(ex, next.length)];
+        existingIds.add(s.exerciseId);
+        added += 1;
+      }
+      return next;
+    });
+    if (added > 0) {
+      markDirty();
+      toast.success(`נוספו ${added} תרגילים מ-AI`);
+    }
+    if (skipped > 0 && added === 0) {
+      toast.error('התרגילים שהוצעו אינם זמינים בספרייה');
+    }
   };
 
   const addTimerBlock = (cfg: IntervalTimerConfig) => {
@@ -705,6 +744,10 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
                       <DropdownMenuItem onClick={() => setPickOpen(true)}>
                         <Dumbbell className="size-4" />
                         Exercise
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setAiPickerOpen(true)}>
+                        <Sparkles className="size-4 text-primary" />
+                        Suggest with AI
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setTimerEditor({ index: -1 })}
@@ -1159,6 +1202,17 @@ export function WorkoutEditorSheet({ workoutId, open, onOpenChange }: Props) {
         open={pickOpen}
         onOpenChange={setPickOpen}
         onPick={addExercise}
+      />
+
+      <AISuggestExercisesDialog
+        open={aiPickerOpen}
+        onOpenChange={setAiPickerOpen}
+        onAccept={acceptAISuggestions}
+        existingExerciseIds={items
+          .filter((i) => blockKind(i) === 'EXERCISE' && i.exerciseId)
+          .map((i) => i.exerciseId!)}
+        workoutType={meta.title}
+        availableMuscleGroups={muscleGroupsData ?? []}
       />
 
       <IntervalTimerBlockDialog

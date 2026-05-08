@@ -17,6 +17,7 @@ import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { TrainingGroupsModule } from './modules/training-groups/training-groups.module';
+import { AIModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { TrainingGroupsModule } from './modules/training-groups/training-groups.
     NotificationsModule,
     AdminModule,
     TrainingGroupsModule,
+    AIModule,
   ],
 })
 export class AppModule {}

@@ -14,6 +14,8 @@ import {
   useCreateExerciseMuscleGroup,
   type Exercise,
 } from '@/hooks/useExercises';
+import { useExerciseAutofill } from '@/hooks/useAI';
+import { AISparkleButton } from '@/components/ai/AISparkleButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -83,6 +85,7 @@ function ExerciseDialog({
   const t = useT();
   const create = useCreateExercise();
   const update = useUpdateExercise();
+  const autofill = useExerciseAutofill();
   const { data: categories = [] } = useExerciseCategories();
   const createCategory = useCreateExerciseCategory();
   const { data: muscleGroups = [] } = useExerciseMuscleGroups();
@@ -145,6 +148,27 @@ function ExerciseDialog({
       [field]: f[field].includes(val) ? f[field].filter((v) => v !== val) : [...f[field], val],
     }));
 
+  const runAutofill = async () => {
+    if (!form.name.trim()) {
+      toast.error('הכנס שם תרגיל תחילה');
+      return;
+    }
+    try {
+      const res = await autofill.mutateAsync({ name: form.name.trim(), locale: 'he' });
+      setForm((f) => ({
+        ...f,
+        category: f.category || res.category,
+        description: f.description || res.description,
+        instructions: f.instructions || res.instructions || '',
+        muscleGroups: f.muscleGroups.length ? f.muscleGroups : res.muscleGroups,
+        equipment: f.equipment.length ? f.equipment : res.equipment,
+      }));
+      toast.success('AI השלים את השדות');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'AI לא זמין');
+    }
+  };
+
   const save = async () => {
     if (!form.name.trim()) return;
     try {
@@ -168,7 +192,17 @@ function ExerciseDialog({
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="name">{t('exercises.dialog.nameLabel')} *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="name">{t('exercises.dialog.nameLabel')} *</Label>
+              {!initial ? (
+                <AISparkleButton
+                  onClick={runAutofill}
+                  loading={autofill.isPending}
+                  disabled={!form.name.trim()}
+                  label="השלם עם AI"
+                />
+              ) : null}
+            </div>
             <Input
               id="name"
               value={form.name}
