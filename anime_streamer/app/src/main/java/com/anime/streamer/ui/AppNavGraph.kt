@@ -51,21 +51,3 @@ fun AppNavGraph(isTv: Boolean, isSignedIn: Boolean) {
         }
     }
 }
-
-    val nav = rememberNavController()
-    NavHost(navController = nav, startDestination = Routes.HOME) {
-        composable(Routes.HOME) {
-            if (isTv) TvHomeScreen(onPlay = { id -> nav.navigate(Routes.player(id)) })
-            else PhoneHomeScreen(onPlay = { id -> nav.navigate(Routes.player(id)) })
-        }
-        composable(Routes.PLAYER) { backStack ->
-            val id = backStack.arguments?.getString("episodeId").orEmpty()
-            PlayerScreen(
-                episodeId = id,
-                isTv = isTv,
-                onFinished = { nav.popBackStack() },
-                onPlayNext = { nextId -> nav.navigate(Routes.player(nextId)) { popUpTo(Routes.HOME) } },
-            )
-        }
-    }
-}
