@@ -10,12 +10,12 @@ plugins {
 
 android {
     namespace = "com.anime.streamer"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.anime.streamer"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
         vectorDrawables { useSupportLibrary = true }
