@@ -81,8 +81,7 @@ fun TvHomeScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 val list = state.episodes
-                gridItems(count = list.size, key = { idx -> list[idx].id }) { idx ->
-                    val ep = list[idx]
+                gridItems(items = list, key = { it.id }) { ep ->
                     EpisodeCard(
                         episode = ep,
                         watchState = state.watchByEpisode[ep.id],
