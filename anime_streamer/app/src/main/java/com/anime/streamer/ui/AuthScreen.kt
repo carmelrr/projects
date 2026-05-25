@@ -42,6 +42,7 @@ fun AuthScreen(viewModel: AuthViewModel = hiltViewModel()) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val genericError = stringResource(R.string.auth_error_generic)
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -108,7 +109,7 @@ fun AuthScreen(viewModel: AuthViewModel = hiltViewModel()) {
                         val action = if (isRegisterMode) viewModel::register else viewModel::signIn
                         action(email.trim(), password) { success, error ->
                             isLoading = false
-                            if (!success) errorMessage = error ?: stringResource(R.string.auth_error_generic)
+                            if (!success) errorMessage = error ?: genericError
                         }
                     },
                     enabled = !isLoading && email.isNotBlank() && password.length >= 6,

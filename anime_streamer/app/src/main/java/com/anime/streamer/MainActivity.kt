@@ -54,18 +54,3 @@ fun Context.isTv(): Boolean {
     val uiMode = (getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
     return uiMode == Configuration.UI_MODE_TYPE_TELEVISION
 }
-
-
-@Composable
-private fun AppRoot(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = darkColorScheme()) {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            content()
-        }
-    }
-}
-
-fun Context.isTv(): Boolean {
-    val uiMode = (getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
-    return uiMode == Configuration.UI_MODE_TYPE_TELEVISION
-}

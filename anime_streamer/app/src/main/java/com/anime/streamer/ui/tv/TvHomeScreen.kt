@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -17,11 +22,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.tv.foundation.lazy.grid.TvGridCells
-import androidx.tv.foundation.lazy.grid.TvLazyVerticalGrid
-import androidx.tv.foundation.lazy.grid.items as gridItems
-import androidx.tv.foundation.lazy.list.TvLazyRow
-import androidx.tv.foundation.lazy.list.items
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -59,7 +59,7 @@ fun TvHomeScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                 )
-                TvLazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(state.continueWatching, key = { it.first.id }) { (ep, ws) ->
                         Box(Modifier.width(280.dp)) {
                             EpisodeCard(episode = ep, watchState = ws, onClick = { onPlay(ep.id) })
@@ -73,8 +73,8 @@ fun TvHomeScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
             )
-            TvLazyVerticalGrid(
-                columns = TvGridCells.Fixed(5),
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(5),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 24.dp),
