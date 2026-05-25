@@ -3,6 +3,7 @@ package com.anime.streamer.ui.player
 import android.annotation.SuppressLint
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -24,9 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.anime.streamer.R
 
-private const val DESKTOP_UA =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun MegaWebViewScreen(
@@ -37,21 +35,6 @@ fun MegaWebViewScreen(
 ) {
     val episode = state.episode ?: return
     val urlToLoad = overrideUrl ?: episode.sourceUrl
-    // For Drive /preview URLs, embed in an iframe so Drive's player serves correctly
-    // (it expects iframe-embed context and otherwise refuses to autoplay).
-    val isDrivePreview = urlToLoad.contains("drive.google.com/file/d/") && urlToLoad.endsWith("/preview")
-    val iframeHtml = if (isDrivePreview) {
-        """
-        <!DOCTYPE html><html><head>
-        <meta charset="utf-8"/>
-        <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
-        <style>html,body{margin:0;padding:0;background:#000;width:100%;height:100%;overflow:hidden}
-        iframe{border:0;width:100vw;height:100vh;display:block}</style>
-        </head><body>
-        <iframe src="$urlToLoad" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
-        </body></html>
-        """.trimIndent()
-    } else null
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // State holders for HTML5 fullscreen handling.
@@ -70,6 +53,11 @@ fun MegaWebViewScreen(
                     setBackgroundColor(android.graphics.Color.BLACK)
                 }
                 fullscreenContainer = root
+
+                // Enable third-party cookies globally — required by Drive video player
+                // (it loads from googlevideo.com which is third-party to drive.google.com).
+                CookieManager.getInstance().setAcceptCookie(true)
+
                 val web = WebView(ctx).apply {
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -79,17 +67,20 @@ fun MegaWebViewScreen(
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
+                        databaseEnabled = true
                         mediaPlaybackRequiresUserGesture = false
                         mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                         useWideViewPort = true
                         loadWithOverviewMode = true
                         cacheMode = WebSettings.LOAD_DEFAULT
-                        userAgentString = DESKTOP_UA
                         allowContentAccess = true
                         allowFileAccess = false
                         javaScriptCanOpenWindowsAutomatically = true
                         setSupportMultipleWindows(false)
                     }
+                    // Third-party cookies are critical: googlevideo.com is third-party to drive.google.com.
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
                     webViewClient = WebViewClient()
                     webChromeClient = object : WebChromeClient() {
                         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
@@ -116,18 +107,18 @@ fun MegaWebViewScreen(
                             customViewCallback?.onCustomViewHidden()
                             customViewCallback = null
                         }
+
+                        override fun onConsoleMessage(
+                            message: android.webkit.ConsoleMessage,
+                        ): Boolean {
+                            android.util.Log.d(
+                                "WebViewPlayer",
+                                "${message.messageLevel()}: ${message.message()} @ ${message.sourceId()}:${message.lineNumber()}",
+                            )
+                            return true
+                        }
                     }
-                    if (iframeHtml != null) {
-                        loadDataWithBaseURL(
-                            "https://drive.google.com",
-                            iframeHtml,
-                            "text/html",
-                            "utf-8",
-                            null,
-                        )
-                    } else {
-                        loadUrl(urlToLoad)
-                    }
+                    loadUrl(urlToLoad)
                 }
                 root.addView(web)
                 root
