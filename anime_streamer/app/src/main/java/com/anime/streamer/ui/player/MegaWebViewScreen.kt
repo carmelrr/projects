@@ -30,8 +30,10 @@ fun MegaWebViewScreen(
     state: PlayerUiState,
     onPlayNext: (String) -> Unit,
     onBack: () -> Unit,
+    overrideUrl: String? = null,
 ) {
     val episode = state.episode ?: return
+    val urlToLoad = overrideUrl ?: episode.sourceUrl
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
@@ -56,7 +58,7 @@ fun MegaWebViewScreen(
                             super.onShowCustomView(view, callback)
                         }
                     }
-                    loadUrl(episode.sourceUrl)
+                    loadUrl(urlToLoad)
                 }
             },
         )

@@ -41,13 +41,22 @@ fun PlayerScreen(
             return@Box
         }
         when (episode.sourceType) {
-            SourceType.DRIVE, SourceType.DIRECT -> ExoPlayerScreen(
+            SourceType.DIRECT -> ExoPlayerScreen(
                 state = state,
                 viewModel = viewModel,
                 isTv = isTv,
                 onFinished = onFinished,
                 onPlayNext = onPlayNext,
             )
+            SourceType.DRIVE -> {
+                val previewUrl = DriveUrlResolver.previewUrl(episode.sourceType, episode.sourceUrl)
+                MegaWebViewScreen(
+                    state = state,
+                    onPlayNext = onPlayNext,
+                    onBack = onFinished,
+                    overrideUrl = previewUrl,
+                )
+            }
             SourceType.MEGA -> MegaWebViewScreen(
                 state = state,
                 onPlayNext = onPlayNext,

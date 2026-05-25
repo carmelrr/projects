@@ -17,6 +17,13 @@ object DriveUrlResolver {
         return "https://drive.google.com/uc?export=download&id=$id"
     }
 
+    /** Drive embed/preview URL — plays inside a WebView using Drive's native HTML5 player. */
+    fun previewUrl(sourceType: SourceType, rawUrl: String): String? {
+        if (sourceType != SourceType.DRIVE) return null
+        val id = extractId(rawUrl) ?: return null
+        return "https://drive.google.com/file/d/$id/preview"
+    }
+
     private fun extractId(url: String): String? {
         DRIVE_FILE_ID.find(url)?.let { return it.groupValues[1] }
         DRIVE_OPEN_ID.find(url)?.let { return it.groupValues[1] }
