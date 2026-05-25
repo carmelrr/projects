@@ -1,0 +1,13 @@
+{
+  "name": "scrape-catalog",
+  "version": "1.0.0",
+  "description": "Build episodes.json from onepiece-nakama.com (personal use, with permission)",
+  "scripts": {
+    "start": "node index.js",
+    "start:resume": "node index.js --resume"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "type": "module"
+}

@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">Anime Streamer</string>
+    <string name="continue_watching">המשך צפייה</string>
+    <string name="episodes">פרקים</string>
+    <string name="skip_intro">דלג אינטרו</string>
+    <string name="skip_outro">דלג קרדיטים</string>
+    <string name="next_episode">הפרק הבא</string>
+    <string name="play_now">השמע עכשיו</string>
+    <string name="cancel">ביטול</string>
+    <string name="settings">הגדרות</string>
+    <string name="autoplay_next">השמעה אוטומטית של הפרק הבא</string>
+    <string name="auto_skip_intro">דילוג אוטומטי על אינטרו</string>
+    <string name="auto_skip_outro">דילוג אוטומטי על קרדיטים</string>
+    <string name="mega_notice">מקור MEGA — דילוגים אוטומטיים לא זמינים</string>
+    <string name="watched">נצפה</string>
+    <string name="loading">טוען…</string>
+    <string name="error_loading">שגיאה בטעינת הקטלוג</string>
+    <string name="season_format">עונה %1$d</string>
+    <string name="episode_format">פרק %1$d</string>
+    <string name="sign_in">כניסה</string>
+    <string name="sign_out">התנתקות</string>
+    <string name="register">הרשמה</string>
+    <string name="email">אימייל</string>
+    <string name="password">סיסמה</string>
+    <string name="no_account">אין לי חשבון עדיין</string>
+    <string name="already_have_account">כבר יש לי חשבון</string>
+    <string name="auth_error_generic">שגיאה בהתחברות</string>
+</resources>

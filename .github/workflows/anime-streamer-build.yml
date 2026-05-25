@@ -1,0 +1,46 @@
+name: Build AnimeStreamer Debug APK
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'anime_streamer/**'
+      - '.github/workflows/anime-streamer-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: anime_streamer
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.9'
+
+      - name: Decode google-services.json from secret
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimeStreamer-debug
+          path: anime_streamer/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
