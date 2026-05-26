@@ -3,7 +3,7 @@ package com.anime.streamer.data.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-enum class SourceType { DRIVE, MEGA, DIRECT }
+enum class SourceType { DRIVE, MEGA, DIRECT, WEB }
 
 @Serializable
 data class Episode(
@@ -21,6 +21,7 @@ data class Episode(
     val durationMs: Long? = null,
     val thumbnailUrl: String? = null,
     val postUrl: String? = null,
+    val fallbackMegaUrl: String? = null,
 )
 
 @Serializable

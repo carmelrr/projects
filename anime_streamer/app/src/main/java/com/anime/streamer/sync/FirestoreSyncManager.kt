@@ -40,7 +40,7 @@ class FirestoreSyncManager @Inject constructor(
                     if (local == null || local.updatedAt < ws.updatedAt) watch.update(ws)
                 }
             }
-            watch.observeAll().debounce(30_000).collectLatest { states ->
+            watch.observeAll().debounce(5_000).collectLatest { states ->
                 states.forEach { ws ->
                     runCatching {
                         col.document(ws.episodeId).set(

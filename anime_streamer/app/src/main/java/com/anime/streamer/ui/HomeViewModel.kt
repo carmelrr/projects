@@ -19,6 +19,8 @@ data class HomeUiState(
     val episodes: List<Episode> = emptyList(),
     val watchByEpisode: Map<String, WatchState> = emptyMap(),
     val continueWatching: List<Pair<Episode, WatchState>> = emptyList(),
+    val nextToWatch: Episode? = null,
+    val nextToWatchState: WatchState? = null,
     val error: String? = null,
 )
 
@@ -32,17 +34,38 @@ class HomeViewModel @Inject constructor(
         episodes.episodes,
         watch.observeAll(),
     ) { eps, states ->
+        val sortedEps = eps.sortedWith(compareBy({ it.season }, { it.number }))
         val byId = states.associateBy { it.episodeId }
+
         val continueList = states
             .filterNot { it.watched }
             .sortedByDescending { it.updatedAt }
-            .mapNotNull { ws -> eps.firstOrNull { it.id == ws.episodeId }?.let { it to ws } }
+            .mapNotNull { ws -> sortedEps.firstOrNull { it.id == ws.episodeId }?.let { it to ws } }
             .take(10)
+
+        // Determine the single "next to watch" episode.
+        val lastState = states.maxByOrNull { it.updatedAt }
+        val (nextToWatch, nextToWatchState) = when {
+            lastState == null -> Pair(sortedEps.firstOrNull(), null)
+            !lastState.watched && lastState.positionMs > 10_000 -> {
+                // Mid-episode — continue it.
+                Pair(sortedEps.firstOrNull { it.id == lastState.episodeId }, lastState)
+            }
+            else -> {
+                // Last was finished — show next in sequence.
+                val idx = sortedEps.indexOfFirst { it.id == lastState.episodeId }
+                val next = if (idx in 0 until sortedEps.lastIndex) sortedEps[idx + 1] else null
+                Pair(next, null)
+            }
+        }
+
         HomeUiState(
             loading = false,
-            episodes = eps.sortedWith(compareBy({ it.season }, { it.number })),
+            episodes = sortedEps,
             watchByEpisode = byId,
             continueWatching = continueList,
+            nextToWatch = nextToWatch,
+            nextToWatchState = nextToWatchState,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 

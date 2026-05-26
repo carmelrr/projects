@@ -32,6 +32,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.anime.streamer.BuildConfig
 import com.anime.streamer.R
 
 @Composable
@@ -130,6 +131,22 @@ fun AuthScreen(viewModel: AuthViewModel = hiltViewModel()) {
                     onClick = { isRegisterMode = !isRegisterMode; errorMessage = null },
                 ) {
                     Text(stringResource(if (isRegisterMode) R.string.already_have_account else R.string.no_account))
+                }
+
+                if (BuildConfig.DEBUG) {
+                    TextButton(
+                        onClick = {
+                            isLoading = true
+                            errorMessage = null
+                            viewModel.signInAnonymously { success, error ->
+                                isLoading = false
+                                if (!success) errorMessage = error ?: genericError
+                            }
+                        },
+                        enabled = !isLoading,
+                    ) {
+                        Text("כניסה אורח (Debug)")
+                    }
                 }
             }
         }

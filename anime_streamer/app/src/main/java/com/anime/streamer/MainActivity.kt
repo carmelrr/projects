@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.anime.streamer.sync.AuthManager
+import com.anime.streamer.sync.FirestoreSyncManager
 import com.anime.streamer.ui.AppNavGraph
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -25,12 +26,14 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var authManager: AuthManager
+    @Inject lateinit var syncManager: FirestoreSyncManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             val isSignedIn by authManager.signedIn.collectAsState()
+            if (isSignedIn) syncManager.start() else syncManager.stop()
             AppRoot {
                 AppNavGraph(
                     isTv = LocalContext.current.isTv(),

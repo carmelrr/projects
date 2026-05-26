@@ -20,5 +20,8 @@ class AuthViewModel @Inject constructor(
     fun register(email: String, password: String, onResult: (Boolean, String?) -> Unit) =
         authManager.register(email, password, onResult)
 
+    fun signInAnonymously(onResult: (Boolean, String?) -> Unit) =
+        authManager.signInAnonymously(onResult)
+
     fun signOut() = authManager.signOut()
 }

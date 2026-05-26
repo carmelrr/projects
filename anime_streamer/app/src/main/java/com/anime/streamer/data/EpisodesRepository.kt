@@ -67,7 +67,7 @@ private fun EpisodeEntity.toDomain() = Episode(
     sourceUrl = sourceUrl, sourceType = SourceType.valueOf(sourceType),
     introStartMs = introStartMs, introEndMs = introEndMs,
     creditsStartMs = creditsStartMs, durationMs = durationMs, thumbnailUrl = thumbnailUrl,
-    postUrl = postUrl,
+    postUrl = postUrl, fallbackMegaUrl = fallbackMegaUrl,
 )
 
 private fun Episode.toEntity() = EpisodeEntity(
@@ -75,5 +75,5 @@ private fun Episode.toEntity() = EpisodeEntity(
     sourceUrl = sourceUrl, sourceType = sourceType.name,
     introStartMs = introStartMs, introEndMs = introEndMs,
     creditsStartMs = creditsStartMs, durationMs = durationMs, thumbnailUrl = thumbnailUrl,
-    postUrl = postUrl,
+    postUrl = postUrl, fallbackMegaUrl = fallbackMegaUrl,
 )

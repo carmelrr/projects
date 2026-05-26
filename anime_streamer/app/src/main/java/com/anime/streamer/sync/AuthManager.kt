@@ -42,6 +42,12 @@ class AuthManager @Inject constructor(
             .addOnFailureListener { onResult(false, it.message) }
     }
 
+    fun signInAnonymously(onResult: (success: Boolean, error: String?) -> Unit) {
+        auth.signInAnonymously()
+            .addOnSuccessListener { onResult(true, null) }
+            .addOnFailureListener { onResult(false, it.message) }
+    }
+
     fun signOut() {
         auth.signOut()
     }

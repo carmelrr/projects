@@ -10,6 +10,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -49,20 +51,33 @@ fun PlayerScreen(
                 onPlayNext = onPlayNext,
             )
             SourceType.DRIVE -> {
-                // Drive's direct /preview embed often fails in WebView (third-party cookie + DRM stack).
-                // The source site (onepiece-nakama.com) embeds Drive in a way that DOES play — so we
-                // prefer loading the original post page when available, falling back to /preview.
-                val pageUrl = episode.postUrl
-                    ?: DriveUrlResolver.previewUrl(episode.sourceType, episode.sourceUrl)
-                MegaWebViewScreen(
-                    state = state,
-                    onPlayNext = onPlayNext,
-                    onBack = onFinished,
-                    overrideUrl = pageUrl,
-                )
+                val previewUrl = DriveUrlResolver.previewUrl(episode.sourceType, episode.sourceUrl)
+                when {
+                    previewUrl != null -> MegaWebViewScreen(
+                        state = state,
+                        viewModel = viewModel,
+                        onPlayNext = onPlayNext,
+                        onBack = onFinished,
+                        overrideUrl = previewUrl,
+                        referer = episode.postUrl,
+                    )
+                    episode.fallbackMegaUrl != null -> MegaWebViewScreen(
+                        state = state,
+                        viewModel = viewModel,
+                        onPlayNext = onPlayNext,
+                        onBack = onFinished,
+                        overrideUrl = episode.fallbackMegaUrl,
+                    )
+                    else -> BrokenSourceScreen(
+                        episodeId = episode.id,
+                        sourceUrl = episode.sourceUrl,
+                        onBack = onFinished,
+                    )
+                }
             }
-            SourceType.MEGA -> MegaWebViewScreen(
+            SourceType.MEGA, SourceType.WEB -> MegaWebViewScreen(
                 state = state,
+                viewModel = viewModel,
                 onPlayNext = onPlayNext,
                 onBack = onFinished,
             )
@@ -95,6 +110,25 @@ internal fun NextEpisodeOverlay(
                     Button(onClick = onPlayNow) { Text(stringResource(R.string.play_now)) }
                 }
             }
+        }
+    }
+}
+
+@Composable
+internal fun BrokenSourceScreen(episodeId: String, sourceUrl: String, onBack: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black).padding(32.dp), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.layout.Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("לא ניתן לנגן", color = Color.Red, fontSize = 20.sp)
+            Text(
+                text = "הלינק של $episodeId לא נתמך:\n$sourceUrl",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+            )
+            OutlinedButton(onClick = onBack) { Text("חזרה", color = Color.White) }
         }
     }
 }
