@@ -49,12 +49,16 @@ fun PlayerScreen(
                 onPlayNext = onPlayNext,
             )
             SourceType.DRIVE -> {
-                val previewUrl = DriveUrlResolver.previewUrl(episode.sourceType, episode.sourceUrl)
+                // Drive's direct /preview embed often fails in WebView (third-party cookie + DRM stack).
+                // The source site (onepiece-nakama.com) embeds Drive in a way that DOES play — so we
+                // prefer loading the original post page when available, falling back to /preview.
+                val pageUrl = episode.postUrl
+                    ?: DriveUrlResolver.previewUrl(episode.sourceType, episode.sourceUrl)
                 MegaWebViewScreen(
                     state = state,
                     onPlayNext = onPlayNext,
                     onBack = onFinished,
-                    overrideUrl = previewUrl,
+                    overrideUrl = pageUrl,
                 )
             }
             SourceType.MEGA -> MegaWebViewScreen(

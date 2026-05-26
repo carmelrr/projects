@@ -27,4 +27,5 @@ data class EpisodeEntity(
     val creditsStartMs: Long?,
     val durationMs: Long?,
     val thumbnailUrl: String?,
+    val postUrl: String? = null,
 )

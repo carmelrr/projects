@@ -20,6 +20,7 @@ data class Episode(
     val creditsStartMs: Long? = null,
     val durationMs: Long? = null,
     val thumbnailUrl: String? = null,
+    val postUrl: String? = null,
 )
 
 @Serializable
