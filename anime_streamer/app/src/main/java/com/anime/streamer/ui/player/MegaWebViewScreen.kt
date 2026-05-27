@@ -55,6 +55,8 @@ private const val VIDEO_LOG_TAG = "VideoDetector"
 //   2. MEGA/other: direct HTML5 <video> elements — we observe them via JS.
 private val JS_MONITOR = """
 (function() {
+    if (window._videoMonitorInstalled) return;
+    window._videoMonitorInstalled = true;
     var _posMs = 0, _durMs = 0, _ytState = -1;
     var _fullscreenDone = false;
 
@@ -95,24 +97,31 @@ private val JS_MONITOR = """
         });
     };
 
-    // ── Auto-fullscreen — fires once on the first playing event ──────────────
+    // ── Auto-fullscreen — fires once on the first play attempt ──────────────
+    // requestFullscreen() requires a trusted user gesture which programmatic
+    // code cannot create. Instead, we CSS-overlay the <video> over the entire
+    // viewport and tell Kotlin to hide the Android system bars. Same visual
+    // result, no gesture requirement.
     function tryFull() {
-        if (_fullscreenDone || document.fullscreenElement) return;
-        _fullscreenDone = true;
-        // 1. Direct <video> fullscreen (works for MEGA — video is on the top-level page)
+        if (_fullscreenDone) return;
         var v = document.querySelector('video');
         if (v) {
-            try {
-                if (v.requestFullscreen)        { v.requestFullscreen(); return; }
-                if (v.webkitRequestFullscreen)  { v.webkitRequestFullscreen(); return; }
-                if (v.webkitEnterFullscreen)    { v.webkitEnterFullscreen(); return; }
-            } catch(e) { _fullscreenDone = false; }
+            _fullscreenDone = true;
+            v.style.cssText = 'position:fixed !important;top:0 !important;left:0 !important;' +
+                'width:100vw !important;height:100vh !important;' +
+                'z-index:2147483647 !important;background:#000 !important;' +
+                'object-fit:contain !important;';
+            VideoMonitor.onFullscreen();
+            return;
         }
-        // 2. Fallback: fullscreen the embed iframe (animeisrael.tv or similar)
+        // For embed pages (animeisrael.tv etc.) try native fullscreen on the iframe.
+        // Those pages ARE user-navigated so the gesture may still be valid.
+        if (document.fullscreenElement) return;
         var f = document.querySelector('iframe[allowfullscreen],iframe[allow*="fullscreen"]');
         if (f) {
+            _fullscreenDone = true;
             try {
-                if (f.requestFullscreen)       f.requestFullscreen();
+                if (f.requestFullscreen)            f.requestFullscreen();
                 else if (f.webkitRequestFullscreen) f.webkitRequestFullscreen();
             } catch(e) { _fullscreenDone = false; }
         }
@@ -132,12 +141,58 @@ private val JS_MONITOR = """
             VideoMonitor.onError(msg);
         });
         if (!v.paused && !v.ended && v.readyState >= 3) { VideoMonitor.onPlaying(); tryFull(); }
-        // Autoplay — permitted because mediaPlaybackRequiresUserGesture = false
-        v.play().catch(function(){});
+        // Autoplay — block pause() until the video is genuinely playing, then retry
+        // every second for up to 60 s so MEGA's delayed anti-autoplay JS can't win.
+        var _origPause = v.pause.bind(v);
+        var _isPlaying = false;
+        v.addEventListener('playing', function() { _isPlaying = true; }, {once: true});
+        v.pause = function() { if (!_isPlaying) return; _origPause(); };
+        function _doPlay() {
+            if (!_isPlaying) {
+                v.play().catch(function() {});
+                tryFull(); // attempt fullscreen immediately while user-gesture context may be active
+            }
+        }
+        _doPlay();
+        var _tries = 0;
+        var _retryTimer = setInterval(function() {
+            if (_isPlaying || ++_tries > 60) {
+                clearInterval(_retryTimer);
+                if (!_isPlaying) v.pause = _origPause;
+                return;
+            }
+            if (v.paused && !v.ended) _doPlay();
+        }, 1000);
     }
     function scan() { document.querySelectorAll('video').forEach(monitorVideo); }
     scan();
     new MutationObserver(scan).observe(document.documentElement, {childList:true, subtree:true});
+
+    // Auto-click the "לחץ לצפייה" watch button on animeisrael.tv article pages,
+    // or auto-select the "Mega 2" source tab on animeisrael player pages.
+    setTimeout(function() {
+        var clicked = false;
+        // Article page: find and click the watch link
+        document.querySelectorAll('a').forEach(function(a) {
+            if (clicked) return;
+            var txt = (a.textContent || '').trim();
+            if (txt.indexOf('לחץ לצפייה') >= 0 || txt.indexOf('צפייה ישירה') >= 0) {
+                a.click(); clicked = true;
+            }
+        });
+        if (clicked) return;
+        // Player page: prefer "Mega 2" tab, then "Mega", to get a MEGA-hosted embed
+        var pref = ['Mega 2', 'Mega'];
+        for (var p = 0; p < pref.length; p++) {
+            var label = pref[p];
+            var els = document.querySelectorAll('a, li, span, button');
+            for (var i = 0; i < els.length; i++) {
+                if ((els[i].textContent || '').trim() === label) {
+                    els[i].click(); return;
+                }
+            }
+        }
+    }, 1500);
 
     // Direct <video> periodic time update
     setInterval(function() {
@@ -190,7 +245,7 @@ fun MegaWebViewScreen(
         webViewRef.value?.evaluateJavascript("window._seekWebView($seekSec);", null)
     }
 
-    // Countdown for autoplay next.
+// Countdown for autoplay next.
     LaunchedEffect(showNextOverlay) {
         if (!showNextOverlay || state.nextEpisode == null) return@LaunchedEffect
         if (!state.autoplayNext) return@LaunchedEffect
@@ -252,6 +307,18 @@ fun MegaWebViewScreen(
                         Log.e(VIDEO_LOG_TAG, "VIDEO ERROR: $msg")
                         mainHandler.post { playbackStatus.value = "שגיאה ✗" }
                     }
+                    @JavascriptInterface fun onFullscreen() {
+                        Log.i(VIDEO_LOG_TAG, "CSS FULLSCREEN ▶")
+                        mainHandler.post {
+                            (ctx as? Activity)?.window?.decorView?.let { decor ->
+                                ViewCompat.getWindowInsetsController(decor)?.let { ctrl ->
+                                    ctrl.hide(WindowInsetsCompat.Type.systemBars())
+                                    ctrl.systemBarsBehavior =
+                                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                                }
+                            }
+                        }
+                    }
                     @JavascriptInterface fun onTimeUpdate(posMs: Long, durMs: Long) {
                         mainHandler.post {
                             currentPositionMs = posMs
@@ -306,6 +373,11 @@ fun MegaWebViewScreen(
                         allowFileAccess = false
                         javaScriptCanOpenWindowsAutomatically = true
                         setSupportMultipleWindows(false)
+                        // MEGA detects Android UA and shows download page instead of video player.
+                        // Desktop UA makes it serve the full web player with the <video> element.
+                        if (episode.sourceType == com.anime.streamer.data.model.SourceType.MEGA) {
+                            userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                        }
                     }
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     addJavascriptInterface(videoMonitor, "VideoMonitor")
@@ -375,6 +447,26 @@ fun MegaWebViewScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedButton(onClick = onBack) { Text(stringResource(R.string.cancel)) }
+
+            // Manual play/fullscreen button — useful on TV where the WebView is not
+            // directly focusable with the remote, so the user has no way to tap
+            // the player's own play button.
+            OutlinedButton(onClick = {
+                webViewRef.value?.evaluateJavascript("""
+                    (function(){
+                        var v = document.querySelector('video');
+                        if (v) {
+                            v.play().catch(function(){});
+                            v.style.cssText = 'position:fixed !important;top:0 !important;left:0 !important;' +
+                                'width:100vw !important;height:100vh !important;' +
+                                'z-index:2147483647 !important;background:#000 !important;' +
+                                'object-fit:contain !important;';
+                            VideoMonitor.onFullscreen();
+                        }
+                    })();
+                """.trimIndent(), null)
+            }) { Text("▶ הפעל / מסך מלא") }
+
             state.nextEpisode?.let { next ->
                 OutlinedButton(onClick = { onPlayNext(next.id) }) {
                     Text(stringResource(R.string.next_episode))
