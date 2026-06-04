@@ -1,0 +1,12 @@
+name = "totemtv-drive-proxy"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# Public, non-secret variable: the Drive folder whose files may be proxied.
+# (Set/confirm this in the dashboard under Settings -> Variables.)
+[vars]
+FOLDER_ID = "16avbuT7FPkikcxX4_oX3_tw-Fyl50y64"
+
+# DRIVE_API_KEY is a SECRET — do NOT put it here.
+# Add it in the dashboard as an encrypted variable, or via:
+#   wrangler secret put DRIVE_API_KEY
