@@ -1,494 +1,996 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TotemTV</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Office Slideshow</title>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=DM+Sans:wght@400;600;700&family=DM+Mono&display=swap" rel="stylesheet" />
   <style>
-    * { -webkit-box-sizing:border-box; box-sizing:border-box; margin:0; padding:0; }
-    body { background:#000; font-family:sans-serif; overflow:hidden; min-height:100vh; }
-    @-webkit-keyframes spin { to { -webkit-transform:rotate(360deg); } }
-    @keyframes spin { to { transform:rotate(360deg); } }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    body {
+      background: #000;
+      font-family: 'DM Sans', sans-serif;
+      color: #F5EDE0;
+      overflow: hidden;
+      min-height: 100vh;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Setup Screen ── */
+    #setup-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0D0B08;
+      position: relative;
+    }
+
+    #setup-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 20%, rgba(180,140,80,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 80%, rgba(120,90,50,0.06) 0%, transparent 50%);
+    }
+
+    .setup-card {
+      position: relative;
+      background: rgba(26, 22, 16, 0.9);
+      border: 1px solid rgba(200,170,110,0.15);
+      border-radius: 20px;
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+      margin: 0 20px;
+      backdrop-filter: blur(20px);
+      direction: ltr;
+      text-align: left;
+    }
+
+    .setup-card h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 24px 0 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .setup-card .subtitle {
+      font-size: 14px;
+      color: rgba(245,237,224,0.5);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(232,213,183,0.7);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 14px;
+      background: rgba(245,237,224,0.06);
+      border: 1px solid rgba(200,170,110,0.2);
+      border-radius: 10px;
+      color: #F5EDE0;
+      outline: none;
+      font-family: 'DM Mono', monospace;
+      transition: border-color 0.2s;
+    }
+
+    .input-group input:focus {
+      border-color: rgba(200,170,110,0.5);
+    }
+
+    .input-group .hint {
+      font-size: 11px;
+      color: rgba(245,237,224,0.35);
+      margin-top: 4px;
+    }
+
+    .error-msg {
+      color: #E8A087;
+      font-size: 13px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      background: rgba(232,160,135,0.08);
+      border-radius: 8px;
+      border: 1px solid rgba(232,160,135,0.15);
+      display: none;
+    }
+
+    .start-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #C4A265, #A8863E);
+      color: #0D0B08;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      margin-top: 8px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .start-btn:hover {
+      opacity: 0.9;
+    }
+
+    .instructions {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(200,170,110,0.1);
+    }
+
+    .instructions p.title {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(232,213,183,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .instructions p.step {
+      font-size: 13px;
+      color: rgba(245,237,224,0.4);
+      line-height: 1.7;
+    }
+
+    /* ── Loading ── */
     #loading-screen {
-      display:-webkit-box; display:-webkit-flex; display:flex; min-height:100vh;
-      -webkit-box-orient:vertical; -webkit-flex-direction:column; flex-direction:column;
-      -webkit-box-align:center; -webkit-align-items:center; align-items:center;
-      -webkit-box-pack:center; -webkit-justify-content:center; justify-content:center;
-      background:#0D0B08;
+      display: none;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0D0B08;
     }
-    .spinner { width:60px; height:60px; border:4px solid #444; border-top-color:#C4A265;
-      -webkit-border-radius:50%; border-radius:50%;
-      -webkit-animation:spin 1s linear infinite; animation:spin 1s linear infinite; }
-    #status-msg { margin-top:24px; color:#fff; font-size:26px; text-align:center; max-width:85vw; }
-    #status-err { margin-top:16px; color:#E8A087; font-size:20px; text-align:center; max-width:85vw; display:none; }
 
-    #slideshow-screen { display:none; position:fixed; top:0; right:0; bottom:0; left:0; background:#000; overflow:hidden; cursor:none; }
-    .media-layer {
-      position:absolute; top:0; right:0; bottom:0; left:0;
-      display:-webkit-box; display:-webkit-flex; display:flex;
-      -webkit-box-align:center; -webkit-align-items:center; align-items:center;
-      -webkit-box-pack:center; -webkit-justify-content:center; justify-content:center;
-      opacity:0; -webkit-transition:opacity .6s ease-in-out; transition:opacity .6s ease-in-out; z-index:1;
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(200,170,110,0.15);
+      border-top: 3px solid #C4A265;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
     }
-    .media-layer.active { opacity:1; z-index:2; }
-    .media-layer img, .media-layer video { width:100%; height:100%; object-fit:contain; background:#000; }
-    .video-wrapper { position:relative; width:100%; height:100%; }
-    .video-wrapper video { width:100%; height:100%; object-fit:contain; }
 
-    /* Buffering spinner — shows over the SLIDESHOW, on top of the still-visible previous item */
-    #buffer {
-      position:absolute; top:50%; left:50%;
-      -webkit-transform:translate(-50%,-50%); transform:translate(-50%,-50%);
-      z-index:20; display:none;
+    #loading-screen p {
+      margin-top: 20px;
+      color: rgba(245,237,224,0.5);
+      font-size: 14px;
     }
-    #buffer.on { display:block; }
-    #buffer .spinner { width:50px; height:50px; border-width:4px; }
+
+    /* ── Slideshow ── */
+    #slideshow-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    #media-container {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1.2s ease-in-out;
+    }
+
+    #media-container img,
+    #media-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .video-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Block interaction with iframe controls */
+    .video-wrapper::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+    }
+
+    /* ── Side download panels (shown only over the black bars of portrait media) ── */
+    #side-panels {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease;
+    }
+
+    #side-panels.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .side-panel {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: var(--bar-width, 0px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: 'Assistant', 'DM Sans', sans-serif;
+    }
+
+    .side-panel--left { left: 0; }
+    .side-panel--right { right: 0; }
+
+    .sp-card {
+      width: min(100%, 380px);
+      background: rgba(20, 17, 12, 0.55);
+      border: 1px solid rgba(200, 170, 110, 0.22);
+      border-radius: 22px;
+      padding: clamp(16px, calc(var(--bar-width, 220px) * 0.07), 32px);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(10px, calc(var(--bar-width, 220px) * 0.04), 18px);
+    }
+
+    .sp-qr {
+      width: clamp(110px, calc(var(--bar-width, 220px) * 0.62), 280px);
+      height: auto;
+      aspect-ratio: 1 / 1;
+      background: #fff;
+      border-radius: 12px;
+      padding: 8px;
+      display: block;
+    }
+
+    .sp-logo {
+      width: clamp(70px, calc(var(--bar-width, 220px) * 0.5), 190px);
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.4));
+    }
+
+    .sp-title {
+      color: #F5EDE0;
+      font-weight: 800;
+      line-height: 1.22;
+      font-size: clamp(15px, calc(var(--bar-width, 220px) * 0.072), 26px);
+    }
+
+    .sp-label {
+      color: #F5EDE0;
+      font-weight: 700;
+      line-height: 1.3;
+      font-size: clamp(13px, calc(var(--bar-width, 220px) * 0.055), 18px);
+    }
+
+    .sp-sub {
+      color: rgba(245, 237, 224, 0.62);
+      line-height: 1.4;
+      font-size: clamp(12px, calc(var(--bar-width, 220px) * 0.048), 16px);
+    }
 
     #overlay {
-      position:absolute; bottom:0; left:0; right:0; z-index:30;
-      background:-webkit-linear-gradient(top,transparent,rgba(0,0,0,.8));
-      background:linear-gradient(to bottom,transparent,rgba(0,0,0,.8));
-      padding:60px 32px 24px; opacity:0; -webkit-transition:opacity .4s; transition:opacity .4s;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      padding: 60px 32px 24px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
     }
-    #slideshow-screen.show-ui #overlay { opacity:1; }
-    .controls { display:-webkit-box; display:-webkit-flex; display:flex;
-      -webkit-box-align:center; align-items:center; -webkit-box-pack:center; justify-content:center; margin-bottom:16px; }
-    .ctrl-btn { background:rgba(255,255,255,.12); border:none; -webkit-border-radius:50%; border-radius:50%;
-      width:56px; height:56px; margin:0 8px; cursor:pointer;
-      display:-webkit-box; display:-webkit-flex; display:flex;
-      -webkit-box-align:center; align-items:center; -webkit-box-pack:center; justify-content:center; }
-    .info-bar { display:-webkit-box; display:-webkit-flex; display:flex;
-      -webkit-box-pack:justify; justify-content:space-between; -webkit-box-align:center; align-items:center; direction:ltr; }
-    #file-name { color:rgba(255,255,255,.6); font-size:16px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #counter   { color:rgba(255,255,255,.4); font-size:14px; }
-    #dots { position:absolute; bottom:12px; left:50%; -webkit-transform:translateX(-50%); transform:translateX(-50%);
-      display:-webkit-box; display:-webkit-flex; display:flex; opacity:0; z-index:30; -webkit-transition:opacity .4s; transition:opacity .4s; }
-    #slideshow-screen.show-ui #dots { opacity:1; }
-    .dot { height:6px; width:6px; margin:0 2px; -webkit-border-radius:3px; border-radius:3px;
-      background:rgba(255,255,255,.35); -webkit-transition:all .3s; transition:all .3s; }
-    .dot.active { background:#fff; width:18px; }
 
-    #debug { position:fixed; top:0; left:0; right:0; max-height:40vh; overflow:hidden;
-      background:rgba(0,0,0,.75); color:#7fff7f; font-family:monospace; font-size:14px;
-      padding:6px 10px; z-index:9999; pointer-events:none; direction:ltr; text-align:left; white-space:pre-wrap;
-      display:none; }
-    #debug.on { display:block; }
+    #slideshow-screen:hover #overlay,
+    #slideshow-screen.show-ui #overlay {
+      opacity: 1;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .ctrl-btn {
+      background: rgba(255,255,255,0.12);
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+
+    .ctrl-btn:hover { background: rgba(255,255,255,0.22); }
+
+    .info-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      direction: ltr;
+    }
+
+    #file-name {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      max-width: 70%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #counter {
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    #settings-btn {
+      position: absolute;
+      top: 16px;
+      right: 32px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: rgba(255,255,255,0.6);
+      font-size: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    #dots {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    #slideshow-screen:hover #dots,
+    #slideshow-screen.show-ui #dots {
+      opacity: 1;
+    }
+
+    .dot {
+      height: 6px;
+      width: 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.35);
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      background: #fff;
+      width: 18px;
+    }
+
+    /* ── Status indicator ── */
+    #sync-status {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      background: rgba(0,0,0,0.6);
+      color: rgba(255,255,255,0.5);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 100;
+      direction: ltr;
+    }
+
+    #sync-status.visible { opacity: 1; }
+
+    /* ── Buffering indicator ── */
+    #buffering-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      display: none;
+    }
+
+    #buffering-indicator.visible { display: flex; }
+
+    #buffering-indicator .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(200,170,110,0.2);
+      border-top: 3px solid #C4A265;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+
   </style>
 </head>
 <body>
+
+  <!-- ── Setup Screen ── -->
+  <div id="setup-screen">
+    <div class="setup-card">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect width="48" height="48" rx="12" fill="#E8D5B7"/>
+        <path d="M14 16L24 12L34 16V32L24 36L14 32V16Z" fill="#1A1410" opacity="0.9"/>
+        <circle cx="24" cy="24" r="5" fill="#E8D5B7"/>
+        <path d="M21 24L23 26L27 22" stroke="#1A1410" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>Office Slideshow</h1>
+      <p class="subtitle">Connect your Google Drive folder to display photos and videos on your TV</p>
+
+      <div class="input-group">
+        <label>Google API Key</label>
+        <input type="password" id="api-key-input" placeholder="AIzaSy..." />
+      </div>
+
+      <div class="input-group">
+        <label>Drive Folder ID</label>
+        <input type="text" id="folder-id-input" placeholder="1aBcDeFgHiJkLmNoPqRsT" />
+        <p class="hint">The part after /folders/ in your Google Drive URL</p>
+      </div>
+
+      <p class="error-msg" id="setup-error"></p>
+
+      <button class="start-btn" id="launch-btn">Launch Slideshow</button>
+
+      <div class="instructions">
+        <p class="title">Quick Setup</p>
+        <p class="step">1. Go to console.cloud.google.com and enable the Drive API</p>
+        <p class="step">2. Create an API key under Credentials</p>
+        <p class="step">3. Share your Drive folder as "Anyone with the link"</p>
+        <p class="step">4. Paste both values above and launch</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Loading Screen ── -->
   <div id="loading-screen">
     <div class="spinner"></div>
-    <p id="status-msg">Starting...</p>
-    <p id="status-err"></p>
+    <p>Fetching your photos...</p>
   </div>
 
+  <!-- ── Slideshow Screen ── -->
   <div id="slideshow-screen">
-    <object id="av-player" type="application/avplayer" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;"></object>
-    <div id="layer-a" class="media-layer active"></div>
-    <div id="layer-b" class="media-layer"></div>
-    <div id="buffer"><div class="spinner"></div></div>
+    <div id="media-container"></div>
+
+    <!-- Download panels: filled into the black side bars of portrait media -->
+    <div id="side-panels">
+      <aside class="side-panel side-panel--left">
+        <div class="sp-card">
+          <img class="sp-qr" src="totem-download-qr.png" alt="QR code" />
+          <div class="sp-label">סרקו להורדת האפליקציה</div>
+        </div>
+      </aside>
+      <aside class="side-panel side-panel--right">
+        <div class="sp-card">
+          <img class="sp-logo" src="totem-logo-white.png" alt="Totem Climbing House" />
+          <div class="sp-title">הורידו את<br>אפליקציית טוטם</div>
+          <div class="sp-sub">עקבו אחרי הטיפוסים שלכם<br>והצטרפו לקהילה</div>
+        </div>
+      </aside>
+    </div>
+
     <div id="overlay">
       <div class="controls">
-        <button class="ctrl-btn" id="prev-btn"><svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
-        <button class="ctrl-btn" id="pause-btn"><svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg></button>
-        <button class="ctrl-btn" id="next-btn"><svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
+        <button class="ctrl-btn" id="prev-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+        <button class="ctrl-btn" id="pause-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button class="ctrl-btn" id="next-btn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </button>
       </div>
-      <div class="info-bar"><span id="file-name"></span><span id="counter"></span></div>
+      <div class="info-bar">
+        <span id="file-name"></span>
+        <span id="counter"></span>
+      </div>
+      <button id="settings-btn">✕ Settings</button>
     </div>
+
     <div id="dots"></div>
+
+
   </div>
-  <div id="debug"></div>
 
-  <script src="$WEBAPIS/webapis/webapis.js"></script>
+  <div id="buffering-indicator"><div class="spinner"></div></div>
+  <div id="sync-status"></div>
+
   <script>
-    // ===== on-screen + remote debug logger =====
-    var DEBUG_ON = false; // press '0' on the remote to toggle
-    // Optional LAN log server (dev only). Leave '' in production so the app
-    // never depends on the dev machine being on.
-    var REMOTE_LOG_URL = '';
-    var __dbg = document.getElementById('debug');
-    var __dbgLines = [];
-    function __remote(msg){
-      if(!REMOTE_LOG_URL) return;
-      try{
-        var x=new XMLHttpRequest(); x.open('POST',REMOTE_LOG_URL,true);
-        x.setRequestHeader('Content-Type','text/plain');
-        x.send(msg);
-      }catch(e){}
+    // ── Config ──
+    const PHOTO_DURATION = 8000;
+    const VIDEO_MAX_DURATION = 120000;
+    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+    const TRANSITION_MS = 1200;
+    const PRELOAD_AHEAD = 3; // preload next media
+    const MAX_RETRIES = 5;
+    const RETRY_BASE_DELAY = 2000; // 2s, doubles each retry
+
+    const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+    const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/3gpp'];
+
+    // ── State ──
+    let apiKey = '';
+    let folderId = '';
+    let files = [];
+    let currentIndex = 0;
+    let isPaused = false;
+    let advanceTimer = null;
+    let refreshTimer = null;
+    let hideUITimer = null;
+
+    // ── DOM ──
+    const setupScreen = document.getElementById('setup-screen');
+    const loadingScreen = document.getElementById('loading-screen');
+    const slideshowScreen = document.getElementById('slideshow-screen');
+    const mediaContainer = document.getElementById('media-container');
+    const setupError = document.getElementById('setup-error');
+    const fileNameEl = document.getElementById('file-name');
+    const counterEl = document.getElementById('counter');
+    const dotsEl = document.getElementById('dots');
+    const syncStatus = document.getElementById('sync-status');
+    const pauseBtn = document.getElementById('pause-btn');
+    const bufferingIndicator = document.getElementById('buffering-indicator');
+    const sidePanelsEl = document.getElementById('side-panels');
+    let preloadCache = {}; // cache preloaded blobs
+    let preloadPromises = {}; // track in-flight preloads
+
+    // ── Side download panels (fill the black bars of portrait media) ──
+    const SIDE_PANEL_MIN_BAR = 170; // px: minimum side-bar width before showing panels
+    let lastMediaW = 0;
+    let lastMediaH = 0;
+
+    function hideSidePanels() {
+      sidePanelsEl.classList.remove('visible');
     }
-    function dbg(msg){
+
+    function updateSidePanels(mediaW, mediaH) {
+      lastMediaW = mediaW || 0;
+      lastMediaH = mediaH || 0;
+      if (!mediaW || !mediaH) { hideSidePanels(); return; }
+      const screenW = window.innerWidth;
+      const screenH = window.innerHeight;
+      const mediaAR = mediaW / mediaH;
+      const screenAR = screenW / screenH;
+      // Side bars only exist when the media is narrower than the screen (portrait).
+      if (mediaAR >= screenAR) { hideSidePanels(); return; }
+      const displayedWidth = screenH * mediaAR;
+      const barWidth = (screenW - displayedWidth) / 2;
+      if (barWidth < SIDE_PANEL_MIN_BAR) { hideSidePanels(); return; }
+      document.documentElement.style.setProperty('--bar-width', barWidth + 'px');
+      sidePanelsEl.classList.add('visible');
+    }
+
+    window.addEventListener('resize', () => {
+      if (lastMediaW && lastMediaH) updateSidePanels(lastMediaW, lastMediaH);
+    });
+
+    // ── Save/Load config from URL hash ──
+    function saveConfig() {
+      const data = btoa(JSON.stringify({ apiKey, folderId }));
+      window.location.hash = data;
+    }
+
+    function loadConfig() {
       try {
-        var t = new Date(); var pad = function(n){return n<10?'0'+n:n;};
-        var s = pad(t.getHours())+':'+pad(t.getMinutes())+':'+pad(t.getSeconds())+'.'+(t.getMilliseconds()+'').substr(0,2)+' '+msg;
-        __dbgLines.push(s); if(__dbgLines.length>18)__dbgLines.shift();
-        if(__dbg){__dbg.textContent = __dbgLines.join('\n'); __dbg.className = DEBUG_ON ? 'on' : '';}
-        __remote(s);
-      } catch(e){}
-    }
-    function toggleDebug(){ DEBUG_ON = !DEBUG_ON; if(__dbg) __dbg.className = DEBUG_ON ? 'on' : ''; }
-    window.onerror = function(m,src,l,c,e){ dbg('JSERR: '+m+' @'+(src||'')+':'+l); };
-  </script>
-  <script>
-    var API_KEY   = 'AIzaSyCfimRAzTq-1jm0v0T7UxaQ9tD3VHe1DgQ';
-    var FOLDER_ID = '16avbuT7FPkikcxX4_oX3_tw-Fyl50y64';
-    var PHOTO_DURATION   = 8000;
-    var REFRESH_INTERVAL = 2 * 60 * 1000;
-    var VIDEO_READY_TIMEOUT = 25000; // max wait for a video to start before skipping
-    var IMAGE_TYPES = ['image/jpeg','image/png','image/gif','image/webp','image/bmp'];
-    var VIDEO_TYPES = ['video/mp4','video/webm','video/quicktime','video/x-msvideo','video/3gpp'];
-
-    var files=[], playlist=[], currentIndex=0, isPaused=false;
-    var advanceTimer=null, isTransitioning=false, mediaGen=0, lastAdvance=Date.now();
-
-    var loadingScreen   = document.getElementById('loading-screen');
-    var slideshowScreen = document.getElementById('slideshow-screen');
-    var layerA=document.getElementById('layer-a'), layerB=document.getElementById('layer-b');
-    var currentLayer=layerA, nextLayer=layerB;
-    var bufferEl = document.getElementById('buffer');
-    var statusMsg = document.getElementById('status-msg');
-    var statusErr = document.getElementById('status-err');
-    var fileNameEl= document.getElementById('file-name');
-    var counterEl = document.getElementById('counter');
-    var dotsEl    = document.getElementById('dots');
-    var pauseBtn  = document.getElementById('pause-btn');
-
-    function isVid(f){if(!f)return false;for(var i=0;i<VIDEO_TYPES.length;i++)if(f.mimeType&&f.mimeType.indexOf(VIDEO_TYPES[i].split('/')[0])===0)return true;return false;}
-    // Videos are proxied (Tizen 3.0 AVPlay can't handshake with modern HTTPS / googleapis.com).
-    // PRODUCTION: the Cloudflare Worker URL, e.g. 'https://totemtv-drive-proxy.<subdomain>.workers.dev/drive/'
-    // DEV: the LAN helper, e.g. 'http://10.0.0.54:8765/drive/'
-    var VIDEO_PROXY_BASE = 'https://totemtv-drive-proxy.carmelrrwork.workers.dev/drive/';
-    function videoUrl(f){return VIDEO_PROXY_BASE + f.id;}
-    function imageUrl(f){return 'https://lh3.googleusercontent.com/d/'+f.id+'=w1920-h1080-rj';}
-
-    // Optional AVPlay self-test URL (dev only). Empty disables it.
-    var AV_TEST_URL = '';
-    var AV_TEST_DONE = true; // self-test disabled in production
-
-    function buildPlaylist(list){
-      var imgs=[],vids=[];
-      for(var i=0;i<list.length;i++)(isVid(list[i])?vids:imgs).push(list[i]);
-      if(!imgs.length||!vids.length)return list.slice();
-      var r=[],n=Math.max(imgs.length,vids.length);
-      for(var j=0;j<n;j++){r.push(imgs[j%imgs.length]);r.push(vids[j%vids.length]);}
-      return r;
-    }
-    function updateDots(){
-      dotsEl.innerHTML='';
-      if(playlist.length>30||playlist.length<=1)return;
-      for(var i=0;i<playlist.length;i++){var d=document.createElement('div');d.className='dot'+(i===currentIndex?' active':'');dotsEl.appendChild(d);}
-    }
-    function showBuffer(on){ bufferEl.className=on?'on':''; }
-
-    function xhrGet(url){
-      return new Promise(function(resolve,reject){
-        var xhr=new XMLHttpRequest();xhr.open('GET',url,true);xhr.timeout=30000;
-        xhr.onload=function(){xhr.status<300?resolve(xhr.responseText):reject(new Error('HTTP '+xhr.status));};
-        xhr.onerror=function(){reject(new Error('Network error'));};
-        xhr.ontimeout=function(){reject(new Error('Timeout'));};
-        xhr.send();
-      });
-    }
-    function fetchFiles(){
-      var url='https://www.googleapis.com/drive/v3/files'+
-        '?q='+encodeURIComponent("'"+FOLDER_ID+"' in parents and trashed = false")+
-        '&fields='+encodeURIComponent('files(id,name,mimeType,videoMediaMetadata,size)')+
-        '&orderBy=createdTime+desc&pageSize=1000&key='+API_KEY;
-      return xhrGet(url).then(function(t){
-        var data=JSON.parse(t),result=[],all=data.files||[];
-        for(var i=0;i<all.length;i++){
-          var f=all[i],ok=IMAGE_TYPES.indexOf(f.mimeType)>=0;
-          if(!ok)for(var j=0;j<VIDEO_TYPES.length;j++)if(f.mimeType&&f.mimeType.indexOf(VIDEO_TYPES[j].split('/')[0])===0){ok=true;break;}
-          if(ok)result.push(f);
+        var source = '';
+        if (window.location.hash.length > 1) {
+          source = window.location.hash.slice(1);
+        } else {
+          // Fallback for TV browsers redirected via 404.html with ?config=
+          var match = window.location.search.match(/[?&]config=([^&]+)/);
+          if (match) source = decodeURIComponent(match[1]);
         }
-        return result;
-      });
+        if (source) {
+          const data = JSON.parse(atob(source));
+          if (data.apiKey && data.folderId) {
+            apiKey = data.apiKey;
+            folderId = data.folderId;
+            return true;
+          }
+        }
+      } catch (e) {}
+      return false;
     }
 
-    function scheduleAdvance(ms){clearTimeout(advanceTimer);if(!isPaused)advanceTimer=setTimeout(goNext,ms);}
+    // ── Fetch files from Drive ──
+    async function fetchFiles() {
+      const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+      const fields = encodeURIComponent('files(id,name,mimeType,createdTime,videoMediaMetadata)');
+      const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&orderBy=createdTime desc&pageSize=1000&key=${apiKey}`;
 
-    // ===== Samsung AVPlay (native) video player =====
-    var avEl = document.getElementById('av-player');
-    var avBusy = false;
-    function avAvailable(){ return typeof webapis !== 'undefined' && webapis && webapis.avplay; }
-    function avStop(){
-      if(!avAvailable())return;
-      try { webapis.avplay.stop(); } catch(e){}
-      try { webapis.avplay.close(); } catch(e){}
-      if(avEl) avEl.style.display='none';
-      avBusy = false;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `API Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      return (data.files || []).filter(f =>
+        IMAGE_TYPES.includes(f.mimeType) ||
+        VIDEO_TYPES.some(t => f.mimeType?.startsWith(t.split('/')[0]))
+      );
     }
-    function avPlay(url, gen, onReady, onEnd, onError){
-      if(!avAvailable()){ onError && onError('no avplay'); return; }
+
+    // ── Show sync status ──
+    function showSyncStatus(msg) {
+      syncStatus.textContent = msg;
+      syncStatus.classList.add('visible');
+      setTimeout(() => syncStatus.classList.remove('visible'), 3000);
+    }
+
+    // ── Refresh files (background) ──
+    async function refreshFiles() {
       try {
-        dbg('AV avStop()');
-        avStop();
-        avEl.style.display='block';
-        dbg('AV open');
-        webapis.avplay.open(url);
-        dbg('AV state after open='+webapis.avplay.getState());
-        var w = window.innerWidth || 1920, h = window.innerHeight || 1080;
-        try { webapis.avplay.setDisplayRect(0,0,w,h); dbg('AV setDisplayRect '+w+'x'+h); } catch(e){ dbg('AV setDisplayRect err '+e.message); }
-        try { webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX'); } catch(e){ dbg('AV setDisplayMethod err '+e.message); }
-        var notified = false;
-        try {
-          webapis.avplay.setListener({
-            onbufferingstart: function(){ dbg('AV buffering start'); },
-            onbufferingprogress: function(p){ /* dbg('AV buf '+p+'%'); */ },
-            onbufferingcomplete: function(){ dbg('AV buf complete'); if(gen===mediaGen && !notified){ notified=true; onReady && onReady(); } },
-            oncurrentplaytime: function(t){},
-            onstreamcompleted: function(){ dbg('AV stream completed'); if(gen===mediaGen) onEnd && onEnd(); },
-            onevent: function(et,ed){ dbg('AV event '+et+' '+ed); },
-            onerror: function(e){ dbg('AV error '+e); if(gen===mediaGen) onError && onError(e); },
-            onerrormsg: function(e,m){ dbg('AV errormsg '+e+' '+m); },
-            onsubtitlechange: function(){},
-            ondrmevent: function(){}
-          });
-          dbg('AV listener set');
-        } catch(e){ dbg('AV setListener ex '+e.message); }
-        dbg('AV prepareAsync()');
-        webapis.avplay.prepareAsync(function(){
-          dbg('AV prepared, state='+webapis.avplay.getState());
-          try { webapis.avplay.play(); dbg('AV play() called, state='+webapis.avplay.getState()); } catch(e){ dbg('AV play err '+e.message); onError && onError(e.message); return; }
-          if(!notified){ notified=true; onReady && onReady(); }
-        }, function(e){
-          dbg('AV prepareAsync failed: '+JSON.stringify(e));
-          if(gen===mediaGen) onError && onError(e);
-        });
-        dbg('AV prepareAsync returned');
-      } catch(e){
-        dbg('AV exception '+e.message+' '+e.name);
-        onError && onError(e.message);
+        const newFiles = await fetchFiles();
+        const oldIds = new Set(files.map(f => f.id));
+        const newIds = new Set(newFiles.map(f => f.id));
+
+        const added = newFiles.filter(f => !oldIds.has(f.id)).length;
+        const removed = files.filter(f => !newIds.has(f.id)).length;
+
+        if (added > 0 || removed > 0) {
+          // Preserve current file if it still exists
+          const currentFileId = files[currentIndex]?.id;
+          files = newFiles;
+
+          if (currentFileId) {
+            const newIdx = files.findIndex(f => f.id === currentFileId);
+            if (newIdx >= 0) {
+              currentIndex = newIdx;
+            } else {
+              currentIndex = 0;
+            }
+          }
+
+          updateDots();
+          showSyncStatus(`Synced: ${added > 0 ? `+${added}` : ''} ${removed > 0 ? `-${removed}` : ''} files`);
+        }
+      } catch (e) {
+        showSyncStatus('Sync failed — will retry');
       }
     }
 
-    // Swap layers: next becomes visible, old fades out.
-    function crossFade(){
-      showBuffer(false);
-      currentLayer.className='media-layer';
-      nextLayer.className='media-layer active';
-      var old=currentLayer; currentLayer=nextLayer; nextLayer=old;
-      setTimeout(function(){
-        var v=old.querySelectorAll('video');
-        for(var i=0;i<v.length;i++){try{v[i].pause();v[i].src='';v[i].load();}catch(e){}}
-        old.innerHTML='';
-        lastAdvance=Date.now();
-      },700);
-      isTransitioning=false;
+    // ── Display current media ──
+    function isVideo(file) {
+      return file && VIDEO_TYPES.some(t => file.mimeType?.startsWith(t.split('/')[0]));
     }
 
-    // For AVPlay-backed videos: hide both layers (so the native player surface shows through)
-    function hideHtmlLayers(){
-      showBuffer(false);
-      layerA.className='media-layer';
-      layerB.className='media-layer';
-      lastAdvance = Date.now();
-      isTransitioning = false;
+    function getImageUrl(file) {
+      return `https://lh3.googleusercontent.com/d/${file.id}=w1920-h1080-rj`;
     }
 
-    function goNext(){clearTimeout(advanceTimer);mediaGen++;isTransitioning=false;if(!playlist.length)return;currentIndex=(currentIndex+1)%playlist.length;showMedia();}
-    function goPrev(){clearTimeout(advanceTimer);mediaGen++;isTransitioning=false;if(!playlist.length)return;currentIndex=(currentIndex-1+playlist.length)%playlist.length;showMedia();}
+    function getVideoUrl(file) {
+      return `https://drive.google.com/file/d/${file.id}/preview?autoplay=1`;
+    }
 
-    function showMedia(){
-      if(!playlist.length||isTransitioning)return;
-      isTransitioning=true;
-      var gen=mediaGen, file=playlist[currentIndex];
-      if(!file){currentIndex=0;isTransitioning=false;showMedia();return;}
+    function getVideoDuration(file) {
+      if (file.videoMediaMetadata && file.videoMediaMetadata.durationMillis) {
+        return parseInt(file.videoMediaMetadata.durationMillis) + 3000; // +3s buffer
+      }
+      return VIDEO_MAX_DURATION;
+    }
 
-      fileNameEl.textContent=file.name;
-      counterEl.textContent=(currentIndex+1)+' / '+playlist.length;
+    // ── Preload helpers (images only; videos use iframe streaming) ──
+    function preloadFile(file) {
+      if (!file || preloadCache[file.id]) return Promise.resolve();
+      if (isVideo(file)) return Promise.resolve(); // videos stream via iframe, no preload
+      if (preloadPromises[file.id]) return preloadPromises[file.id];
+
+      const promise = (async () => {
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          try {
+            await new Promise((resolve, reject) => {
+              const img = new Image();
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = getImageUrl(file);
+            });
+            preloadCache[file.id] = getImageUrl(file);
+            return; // success
+          } catch (e) {
+            if (attempt < MAX_RETRIES - 1) {
+              await new Promise(r => setTimeout(r, RETRY_BASE_DELAY * Math.pow(2, attempt)));
+            }
+          }
+        }
+      })();
+
+      preloadPromises[file.id] = promise;
+      return promise;
+    }
+
+    function preloadNext() {
+      for (let offset = 1; offset <= PRELOAD_AHEAD; offset++) {
+        const idx = (currentIndex + offset) % files.length;
+        preloadFile(files[idx]);
+      }
+    }
+
+
+
+    async function showMedia() {
+      if (files.length === 0) return;
+
+      const file = files[currentIndex];
+      fileNameEl.textContent = file.name;
+      counterEl.textContent = `${currentIndex + 1} / ${files.length}`;
       updateDots();
 
-      // Pause any video in the (still-visible) current layer's siblings, but keep it shown
-      nextLayer.innerHTML='';
-      showBuffer(true); // show spinner over the still-visible previous item while next loads
+      if (!isVideo(file) && !preloadCache[file.id]) {
+        bufferingIndicator.classList.add('visible');
+        await preloadFile(file);
+        bufferingIndicator.classList.remove('visible');
+      }
 
-      if(isVid(file)){
-        dbg('VID start: '+file.name+' ('+(file.size||'?')+'B) avplay='+avAvailable());
+      // Fade out
+      mediaContainer.style.opacity = '0';
 
-        // ---------- preferred: native AVPlay ----------
-        if(avAvailable()){
-          var avDone=false, avTimer=null;
-          function avReady(){
-            if(gen!==mediaGen||avDone)return;
-            avDone=true; clearTimeout(avTimer);
-            dbg('AV ready -> show');
-            hideHtmlLayers();           // reveal native player surface
-            // Prefer the player-reported duration (accurate after prepare)
-            var dur = 0;
-            try { dur = webapis.avplay.getDuration(); } catch(e){}
-            if(!(dur>0) && file.videoMediaMetadata && file.videoMediaMetadata.durationMillis)
-              dur = parseInt(file.videoMediaMetadata.durationMillis,10);
-            if(!(dur>0)) dur = 60000;
-            dur += 2000; // small grace; onstreamcompleted will fire sooner anyway
-            dbg('AV scheduled advance in '+dur+'ms');
-            scheduleAdvance(dur);
+      setTimeout(() => {
+        mediaContainer.innerHTML = '';
+        hideSidePanels();
+
+        if (isVideo(file)) {
+          // Google Drive preview player with autoplay, controls hidden by overlay
+          const wrapper = document.createElement('div');
+          wrapper.className = 'video-wrapper';
+
+          const iframe = document.createElement('iframe');
+          iframe.src = getVideoUrl(file);
+          iframe.allow = 'autoplay; encrypted-media';
+          iframe.setAttribute('allowfullscreen', '');
+
+          iframe.addEventListener('load', () => {
+            bufferingIndicator.classList.remove('visible');
+            mediaContainer.style.opacity = '1';
+          });
+
+          bufferingIndicator.classList.add('visible');
+          wrapper.appendChild(iframe);
+          mediaContainer.appendChild(wrapper);
+
+          // Show side panels if the video is portrait (dimensions from Drive metadata)
+          const meta = file.videoMediaMetadata;
+          if (meta && meta.width && meta.height) {
+            updateSidePanels(parseInt(meta.width), parseInt(meta.height));
+          } else {
+            hideSidePanels();
           }
-          function avEnd(){ if(gen===mediaGen) goNext(); }
-          function avFail(why){
-            if(gen!==mediaGen)return;
-            dbg('AV fail '+why+' -> next');
-            clearTimeout(avTimer); avDone=true;
-            avStop();
-            showBuffer(false); isTransitioning=false;
-            setTimeout(function(){if(gen===mediaGen)goNext();},300);
-          }
-          avTimer = setTimeout(function(){avFail('timeout');}, VIDEO_READY_TIMEOUT);
-          // First video: run a self-test against a known-good HTTP MP4
-          var useUrl = videoUrl(file);
-          if(!AV_TEST_DONE){
-            AV_TEST_DONE = true;
-            dbg('AV SELF-TEST with HTTP url');
-            useUrl = AV_TEST_URL;
-          }
-          avPlay(useUrl, gen, avReady, avEnd, avFail);
-          return;
-        }
 
-        // ---------- fallback: HTML5 <video> ----------
-        var wrap=document.createElement('div');wrap.className='video-wrapper';
-        var vid=document.createElement('video');
-        vid.muted=true;
-        vid.setAttribute('muted','');
-        vid.setAttribute('autoplay','');
-        vid.setAttribute('preload','auto');
-        vid.setAttribute('playsinline','');
-        var shown=false, timer=null;
+          const duration = getVideoDuration(file);
+          scheduleAdvance(duration);
+          preloadNext();
+        } else {
+          const img = document.createElement('img');
+          img.src = preloadCache[file.id] || getImageUrl(file);
+          img.alt = file.name;
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'contain';
 
-        function ready(why){
-          if(gen!==mediaGen||shown)return;
-          dbg('VID ready ('+why+') rs='+vid.readyState+' ns='+vid.networkState);
-          shown=true; clearTimeout(timer);
-          crossFade();
-          var p=vid.play();
-          if(p&&p.catch)p.catch(function(e){dbg('play() rejected: '+(e&&e.message||e));});
-          setTimeout(function(){try{vid.muted=false;}catch(e){}},400);
-          var dur=60000;
-          if(file.videoMediaMetadata&&file.videoMediaMetadata.durationMillis)
-            dur=parseInt(file.videoMediaMetadata.durationMillis,10)+2000;
-          scheduleAdvance(dur);
-        }
-        function fail(why){
-          if(gen!==mediaGen)return;
-          var err=vid.error?('code='+vid.error.code+' msg='+(vid.error.message||'')):'';
-          dbg('VID fail ('+why+') rs='+vid.readyState+' ns='+vid.networkState+' '+err);
-          clearTimeout(timer); shown=true;
-          showBuffer(false);
-          isTransitioning=false;
-          setTimeout(function(){if(gen===mediaGen)goNext();},300);
-        }
+          img.addEventListener('load', () => {
+            mediaContainer.style.opacity = '1';
+            updateSidePanels(img.naturalWidth, img.naturalHeight);
+            preloadNext();
+          }, { once: true });
 
-        vid.addEventListener('loadstart',function(){dbg('VID loadstart');});
-        vid.addEventListener('loadedmetadata',function(){dbg('VID loadedmetadata '+vid.videoWidth+'x'+vid.videoHeight+' dur='+vid.duration);});
-        vid.addEventListener('loadeddata',function(){ready('loadeddata');});
-        vid.addEventListener('canplay',function(){ready('canplay');});
-        vid.addEventListener('canplaythrough',function(){ready('canplaythrough');});
-        vid.addEventListener('playing',function(){ready('playing');});
-        vid.addEventListener('stalled',function(){dbg('VID stalled rs='+vid.readyState+' ns='+vid.networkState);});
-        vid.addEventListener('suspend',function(){dbg('VID suspend');});
-        vid.addEventListener('waiting',function(){dbg('VID waiting');});
-        vid.addEventListener('ended',function(){dbg('VID ended');if(gen===mediaGen)goNext();});
-        vid.addEventListener('error',function(){fail('error event');});
-        timer=setTimeout(function(){fail('timeout');},VIDEO_READY_TIMEOUT);
+          // On error: retry loading instead of skipping
+          img.addEventListener('error', () => {
+            delete preloadCache[file.id];
+            delete preloadPromises[file.id];
+            clearTimeout(advanceTimer);
+            setTimeout(() => showMedia(), RETRY_BASE_DELAY);
+          });
 
-        wrap.appendChild(vid); nextLayer.appendChild(wrap);
-        vid.src=videoUrl(file);
-        dbg('VID src set');
-        vid.load();
-
-      } else {
-        // image branch — stop any native video first
-        avStop();
-        var img=document.createElement('img'); img.alt=file.name;
-        var shownI=false, timerI=null;
-        function readyI(){
-          if(gen!==mediaGen||shownI)return;
-          shownI=true; clearTimeout(timerI);
-          crossFade();
+          mediaContainer.appendChild(img);
           scheduleAdvance(PHOTO_DURATION);
+
+          // Fade in immediately if cached
+          if (img.complete) {
+            mediaContainer.style.opacity = '1';
+            if (img.naturalWidth) updateSidePanels(img.naturalWidth, img.naturalHeight);
+          }
         }
-        function failI(){
-          if(gen!==mediaGen)return;
-          clearTimeout(timerI); shownI=true; showBuffer(false); isTransitioning=false;
-          setTimeout(function(){if(gen===mediaGen)goNext();},300);
-        }
-        img.addEventListener('load',readyI);
-        img.addEventListener('error',failI);
-        timerI=setTimeout(failI,15000);
-        nextLayer.appendChild(img);
-        img.src=imageUrl(file);
-        if(img.complete&&img.naturalWidth>0)readyI();
+      }, TRANSITION_MS);
+    }
+
+    function scheduleAdvance(ms) {
+      clearTimeout(advanceTimer);
+      if (!isPaused) {
+        advanceTimer = setTimeout(goNext, ms);
       }
     }
 
-    function togglePause(){
-      isPaused=!isPaused;
-      if(isPaused){
-        pauseBtn.innerHTML='<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>';
-        clearTimeout(advanceTimer);
-        if(avAvailable()){ try { webapis.avplay.pause(); } catch(e){} }
-        var v=currentLayer.querySelector('video');if(v)try{v.pause();}catch(e){}
+    function goNext() {
+      if (files.length <= 1) return;
+      currentIndex = (currentIndex + 1) % files.length;
+      showMedia();
+    }
+
+    function goPrev() {
+      if (files.length <= 1) return;
+      currentIndex = (currentIndex - 1 + files.length) % files.length;
+      showMedia();
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      pauseBtn.innerHTML = isPaused
+        ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
+        : '<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
+      if (!isPaused) {
+        const file = files[currentIndex];
+        scheduleAdvance(isVideo(file) ? VIDEO_MAX_DURATION : PHOTO_DURATION);
       } else {
-        pauseBtn.innerHTML='<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-        if(avAvailable()){
-          try { var st = webapis.avplay.getState(); if(st==='PAUSED'){ webapis.avplay.play(); return; } } catch(e){}
-        }
-        var v2=currentLayer.querySelector('video');if(v2){try{v2.play();}catch(e){}}
-        else scheduleAdvance(PHOTO_DURATION);
+        clearTimeout(advanceTimer);
       }
     }
 
-    // Watchdog: if nothing advanced for a while, force next
-    setInterval(function(){
-      if(slideshowScreen.style.display!=='block'||isPaused)return;
-      if(Date.now()-lastAdvance>180000){mediaGen++;isTransitioning=false;clearTimeout(advanceTimer);goNext();}
-    },20000);
+    // ── Dots ──
+    function updateDots() {
+      dotsEl.innerHTML = '';
+      if (files.length > 30 || files.length <= 1) return;
 
-    var hideUITimer=null;
-    function showUI(){slideshowScreen.className='show-ui';clearTimeout(hideUITimer);hideUITimer=setTimeout(function(){slideshowScreen.className='';},4000);}
-
-    function launch(){
-      dbg('launch() UA='+(navigator.userAgent||'').substr(0,60));
-      statusMsg.textContent='מתחבר ל-Google Drive...';
-      fetchFiles().then(function(result){
-        if(!result.length)throw new Error('לא נמצאו קבצים בתיקייה');
-        dbg('fetched '+result.length+' files');
-        files=result; playlist=buildPlaylist(files);
-        loadingScreen.style.display='none';
-        slideshowScreen.style.display='block';
-        lastAdvance=Date.now(); currentIndex=0; showMedia();
-
-        setInterval(function(){
-          fetchFiles().then(function(nf){
-            if(!nf.length)return;
-            var curId=playlist[currentIndex]?playlist[currentIndex].id:null;
-            files=nf; playlist=buildPlaylist(files);
-            var ni=0;for(var i=0;i<playlist.length;i++)if(playlist[i].id===curId){ni=i;break;}
-            currentIndex=ni; updateDots();
-          }).catch(function(){});
-        },REFRESH_INTERVAL);
-      }).catch(function(err){
-        statusMsg.textContent='שגיאה';
-        statusErr.textContent=err?err.message:'Unknown error';
-        statusErr.style.display='block';
+      files.forEach((_, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'dot' + (i === currentIndex ? ' active' : '');
+        dotsEl.appendChild(dot);
       });
     }
 
-    document.getElementById('prev-btn').addEventListener('click',function(e){e.stopPropagation();goPrev();showUI();});
-    document.getElementById('next-btn').addEventListener('click',function(e){e.stopPropagation();goNext();showUI();});
-    document.getElementById('pause-btn').addEventListener('click',function(e){e.stopPropagation();togglePause();showUI();});
-    slideshowScreen.addEventListener('click',showUI);
-    document.addEventListener('keydown',function(e){
-      if(e.key==='0' || e.keyCode===48){ toggleDebug(); return; }
-      if(slideshowScreen.style.display==='block'){
-        if(e.key==='ArrowRight'||e.key==='ArrowDown')goNext();
-        else if(e.key==='ArrowLeft'||e.key==='ArrowUp')goPrev();
-        else if(e.key===' '||e.key==='Enter')togglePause();
-        showUI();
+    // ── UI visibility ──
+    function showUITemporarily() {
+      slideshowScreen.classList.add('show-ui');
+      slideshowScreen.style.cursor = 'default';
+      clearTimeout(hideUITimer);
+      hideUITimer = setTimeout(() => {
+        slideshowScreen.classList.remove('show-ui');
+        slideshowScreen.style.cursor = 'none';
+      }, 4000);
+    }
+
+    // ── Launch ──
+    async function launch() {
+      setupScreen.style.display = 'none';
+      loadingScreen.style.display = 'flex';
+
+      try {
+        files = await fetchFiles();
+
+        if (files.length === 0) {
+          throw new Error('No photos or videos found in this folder. Make sure the folder contains media files and is shared publicly.');
+        }
+
+        loadingScreen.style.display = 'none';
+        slideshowScreen.style.display = 'block';
+
+        currentIndex = 0;
+
+        // Preload first few images before starting (videos stream via iframe)
+        const imageBatch = files.filter(f => !isVideo(f)).slice(0, PRELOAD_AHEAD + 1);
+        await Promise.all(imageBatch.map(f => preloadFile(f)));
+
+        showMedia();
+
+        // Periodic refresh
+        refreshTimer = setInterval(refreshFiles, REFRESH_INTERVAL);
+
+      } catch (err) {
+        loadingScreen.style.display = 'none';
+        setupScreen.style.display = 'flex';
+        setupError.textContent = err.message;
+        setupError.style.display = 'block';
+      }
+    }
+
+    function backToSetup() {
+      clearTimeout(advanceTimer);
+      clearInterval(refreshTimer);
+      slideshowScreen.style.display = 'none';
+      setupScreen.style.display = 'flex';
+      files = [];
+      currentIndex = 0;
+      window.location.hash = '';
+    }
+
+    // ── Event Listeners ──
+    document.getElementById('launch-btn').addEventListener('click', () => {
+      apiKey = document.getElementById('api-key-input').value.trim();
+      folderId = document.getElementById('folder-id-input').value.trim();
+
+      if (!apiKey || !folderId) {
+        setupError.textContent = 'Please enter both API Key and Folder ID';
+        setupError.style.display = 'block';
+        return;
+      }
+
+      setupError.style.display = 'none';
+      saveConfig();
+      launch();
+    });
+
+    document.getElementById('prev-btn').addEventListener('click', (e) => { e.stopPropagation(); goPrev(); });
+    document.getElementById('next-btn').addEventListener('click', (e) => { e.stopPropagation(); goNext(); });
+    document.getElementById('pause-btn').addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
+    document.getElementById('settings-btn').addEventListener('click', (e) => { e.stopPropagation(); backToSetup(); });
+
+    slideshowScreen.addEventListener('mousemove', showUITemporarily);
+    slideshowScreen.addEventListener('click', showUITemporarily);
+
+    // Keyboard controls (for TV remote)
+    document.addEventListener('keydown', (e) => {
+      if (slideshowScreen.style.display === 'block') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev();
+        else if (e.key === ' ' || e.key === 'Enter') togglePause();
+        else if (e.key === 'Escape') backToSetup();
+        showUITemporarily();
       }
     });
 
-    launch();
+    // ── Auto-launch if config in URL ──
+    if (loadConfig()) {
+      document.getElementById('api-key-input').value = apiKey;
+      document.getElementById('folder-id-input').value = folderId;
+      launch();
+    }
   </script>
 </body>
 </html>
