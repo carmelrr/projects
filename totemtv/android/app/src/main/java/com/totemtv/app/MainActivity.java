@@ -29,32 +29,32 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onStart() {
+    public void onStart() {
         super.onStart();
         Log.i(TAG, "onStart");
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         Log.i(TAG, "onResume");
         applyImmersiveMode();
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         super.onPause();
         Log.w(TAG, "onPause — app moved to background or screen turned off");
     }
 
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         Log.w(TAG, "onStop — activity no longer visible");
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         super.onDestroy();
         Log.e(TAG, "onDestroy — activity is being destroyed");
     }

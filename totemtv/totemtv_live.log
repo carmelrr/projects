@@ -1,0 +1,71 @@
+--------- beginning of main
+05-06 10:29:05.987 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+--------- beginning of system
+05-06 10:42:11.582 I/ActivityManager(  700): Killing 1620:com.google.android.gms/u0a73 (adj 0): Sync transaction while in frozen state
+05-06 10:42:11.621 W/ActivityManager(  700): Application dead when creating service ServiceRecord{b6de61c u0 com.google.android.gms/.ads.jams.NegotiationService}
+05-06 10:42:11.630 W/ActivityManager(  700): Scheduling restart of crashed service com.google.android.gms/.ads.jams.NegotiationService in 1000ms for connection
+05-06 10:42:11.631 W/ActivityManager(  700): Scheduling restart of crashed service com.google.android.gms/.kids.JobService in 11000ms for connection
+05-06 10:42:11.631 W/ActivityManager(  700): Scheduling restart of crashed service com.google.android.gms/.auth.api.proxy.AuthService in 21000ms for connection
+05-06 10:42:11.631 W/ActivityManager(  700): Scheduling restart of crashed service com.google.android.gms/.measurement.service.MeasurementBrokerService in 31000ms for connection
+05-06 10:42:11.636 W/ActivityManager(  700): Scheduling restart of crashed service com.google.android.gms/.ads.jams.NegotiationService in 40994ms for always
+05-06 10:42:11.645 W/ActivityManager(  700): Exception when starting service com.google.android.gms/.ads.jams.NegotiationService
+05-06 10:42:11.645 W/ActivityManager(  700): android.os.DeadObjectException
+05-06 10:42:11.645 W/ActivityManager(  700): 	at android.os.BinderProxy.transactNative(Native Method)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at android.os.BinderProxy.transact(BinderProxy.java:584)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at android.app.IApplicationThread$Stub$Proxy.scheduleCreateService(IApplicationThread.java:1282)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at com.android.server.am.ActiveServices.realStartServiceLocked(ActiveServices.java:5339)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at com.android.server.am.ActiveServices.bringUpServiceInnerLocked(ActiveServices.java:5151)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at com.android.server.am.ActiveServices.bringUpServiceLocked(ActiveServices.java:5060)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at com.android.server.am.ActiveServices.bindServiceLocked(ActiveServices.java:3738)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at com.android.server.am.ActivityManagerService.bindServiceInstance(ActivityManagerService.java:13525)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at com.android.server.am.ActivityManagerService.bindServiceInstance(ActivityManagerService.java:13489)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:2884)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at com.android.server.am.ActivityManagerService.onTransact(ActivityManagerService.java:2721)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at android.os.Binder.execTransactInternal(Binder.java:1344)
+05-06 10:42:11.645 W/ActivityManager(  700): 	at android.os.Binder.execTransact(Binder.java:1275)
+05-06 10:42:22.660 I/ActivityManager(  700): Start proc 8166:com.google.android.gms/u0a73 for service {com.google.android.gms/com.google.android.gms.kids.JobService}
+05-06 10:42:22.705 W/ActivityManager(  700): Rescheduling restart of crashed service com.google.android.gms/.ads.jams.NegotiationService in 0ms for other
+05-06 10:42:23.448 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10073. pid: 8166
+05-06 10:44:49.256 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+05-06 11:06:57.907 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+05-06 11:24:27.396 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+05-06 11:46:35.991 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+05-06 11:52:09.389 I/ActivityManager(  700): Process com.google.android.permissioncontroller (pid 5421) has died: cch+55 CEM 
+05-06 11:52:09.503 I/ActivityManager(  700): Process com.netflix.ninja (pid 3188) has died: cch+55 SVC 
+05-06 11:52:09.648 I/ActivityManager(  700): Process com.google.android.webview:webview_service (pid 6098) has died: cch+55 CEM 
+05-06 11:52:09.682 I/ActivityManager(  700): Process com.android.vending:background (pid 5685) has died: cch+95 CEM 
+05-06 11:52:09.738 I/ActivityManager(  700): Process com.google.android.youtube.tv.recommendations (pid 6365) has died: cch+85 CEM 
+05-06 11:52:09.768 I/ActivityManager(  700): Process com.android.providers.tv (pid 1883) has died: cch+75 CEM 
+05-06 11:52:09.805 I/ActivityManager(  700): Process com.google.android.tungsten.setupwraith (pid 7270) has died: cch+65 CEM 
+05-06 11:52:09.852 I/ActivityManager(  700): Process com.google.android.apps.tv.dreamx (pid 7232) has died: cch+15 CEM 
+05-06 12:16:51.078 I/ActivityManager(  700): Start proc 11207:com.google.android.syncadapters.calendar/u0a79 for service {com.google.android.syncadapters.calendar/com.google.android.syncadapters.calendar.CalendarSyncAdapterService}
+05-06 12:16:51.380 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10079. pid: 11207
+05-06 12:16:51.531 I/ActivityManager(  700): Start proc 11262:com.android.providers.calendar/u0a32 for content provider {com.android.providers.calendar/com.android.providers.calendar.CalendarProvider2}
+05-06 12:16:51.687 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10032. pid: 11262
+05-06 12:28:21.911 I/ActivityManager(  700): Start proc 11703:com.google.android.partnersetup/u0a85 for service {com.google.android.partnersetup/com.google.android.partnersetup.InstalledAppJobService}
+05-06 12:28:22.070 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10085. pid: 11703
+05-06 13:12:57.170 I/ActivityManager(  700): Start proc 13055:com.google.android.permissioncontroller/u0a91 for service {com.google.android.permissioncontroller/com.android.permissioncontroller.permission.service.PermissionEventCleanupJobService}
+05-06 13:12:57.549 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10091. pid: 13055
+05-06 13:24:10.924 I/ActivityManager(  700): Start proc 13436:com.google.android.gms.unstable/u0a73 for service {com.google.android.gms/com.google.android.gms.droidguard.DroidGuardService}
+05-06 13:24:11.573 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10073. pid: 13436
+05-06 13:37:18.542 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+05-06 13:37:19.711 I/ActivityManager(  700): Start proc 13901:com.netflix.ninja/u0a60 for service {com.netflix.ninja/androidx.work.impl.background.systemjob.SystemJobService}
+05-06 13:37:20.281 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10060. pid: 13901
+05-06 13:37:20.566 I/ActivityManager(  700): Start proc 13987:com.android.rkpdapp/u0a106 for service {com.android.rkpdapp/com.android.rkpdapp.service.RemoteProvisioningService}
+05-06 13:37:20.697 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10106. pid: 13987
+05-06 13:37:51.206 I/ActivityManager(  700): Start proc 14110:com.android.providers.tv/u0a41 for content provider {com.android.providers.tv/com.android.providers.tv.TvProvider}
+05-06 13:37:51.342 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10041. pid: 14110
+05-06 13:41:57.597 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+05-06 13:42:21.643 I/ActivityManager(  700): Process com.netflix.ninja (pid 13901) has died: home SVC 
+05-06 13:48:02.856 W/ActivityManager(  700): Background start not allowed: service Intent { act=com.android.providers.tv.intent.CLEAN_UP_EPG_DATA cmp=com.android.providers.tv/.EpgDataCleanupService } to com.android.providers.tv/.EpgDataCleanupService from pid=-1 uid=10041 pkg=com.android.providers.tv startFg?=false
+05-06 13:48:02.924 I/ActivityManager(  700): Start proc 14431:com.google.android.apps.tv.dreamx/u0a70 for service {com.google.android.apps.tv.dreamx/androidx.work.impl.background.systemjob.SystemJobService}
+05-06 13:48:03.234 I/ActivityManager(  700): Start proc 14467:com.google.android.tungsten.setupwraith/u0a71 for content provider {com.google.android.tungsten.setupwraith/com.google.android.libraries.tv.setupwraith.libs.castinfo.CastInfoProvider}
+05-06 13:48:03.288 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10070. pid: 14431
+05-06 13:48:03.597 I/ActivityManager(  700): Start proc 14509:com.google.android.apps.tv.dreamx:smarthome/u0a70 for service {com.google.android.apps.tv.dreamx/androidx.work.multiprocess.RemoteWorkerService}
+05-06 13:48:03.804 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10071. pid: 14467
+05-06 13:48:04.002 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10070. pid: 14509
+05-06 13:53:01.777 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+05-06 14:03:27.714 I/ActivityManager(  700): Start proc 15084:com.google.android.youtube.tv.recommendations/u0a82 for service {com.google.android.youtube.tv/com.google.android.libraries.youtube.tv.recommendations.RecommendationService}
+05-06 14:03:27.995 I/ActivityManager(  700): Flag disabled. Ignoring finishAttachApplication from uid: 10082. pid: 15084
+05-06 14:48:22.620 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)
+05-06 15:10:31.025 W/chromium( 5084): [WARNING:services/audio/sync_reader.cc:154] ASR: No room in socket buffer.: Broken pipe (32)

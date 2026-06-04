@@ -134,35 +134,36 @@ private val JS_MONITOR = """
         v.addEventListener('playing', function() { VideoMonitor.onPlaying(); tryFull(); });
         v.addEventListener('pause',   function() { VideoMonitor.onPaused(); });
         v.addEventListener('ended',   function() { VideoMonitor.onEnded(); });
-        v.addEventListener('waiting', function() { VideoMonitor.onWaiting(); });
+        v.addEventListener('waiting', function() {
+            VideoMonitor.onWaiting();
+            VideoMonitor.onDebug('waiting ns=' + v.networkState + ' rs=' + v.readyState + ' paused=' + v.paused);
+        });
         v.addEventListener('stalled', function() { VideoMonitor.onStalled(); });
         v.addEventListener('error',   function(e) {
             var msg = (v.error ? v.error.message : '') || e.message || 'unknown';
             VideoMonitor.onError(msg);
         });
         if (!v.paused && !v.ended && v.readyState >= 3) { VideoMonitor.onPlaying(); tryFull(); }
-        // Autoplay — block pause() until the video is genuinely playing, then retry
-        // every second for up to 60 s so MEGA's delayed anti-autoplay JS can't win.
-        var _origPause = v.pause.bind(v);
+        // Autoplay: call play() once now. If the player pauses it (anti-autoplay),
+        // the 'pause' event re-triggers play(). We stop fighting it once 'playing' fires
+        // (video genuinely started) or after 60 seconds, to avoid infinite loops.
         var _isPlaying = false;
         v.addEventListener('playing', function() { _isPlaying = true; }, {once: true});
-        v.pause = function() { if (!_isPlaying) return; _origPause(); };
         function _doPlay() {
-            if (!_isPlaying) {
-                v.play().catch(function() {});
-                tryFull(); // attempt fullscreen immediately while user-gesture context may be active
-            }
+            if (!_isPlaying && !v.ended) v.play().catch(function() {});
         }
-        _doPlay();
+        // Re-play on every pause attempt until the video is genuinely playing.
+        // Using the 'pause' event instead of overriding v.pause() avoids confusing
+        // the player's internal state machine (which caused psa -9 on MEGA).
         var _tries = 0;
-        var _retryTimer = setInterval(function() {
-            if (_isPlaying || ++_tries > 60) {
-                clearInterval(_retryTimer);
-                if (!_isPlaying) v.pause = _origPause;
+        v.addEventListener('pause', function onPause() {
+            if (_isPlaying || v.ended || ++_tries > 60) {
+                v.removeEventListener('pause', onPause);
                 return;
             }
-            if (v.paused && !v.ended) _doPlay();
-        }, 1000);
+            setTimeout(_doPlay, 50); // brief delay so the player can finish its pause logic
+        });
+        _doPlay();
     }
     function scan() { document.querySelectorAll('video').forEach(monitorVideo); }
     scan();
@@ -306,6 +307,9 @@ fun MegaWebViewScreen(
                     @JavascriptInterface fun onError(msg: String) {
                         Log.e(VIDEO_LOG_TAG, "VIDEO ERROR: $msg")
                         mainHandler.post { playbackStatus.value = "שגיאה ✗" }
+                    }
+                    @JavascriptInterface fun onDebug(msg: String) {
+                        Log.d(VIDEO_LOG_TAG, "JS: $msg")
                     }
                     @JavascriptInterface fun onFullscreen() {
                         Log.i(VIDEO_LOG_TAG, "CSS FULLSCREEN ▶")
@@ -455,8 +459,11 @@ fun MegaWebViewScreen(
                 webViewRef.value?.evaluateJavascript("""
                     (function(){
                         var v = document.querySelector('video');
-                        if (v) {
-                            v.play().catch(function(){});
+                        if (!v) return;
+                        v.play().catch(function(){});
+                        // Only go fullscreen immediately if the video already has frames;
+                        // otherwise 'playing' event will trigger it once buffering completes.
+                        if (v.readyState >= 2) {
                             v.style.cssText = 'position:fixed !important;top:0 !important;left:0 !important;' +
                                 'width:100vw !important;height:100vh !important;' +
                                 'z-index:2147483647 !important;background:#000 !important;' +

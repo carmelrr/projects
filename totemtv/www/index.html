@@ -157,7 +157,7 @@
     // Videos are proxied (Tizen 3.0 AVPlay can't handshake with modern HTTPS / googleapis.com).
     // PRODUCTION: the Cloudflare Worker URL, e.g. 'https://totemtv-drive-proxy.<subdomain>.workers.dev/drive/'
     // DEV: the LAN helper, e.g. 'http://10.0.0.54:8765/drive/'
-    var VIDEO_PROXY_BASE = 'https://REPLACE_WITH_WORKER_SUBDOMAIN.workers.dev/drive/';
+    var VIDEO_PROXY_BASE = 'https://totemtv-drive-proxy.carmelrrwork.workers.dev/drive/';
     function videoUrl(f){return VIDEO_PROXY_BASE + f.id;}
     function imageUrl(f){return 'https://lh3.googleusercontent.com/d/'+f.id+'=w1920-h1080-rj';}
 
