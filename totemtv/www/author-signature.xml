@@ -2,11 +2,6 @@
 <SignedInfo>
 <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></CanonicalizationMethod>
 <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"></SignatureMethod>
-<Reference URI="TotemTV.wgt">
-<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>GDiTwGpM6LOfylxdDgQOwBBXWX24W0uD9BHvMY7AI4L4DIykIgu2mBuzChskjJ9zeT57shiAuobd
-iLmo3JlNPQ==</DigestValue>
-</Reference>
 <Reference URI="config.xml">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
 <DigestValue>k8UaJJeyIMSFc8x7fbvSQVQZq2AzS//cSa54UneDtvt1E3H4jv5gc5J2ZGs0uhzF5Mv8TqgtDFQi
@@ -14,13 +9,23 @@ ul0glApu5g==</DigestValue>
 </Reference>
 <Reference URI="index.html">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>9lPkYfHZW9JVm+ohaTLRZVn8tnwTAkbB096NCMBCs+T0apiajVkTFzLlooK0ZYGwrmBXEmhy5fMA
-EZE4QEh3wg==</DigestValue>
+<DigestValue>rbb07M5jGlL2QPtd8rtA++fartZLOSHHCzhxnXArn0/ReH411hy8zLrxOXhu3RHMvyaSskIS51Pf
+aG8qyRX79A==</DigestValue>
 </Reference>
 <Reference URI="totem-banner.jpeg">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
 <DigestValue>S1AkrHjWhihxOS/DrWpPD7W8w/zGcC55pGUpI6algyfm/1/uC1rh/JnFAGtWdhGRc5s7Y/NMYXko
 v0wjICfPCg==</DigestValue>
+</Reference>
+<Reference URI="totem-download-qr.png">
+<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
+<DigestValue>Hyu3pZ0l3TrJm+ka37sT3wIb2VyNAx/99fjNbohei/xDx7Ukv64VcqJmD/h25cwnH1/3DQH3xcIH
+xzd2i5hj1Q==</DigestValue>
+</Reference>
+<Reference URI="totem-logo-white.png">
+<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
+<DigestValue>+dqkQs80fYHihh8rtHM1JVDmXVGI7OowdEFRAjqcvfsRbJpOp8rxSqaNEnBz5s7wZy65vkP9PfSF
+OHgu0WRxBw==</DigestValue>
 </Reference>
 <Reference URI="totem-logo.png">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
@@ -37,9 +42,9 @@ QY10fG1EWQ==</DigestValue>
 </Reference>
 </SignedInfo>
 <SignatureValue>
-EKwOD+wRVmSUHPEGIJwh0mGxrvDY2wIwLtxDizb6ITGrKT7bOs0StODbVUHGkq3OeIwNqySL9Y7M
-hPnvHqYNhG3+/7Sm98aqUhr7NiP5ZAa7F8Xeszj9ykv9W+GK5loHfD1J0iOA3O+vHcTG36WgVPi3
-MQ7DuxxKibjbR0HzQ94=
+JT8+BPMgmzEo2+JyVj084aTY7HTnN7hhBkkUVn+vZj8UqSaogmCh1rgjrN/4NTaEF8Gysdl75Beu
+Z2rg8dHk6E+ahqTX8b75njCsCTmEbxSbB9yPfVNCVeVfmtPQvEq8hLTJh5/7m4HKNfAuh13li5oY
+3X1sKVDwq1UlX8LouJk=
 </SignatureValue>
 <KeyInfo>
 <X509Data>

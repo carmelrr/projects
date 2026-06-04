@@ -229,7 +229,10 @@
     /* ── Side download panels (shown only over the black bars of portrait media) ── */
     #side-panels {
       position: absolute;
-      inset: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
       z-index: 15;
       pointer-events: none;
       opacity: 0;
@@ -242,11 +245,14 @@
       visibility: visible;
     }
 
+    /* NOTE: target is a 2017 Samsung Tizen 3.0 TV (Chromium M47). Avoid
+       CSS custom properties, clamp(), min(), and aspect-ratio — all sizing
+       below is computed in JS and applied as inline styles. */
     .side-panel {
       position: absolute;
       top: 0;
       bottom: 0;
-      width: var(--bar-width, 0px);
+      width: 0;            /* set by JS to the black-bar width */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -258,25 +264,24 @@
     .side-panel--right { right: 0; }
 
     .sp-card {
-      width: min(100%, 380px);
-      background: rgba(20, 17, 12, 0.55);
+      width: 100%;
+      max-width: 380px;
+      background: rgba(20, 17, 12, 0.78);
       border: 1px solid rgba(200, 170, 110, 0.22);
       border-radius: 22px;
-      padding: clamp(16px, calc(var(--bar-width, 220px) * 0.07), 32px);
-      backdrop-filter: blur(14px);
+      padding: 24px;       /* overridden by JS */
       -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: clamp(10px, calc(var(--bar-width, 220px) * 0.04), 18px);
     }
 
     .sp-qr {
-      width: clamp(110px, calc(var(--bar-width, 220px) * 0.62), 280px);
-      height: auto;
-      aspect-ratio: 1 / 1;
+      width: 180px;        /* width + height set by JS (square) */
+      height: 180px;
       background: #fff;
       border-radius: 12px;
       padding: 8px;
@@ -284,9 +289,10 @@
     }
 
     .sp-logo {
-      width: clamp(70px, calc(var(--bar-width, 220px) * 0.5), 190px);
+      width: 130px;        /* set by JS */
       height: auto;
       display: block;
+      -webkit-filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.4));
       filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.4));
     }
 
@@ -294,20 +300,20 @@
       color: #F5EDE0;
       font-weight: 800;
       line-height: 1.22;
-      font-size: clamp(15px, calc(var(--bar-width, 220px) * 0.072), 26px);
+      font-size: 22px;     /* set by JS */
     }
 
     .sp-label {
       color: #F5EDE0;
       font-weight: 700;
       line-height: 1.3;
-      font-size: clamp(13px, calc(var(--bar-width, 220px) * 0.055), 18px);
+      font-size: 16px;     /* set by JS */
     }
 
     .sp-sub {
       color: rgba(245, 237, 224, 0.62);
       line-height: 1.4;
-      font-size: clamp(12px, calc(var(--bar-width, 220px) * 0.048), 16px);
+      font-size: 14px;     /* set by JS */
     }
 
     #overlay {
@@ -596,8 +602,50 @@
     let lastMediaW = 0;
     let lastMediaH = 0;
 
+    // Cache panel sub-elements (sizing applied inline for Tizen 3.0 / M47 webview)
+    const spLeftPanel = sidePanelsEl.querySelector('.side-panel--left');
+    const spRightPanel = sidePanelsEl.querySelector('.side-panel--right');
+    const spCards = sidePanelsEl.querySelectorAll('.sp-card');
+    const spQr = sidePanelsEl.querySelector('.sp-qr');
+    const spLogo = sidePanelsEl.querySelector('.sp-logo');
+    const spTitle = sidePanelsEl.querySelector('.sp-title');
+    const spLabel = sidePanelsEl.querySelector('.sp-label');
+    const spSub = sidePanelsEl.querySelector('.sp-sub');
+
+    function clampPx(value, min, max) {
+      return Math.round(Math.max(min, Math.min(max, value)));
+    }
+
     function hideSidePanels() {
       sidePanelsEl.classList.remove('visible');
+    }
+
+    // Apply pixel sizes scaled to the available black-bar width.
+    function sizeSidePanels(barWidth) {
+      spLeftPanel.style.width = barWidth + 'px';
+      spRightPanel.style.width = barWidth + 'px';
+
+      const cardPad = clampPx(barWidth * 0.07, 14, 32);
+      const gap = clampPx(barWidth * 0.04, 10, 18);
+      const qrSize = clampPx(barWidth * 0.62, 110, 280);
+      const logoW = clampPx(barWidth * 0.5, 70, 190);
+      const titleFs = clampPx(barWidth * 0.072, 15, 26);
+      const labelFs = clampPx(barWidth * 0.055, 13, 18);
+      const subFs = clampPx(barWidth * 0.048, 12, 16);
+
+      for (let i = 0; i < spCards.length; i++) {
+        spCards[i].style.padding = cardPad + 'px';
+        const kids = spCards[i].children;
+        for (let j = 0; j < kids.length; j++) {
+          kids[j].style.marginTop = j === 0 ? '0' : gap + 'px';
+        }
+      }
+      spQr.style.width = qrSize + 'px';
+      spQr.style.height = qrSize + 'px';
+      spLogo.style.width = logoW + 'px';
+      spTitle.style.fontSize = titleFs + 'px';
+      spLabel.style.fontSize = labelFs + 'px';
+      spSub.style.fontSize = subFs + 'px';
     }
 
     function updateSidePanels(mediaW, mediaH) {
@@ -613,7 +661,7 @@
       const displayedWidth = screenH * mediaAR;
       const barWidth = (screenW - displayedWidth) / 2;
       if (barWidth < SIDE_PANEL_MIN_BAR) { hideSidePanels(); return; }
-      document.documentElement.style.setProperty('--bar-width', barWidth + 'px');
+      sizeSidePanels(barWidth);
       sidePanelsEl.classList.add('visible');
     }
 

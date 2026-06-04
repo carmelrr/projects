@@ -2,15 +2,10 @@
 <SignedInfo>
 <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></CanonicalizationMethod>
 <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"></SignatureMethod>
-<Reference URI="TotemTV.wgt">
-<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>GDiTwGpM6LOfylxdDgQOwBBXWX24W0uD9BHvMY7AI4L4DIykIgu2mBuzChskjJ9zeT57shiAuobd
-iLmo3JlNPQ==</DigestValue>
-</Reference>
 <Reference URI="author-signature.xml">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>Q14TKXGL83qa7aBI2BqvGlOZ87AxcG9h6mEjRNqFv2GualuC6NK1kJEYhBbE3oUggdGfQPE4vHHY
-1umbzNmRQg==</DigestValue>
+<DigestValue>J0n7f51trE4AP8Y/WWusUqCMuxrJXlWbDeQKwM2dQ/wdZu9tqTWCDF9LDCyVJ/b6G7Zyg78dXsN5
+b9Q9fTLqwQ==</DigestValue>
 </Reference>
 <Reference URI="config.xml">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
@@ -19,13 +14,23 @@ ul0glApu5g==</DigestValue>
 </Reference>
 <Reference URI="index.html">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>9lPkYfHZW9JVm+ohaTLRZVn8tnwTAkbB096NCMBCs+T0apiajVkTFzLlooK0ZYGwrmBXEmhy5fMA
-EZE4QEh3wg==</DigestValue>
+<DigestValue>rbb07M5jGlL2QPtd8rtA++fartZLOSHHCzhxnXArn0/ReH411hy8zLrxOXhu3RHMvyaSskIS51Pf
+aG8qyRX79A==</DigestValue>
 </Reference>
 <Reference URI="totem-banner.jpeg">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
 <DigestValue>S1AkrHjWhihxOS/DrWpPD7W8w/zGcC55pGUpI6algyfm/1/uC1rh/JnFAGtWdhGRc5s7Y/NMYXko
 v0wjICfPCg==</DigestValue>
+</Reference>
+<Reference URI="totem-download-qr.png">
+<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
+<DigestValue>Hyu3pZ0l3TrJm+ka37sT3wIb2VyNAx/99fjNbohei/xDx7Ukv64VcqJmD/h25cwnH1/3DQH3xcIH
+xzd2i5hj1Q==</DigestValue>
+</Reference>
+<Reference URI="totem-logo-white.png">
+<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
+<DigestValue>+dqkQs80fYHihh8rtHM1JVDmXVGI7OowdEFRAjqcvfsRbJpOp8rxSqaNEnBz5s7wZy65vkP9PfSF
+OHgu0WRxBw==</DigestValue>
 </Reference>
 <Reference URI="totem-logo.png">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
@@ -42,9 +47,9 @@ GyvKX9Snig==</DigestValue>
 </Reference>
 </SignedInfo>
 <SignatureValue>
-ded9d7QxQr/yzOaxaqLhRThyFiTzHEuvPQjWeiQPAHY6zxDU56NadzUxcJtusRlMTU8qV3mhi/oG
-b6+GnQbjUXtf6oEnEuiGiFboEqWsxTqksWHidFWC0H+E1H26BTTA8bqvj2qwZoRd/DZRif1aQnaG
-I0y17LWWXt6PlJMp2pw=
+pGJMjcg4JT7u0pbjQVdy53Af3ewFwIUfSb7pRsguh9GNzrfb7AYgbPLastbj6MxpPTs3f/+D1kel
+SKXaU/0u/w1eitxyzfUK3jWVV4U9HL/GYG8x2pKvnQwWmIpwXk/Gau+RWVKnopaS2Oob3qjU1tFF
+abX+Ox7BT7+odajOfTs=
 </SignatureValue>
 <KeyInfo>
 <X509Data>
