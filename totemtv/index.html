@@ -603,7 +603,8 @@
     let preloadPromises = {}; // track in-flight preloads
 
     // ── Side download panels (fill the black bars of portrait media) ──
-    const SIDE_PANEL_MIN_BAR = 200; // px: minimum side-bar width before showing panels
+    const SIDE_PANEL_MIN_BAR = 600; // px: only very narrow media (e.g. 9:16) gets panels;
+                                    // 4:5 ads fill enough width that they don't.
     let lastMediaW = 0;
     let lastMediaH = 0;
 
@@ -644,13 +645,13 @@
       spLeftPanel.style.width = barWidth + 'px';
       spRightPanel.style.width = barWidth + 'px';
 
-      const cardPad = clampPx(barWidth * 0.075, 16, 38);
-      const gap = clampPx(barWidth * 0.05, 12, 24);
-      const qrSize = clampPx(barWidth * 0.72, 130, 340);
-      const logoW = clampPx(barWidth * 0.6, 96, 250);
-      const titleFs = clampPx(barWidth * 0.094, 20, 40);
-      const labelFs = clampPx(barWidth * 0.072, 17, 30);
-      const subFs = clampPx(barWidth * 0.062, 15, 26);
+      const cardPad = clampPx(barWidth * 0.08, 20, 44);
+      const gap = clampPx(barWidth * 0.055, 16, 30);
+      const qrSize = clampPx(barWidth * 0.78, 180, 420);
+      const logoW = clampPx(barWidth * 0.66, 130, 300);
+      const titleFs = clampPx(barWidth * 0.11, 28, 52);
+      const labelFs = clampPx(barWidth * 0.085, 22, 38);
+      const subFs = clampPx(barWidth * 0.07, 18, 32);
 
       for (let i = 0; i < spCards.length; i++) {
         spCards[i].style.padding = cardPad + 'px';
@@ -729,10 +730,28 @@
       }
 
       const data = await res.json();
-      return (data.files || []).filter(f =>
+      const media = (data.files || []).filter(f =>
         IMAGE_TYPES.includes(f.mimeType) ||
         VIDEO_TYPES.some(t => f.mimeType?.startsWith(t.split('/')[0]))
       );
+      return interleaveImageVideo(media);
+    }
+
+    // Build an image, video, image, video, sequence. Images are ads meant to
+    // appear between clips, so every image is separated by a video (and vice
+    // versa) by cycling through each pool. Images may repeat within a round if
+    // there are fewer of them than videos, which is acceptable.
+    function interleaveImageVideo(list) {
+      const images = list.filter(function (f) { return !isVideo(f); });
+      const videos = list.filter(function (f) { return isVideo(f); });
+      if (images.length === 0 || videos.length === 0) return list;
+      const rounds = Math.max(images.length, videos.length);
+      const out = [];
+      for (let i = 0; i < rounds; i++) {
+        out.push(images[i % images.length]);
+        out.push(videos[i % videos.length]);
+      }
+      return out;
     }
 
     // ── Show sync status ──

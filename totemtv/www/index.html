@@ -1372,7 +1372,8 @@ var preloadCache = {}; // cache preloaded blobs
 var preloadPromises = {}; // track in-flight preloads
 
 // ── Side download panels (fill the black bars of portrait media) ──
-var SIDE_PANEL_MIN_BAR = 200; // px: minimum side-bar width before showing panels
+var SIDE_PANEL_MIN_BAR = 600; // px: only very narrow media (e.g. 9:16) gets panels;
+// 4:5 ads fill enough width that they don't.
 var lastMediaW = 0;
 var lastMediaH = 0;
 
@@ -1410,13 +1411,13 @@ function fitImage(img, w, h) {
 function sizeSidePanels(barWidth) {
   spLeftPanel.style.width = barWidth + 'px';
   spRightPanel.style.width = barWidth + 'px';
-  var cardPad = clampPx(barWidth * 0.075, 16, 38);
-  var gap = clampPx(barWidth * 0.05, 12, 24);
-  var qrSize = clampPx(barWidth * 0.72, 130, 340);
-  var logoW = clampPx(barWidth * 0.6, 96, 250);
-  var titleFs = clampPx(barWidth * 0.094, 20, 40);
-  var labelFs = clampPx(barWidth * 0.072, 17, 30);
-  var subFs = clampPx(barWidth * 0.062, 15, 26);
+  var cardPad = clampPx(barWidth * 0.08, 20, 44);
+  var gap = clampPx(barWidth * 0.055, 16, 30);
+  var qrSize = clampPx(barWidth * 0.78, 180, 420);
+  var logoW = clampPx(barWidth * 0.66, 130, 300);
+  var titleFs = clampPx(barWidth * 0.11, 28, 52);
+  var labelFs = clampPx(barWidth * 0.085, 22, 38);
+  var subFs = clampPx(barWidth * 0.07, 18, 32);
   for (var i = 0; i < spCards.length; i++) {
     spCards[i].style.padding = cardPad + 'px';
     var kids = spCards[i].children;
@@ -1493,10 +1494,13 @@ function loadConfig() {
 // ── Fetch files from Drive ──
 function fetchFiles() {
   return _fetchFiles.apply(this, arguments);
-} // ── Show sync status ──
+} // Build an image, video, image, video, sequence. Images are ads meant to
+// appear between clips, so every image is separated by a video (and vice
+// versa) by cycling through each pool. Images may repeat within a round if
+// there are fewer of them than videos, which is acceptable.
 function _fetchFiles() {
   _fetchFiles = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
-    var query, fields, url, res, _err$error, err, data;
+    var query, fields, url, res, _err$error, err, data, media;
     return _regenerator().w(function (_context3) {
       while (1) switch (_context3.n) {
         case 0:
@@ -1521,17 +1525,36 @@ function _fetchFiles() {
           return res.json();
         case 4:
           data = _context3.v;
-          return _context3.a(2, (data.files || []).filter(function (f) {
+          media = (data.files || []).filter(function (f) {
             return IMAGE_TYPES.includes(f.mimeType) || VIDEO_TYPES.some(function (t) {
               var _f$mimeType;
               return (_f$mimeType = f.mimeType) == null ? void 0 : _f$mimeType.startsWith(t.split('/')[0]);
             });
-          }));
+          });
+          return _context3.a(2, interleaveImageVideo(media));
       }
     }, _callee2);
   }));
   return _fetchFiles.apply(this, arguments);
 }
+function interleaveImageVideo(list) {
+  var images = list.filter(function (f) {
+    return !isVideo(f);
+  });
+  var videos = list.filter(function (f) {
+    return isVideo(f);
+  });
+  if (images.length === 0 || videos.length === 0) return list;
+  var rounds = Math.max(images.length, videos.length);
+  var out = [];
+  for (var i = 0; i < rounds; i++) {
+    out.push(images[i % images.length]);
+    out.push(videos[i % videos.length]);
+  }
+  return out;
+}
+
+// ── Show sync status ──
 function showSyncStatus(msg) {
   syncStatus.textContent = msg;
   syncStatus.classList.add('visible');
