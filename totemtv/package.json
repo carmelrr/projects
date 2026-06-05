@@ -8,6 +8,7 @@
     "build": "npx cap sync android && cd android && gradlew.bat assembleDebug",
     "build:release": "npx cap sync android && cd android && gradlew.bat assembleRelease",
     "open": "npx cap open android",
+    "build:tv": "node build-tizen.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -19,5 +20,10 @@
     "@capacitor/cli": "^8.3.0",
     "@capacitor/core": "^8.3.0",
     "@capacitor/filesystem": "^8.1.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "regenerator-runtime": "^0.14.1"
   }
 }
