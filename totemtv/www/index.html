@@ -1343,6 +1343,11 @@ var VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvide
 // ── State ──
 var apiKey = '';
 var folderId = '';
+// Optional proxy that streams Drive files over modern TLS (Cloudflare Worker
+// or the local dev logserver). Required for video playback on the 2017 TV,
+// whose native player can't handshake googleapis.com and whose webview can't
+// run the Google Drive preview iframe. Set via the build (tv-config.local.json).
+var proxyBase = '';
 var files = [];
 var currentIndex = 0;
 var isPaused = false;
@@ -1602,6 +1607,11 @@ function getImageUrl(file) {
   return "https://lh3.googleusercontent.com/d/" + file.id + "=w1920-h1080-rj";
 }
 function getVideoUrl(file) {
+  // Native <video> via the streaming proxy when configured (works on the old
+  // TV). Falls back to the Drive preview iframe otherwise.
+  if (proxyBase) {
+    return proxyBase.replace(/\/$/, '') + '/drive/' + file.id;
+  }
   return "https://drive.google.com/file/d/" + file.id + "/preview?autoplay=1";
 }
 function getVideoDuration(file) {
@@ -1722,31 +1732,72 @@ function _showMedia() {
             mediaContainer.innerHTML = '';
             hideSidePanels();
             if (isVideo(file)) {
-              // Google Drive preview player with autoplay, controls hidden by overlay
-              var wrapper = document.createElement('div');
-              wrapper.className = 'video-wrapper';
-              var iframe = document.createElement('iframe');
-              iframe.src = getVideoUrl(file);
-              iframe.allow = 'autoplay; encrypted-media';
-              iframe.setAttribute('allowfullscreen', '');
-              iframe.addEventListener('load', function () {
-                bufferingIndicator.classList.remove('visible');
-                mediaContainer.style.opacity = '1';
-              });
-              bufferingIndicator.classList.add('visible');
-              wrapper.appendChild(iframe);
-              mediaContainer.appendChild(wrapper);
-
-              // Show side panels if the video is portrait (dimensions from Drive metadata)
               var meta = file.videoMediaMetadata;
-              if (meta && meta.width && meta.height) {
-                updateSidePanels(parseInt(meta.width), parseInt(meta.height));
+              var vMetaW = meta && meta.width ? parseInt(meta.width) : 0;
+              var vMetaH = meta && meta.height ? parseInt(meta.height) : 0;
+              if (proxyBase) {
+                // Native HTML5 video streamed through the proxy. The old TV webview
+                // cannot run the Google Drive preview iframe, so this is the only
+                // path that actually plays video on it.
+                var video = document.createElement('video');
+                video.src = getVideoUrl(file);
+                video.autoplay = true;
+                video.setAttribute('playsinline', '');
+                video.style.display = 'block';
+                var sizeVideo = function sizeVideo() {
+                  var w = vMetaW || video.videoWidth;
+                  var h = vMetaH || video.videoHeight;
+                  if (w && h) {
+                    fitImage(video, w, h);
+                    updateSidePanels(w, h);
+                  }
+                };
+                video.addEventListener('loadedmetadata', sizeVideo);
+                video.addEventListener('canplay', function () {
+                  bufferingIndicator.classList.remove('visible');
+                  mediaContainer.style.opacity = '1';
+                });
+                // Advance when the clip ends (with a duration-based safety net below).
+                video.addEventListener('ended', goNext);
+                video.addEventListener('error', function () {
+                  clearTimeout(advanceTimer);
+                  setTimeout(goNext, RETRY_BASE_DELAY);
+                });
+                bufferingIndicator.classList.add('visible');
+                mediaContainer.appendChild(video);
+
+                // Pre-size panels from Drive metadata if we have it.
+                if (vMetaW && vMetaH) updateSidePanels(vMetaW, vMetaH);else hideSidePanels();
+
+                // Try to play with sound; if the platform blocks it, mute and retry.
+                var playAttempt = video.play();
+                if (playAttempt && typeof playAttempt.catch === 'function') {
+                  playAttempt.catch(function () {
+                    video.muted = true;
+                    video.play().catch(function () {});
+                  });
+                }
+                scheduleAdvance(getVideoDuration(file));
+                preloadNext();
               } else {
-                hideSidePanels();
+                // Fallback: Google Drive preview player in an iframe (modern webviews only)
+                var wrapper = document.createElement('div');
+                wrapper.className = 'video-wrapper';
+                var iframe = document.createElement('iframe');
+                iframe.src = getVideoUrl(file);
+                iframe.allow = 'autoplay; encrypted-media';
+                iframe.setAttribute('allowfullscreen', '');
+                iframe.addEventListener('load', function () {
+                  bufferingIndicator.classList.remove('visible');
+                  mediaContainer.style.opacity = '1';
+                });
+                bufferingIndicator.classList.add('visible');
+                wrapper.appendChild(iframe);
+                mediaContainer.appendChild(wrapper);
+                if (vMetaW && vMetaH) updateSidePanels(vMetaW, vMetaH);else hideSidePanels();
+                scheduleAdvance(getVideoDuration(file));
+                preloadNext();
               }
-              var duration = getVideoDuration(file);
-              scheduleAdvance(duration);
-              preloadNext();
             } else {
               var img = document.createElement('img');
               img.src = preloadCache[file.id] || getImageUrl(file);

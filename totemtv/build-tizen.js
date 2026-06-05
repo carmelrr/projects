@@ -32,9 +32,10 @@ if (fs.existsSync(CONFIG)) {
   const cfg = JSON.parse(fs.readFileSync(CONFIG, 'utf8'));
   if (cfg.apiKey) src = src.replace("let apiKey = '';", "let apiKey = '" + cfg.apiKey + "';");
   if (cfg.folderId) src = src.replace("let folderId = '';", "let folderId = '" + cfg.folderId + "';");
+  if (cfg.proxyBase) src = src.replace("let proxyBase = '';", "let proxyBase = '" + cfg.proxyBase + "';");
   const reLaunch = /\/\/[^\n]*Auto-launch[^\n]*\n\s*if \(loadConfig\(\)\) \{[\s\S]*?\n    \}/;
   if (reLaunch.test(src)) src = src.replace(reLaunch, "    launch();");
-  console.log('[build] baked in credentials + auto-launch');
+  console.log('[build] baked in credentials + auto-launch' + (cfg.proxyBase ? ' + proxyBase' : ''));
 } else {
   console.log('[build] no tv-config.local.json — using on-screen setup flow');
 }
@@ -61,6 +62,15 @@ if (DEBUG) {
   src = src.replace(
     "          img.addEventListener('error', () => {\n            delete preloadCache[file.id];",
     "          img.addEventListener('error', () => {\n            if(window.__post)window.__post('IMG ERROR for '+file.name+' src='+img.src);\n            delete preloadCache[file.id];"
+  );
+  // trace native video path
+  src = src.replace(
+    "            video.addEventListener('canplay', () => {\n              bufferingIndicator.classList.remove('visible');",
+    "            video.addEventListener('canplay', () => {\n              if(window.__post)window.__post('VIDEO canplay '+video.videoWidth+'x'+video.videoHeight+' src='+video.src);\n              bufferingIndicator.classList.remove('visible');"
+  );
+  src = src.replace(
+    "            video.addEventListener('error', () => {\n              clearTimeout(advanceTimer);",
+    "            video.addEventListener('error', () => {\n              if(window.__post)window.__post('VIDEO ERROR code='+(video.error?video.error.code:'?')+' src='+video.src);\n              clearTimeout(advanceTimer);"
   );
 }
 
