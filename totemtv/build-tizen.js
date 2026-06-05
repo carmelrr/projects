@@ -49,6 +49,19 @@ if (DEBUG) {
     "      } catch (err) {\n        loadingScreen.style.display = 'none';",
     "      } catch (err) {\n        if(window.__post)window.__post('launch ERROR: '+(err&&err.message?err.message:err));\n        loadingScreen.style.display = 'none';"
   );
+  // trace media display path
+  src = src.replace(
+    "      const file = files[currentIndex];\n      fileNameEl.textContent = file.name;",
+    "      const file = files[currentIndex];\n      if(window.__post)window.__post('show #'+currentIndex+': '+file.name+' video='+isVideo(file));\n      fileNameEl.textContent = file.name;"
+  );
+  src = src.replace(
+    "          img.addEventListener('load', () => {\n            fitImage(img, img.naturalWidth, img.naturalHeight);\n            mediaContainer.style.opacity = '1';\n            updateSidePanels(img.naturalWidth, img.naturalHeight);",
+    "          img.addEventListener('load', () => {\n            if(window.__post)window.__post('IMG LOADED nat='+img.naturalWidth+'x'+img.naturalHeight);\n            fitImage(img, img.naturalWidth, img.naturalHeight);\n            mediaContainer.style.opacity = '1';\n            if(window.__post){var mc=document.getElementById('media-container');window.__post('FITTED disp='+img.clientWidth+'x'+img.clientHeight+' container='+mc.clientWidth+'x'+mc.clientHeight+' opacity='+mc.style.opacity);}\n            updateSidePanels(img.naturalWidth, img.naturalHeight);"
+  );
+  src = src.replace(
+    "          img.addEventListener('error', () => {\n            delete preloadCache[file.id];",
+    "          img.addEventListener('error', () => {\n            if(window.__post)window.__post('IMG ERROR for '+file.name+' src='+img.src);\n            delete preloadCache[file.id];"
+  );
 }
 
 // ── Extract the single inline app <script> ──

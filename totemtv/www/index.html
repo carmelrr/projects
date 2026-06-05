@@ -33,7 +33,7 @@
     #setup-screen::before {
       content: '';
       position: absolute;
-      inset: 0;
+      top: 0; right: 0; bottom: 0; left: 0;
       background: radial-gradient(ellipse at 30% 20%, rgba(180,140,80,0.08) 0%, transparent 60%),
                   radial-gradient(ellipse at 70% 80%, rgba(120,90,50,0.06) 0%, transparent 50%);
     }
@@ -183,7 +183,7 @@
     #slideshow-screen {
       display: none;
       position: fixed;
-      inset: 0;
+      top: 0; right: 0; bottom: 0; left: 0;
       background: #000;
       overflow: hidden;
       cursor: none;
@@ -191,7 +191,7 @@
 
     #media-container {
       position: absolute;
-      inset: 0;
+      top: 0; right: 0; bottom: 0; left: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -222,7 +222,7 @@
     .video-wrapper::after {
       content: '';
       position: absolute;
-      inset: 0;
+      top: 0; right: 0; bottom: 0; left: 0;
       z-index: 10;
     }
 
@@ -1387,6 +1387,20 @@ function hideSidePanels() {
   sidePanelsEl.classList.remove('visible');
 }
 
+// Manual object-fit:contain for the old TV webview (AppleWebKit 538.1).
+// Scales the image to fit inside the screen while preserving aspect ratio,
+// leaving the letterbox/pillarbox bars the download panels sit in.
+function fitImage(img, w, h) {
+  if (!w || !h) return;
+  var screenW = window.innerWidth;
+  var screenH = window.innerHeight;
+  var scale = Math.min(screenW / w, screenH / h);
+  var dispW = Math.round(w * scale);
+  var dispH = Math.round(h * scale);
+  img.style.width = dispW + 'px';
+  img.style.height = dispH + 'px';
+}
+
 // Apply pixel sizes scaled to the available black-bar width.
 function sizeSidePanels(barWidth) {
   spLeftPanel.style.width = barWidth + 'px';
@@ -1737,10 +1751,11 @@ function _showMedia() {
               var img = document.createElement('img');
               img.src = preloadCache[file.id] || getImageUrl(file);
               img.alt = file.name;
-              img.style.width = '100%';
-              img.style.height = '100%';
-              img.style.objectFit = 'contain';
+              // object-fit:contain is unsupported on the old TV webview (AppleWebKit
+              // 538.1), so we size the image manually to fit while keeping aspect ratio.
+              img.style.display = 'block';
               img.addEventListener('load', function () {
+                fitImage(img, img.naturalWidth, img.naturalHeight);
                 mediaContainer.style.opacity = '1';
                 updateSidePanels(img.naturalWidth, img.naturalHeight);
                 preloadNext();
@@ -1761,9 +1776,10 @@ function _showMedia() {
               scheduleAdvance(PHOTO_DURATION);
 
               // Fade in immediately if cached
-              if (img.complete) {
+              if (img.complete && img.naturalWidth) {
+                fitImage(img, img.naturalWidth, img.naturalHeight);
                 mediaContainer.style.opacity = '1';
-                if (img.naturalWidth) updateSidePanels(img.naturalWidth, img.naturalHeight);
+                updateSidePanels(img.naturalWidth, img.naturalHeight);
               }
             }
           }, TRANSITION_MS);
