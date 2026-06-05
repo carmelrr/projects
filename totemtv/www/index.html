@@ -265,14 +265,14 @@
 
     .sp-card {
       width: 100%;
-      max-width: 380px;
-      background: rgba(20, 17, 12, 0.78);
-      border: 1px solid rgba(200, 170, 110, 0.22);
+      max-width: 460px;
+      background: rgba(20, 17, 12, 0.86);
+      border: 1px solid rgba(200, 170, 110, 0.28);
       border-radius: 22px;
       padding: 24px;       /* overridden by JS */
       -webkit-backdrop-filter: blur(14px);
       backdrop-filter: blur(14px);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
       text-align: center;
       display: flex;
       flex-direction: column;
@@ -1372,7 +1372,7 @@ var preloadCache = {}; // cache preloaded blobs
 var preloadPromises = {}; // track in-flight preloads
 
 // ── Side download panels (fill the black bars of portrait media) ──
-var SIDE_PANEL_MIN_BAR = 170; // px: minimum side-bar width before showing panels
+var SIDE_PANEL_MIN_BAR = 200; // px: minimum side-bar width before showing panels
 var lastMediaW = 0;
 var lastMediaH = 0;
 
@@ -1410,13 +1410,13 @@ function fitImage(img, w, h) {
 function sizeSidePanels(barWidth) {
   spLeftPanel.style.width = barWidth + 'px';
   spRightPanel.style.width = barWidth + 'px';
-  var cardPad = clampPx(barWidth * 0.07, 14, 32);
-  var gap = clampPx(barWidth * 0.04, 10, 18);
-  var qrSize = clampPx(barWidth * 0.62, 110, 280);
-  var logoW = clampPx(barWidth * 0.5, 70, 190);
-  var titleFs = clampPx(barWidth * 0.072, 15, 26);
-  var labelFs = clampPx(barWidth * 0.055, 13, 18);
-  var subFs = clampPx(barWidth * 0.048, 12, 16);
+  var cardPad = clampPx(barWidth * 0.075, 16, 38);
+  var gap = clampPx(barWidth * 0.05, 12, 24);
+  var qrSize = clampPx(barWidth * 0.72, 130, 340);
+  var logoW = clampPx(barWidth * 0.6, 96, 250);
+  var titleFs = clampPx(barWidth * 0.094, 20, 40);
+  var labelFs = clampPx(barWidth * 0.072, 17, 30);
+  var subFs = clampPx(barWidth * 0.062, 15, 26);
   for (var i = 0; i < spCards.length; i++) {
     spCards[i].style.padding = cardPad + 'px';
     var kids = spCards[i].children;
