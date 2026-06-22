@@ -72,12 +72,13 @@ def run(dry_run: bool = False):
 
     # Index the output folder by name + id so we can locate the CURRENT edited file
     # even when the sheet's Output File ID is stale.
-    name_to_id, folder_ids = {}, set()
+    name_to_id, folder_ids, id_to_name = {}, set(), {}
     if output_folder_id:
         q = f"'{output_folder_id}' in parents and trashed = false and mimeType contains 'video/'"
         res = drive.files().list(q=q, fields="files(id,name)", pageSize=1000).execute()
         for fobj in res.get("files", []):
             name_to_id[fobj["name"]] = fobj["id"]
+            id_to_name[fobj["id"]] = fobj["name"]
             folder_ids.add(fobj["id"])
         print(f"Output folder: {len(folder_ids)} video(s) — {sorted(name_to_id)}")
     else:
@@ -122,7 +123,11 @@ def run(dry_run: bool = False):
     for n, t in enumerate(targets, 1):
         expected_name = build_output_name(t["climber"], t["route"], t["grade"], t["filename"])
         meta = " | ".join(p for p in [t["climber"], t["route"], t["grade"]] if p) or "(no text)"
-        print(f"[{n}/{len(targets)}] row {t['sheet_row']}: {meta}  ->  {expected_name}")
+        current_out = id_to_name.get(t["out_id"], "")
+        print(f"[{n}/{len(targets)}] row {t['sheet_row']}:")
+        print(f"      raw filename : {t['filename']}  ({t['raw_id']})")
+        print(f"      sheet text   : {meta}")
+        print(f"      current output: {current_out or '(sheet id not in folder)'}  [{t['out_id'] or 'no id'}]")
 
         # The raw original is required to re-skin a burned-in output.
         try:
