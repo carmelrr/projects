@@ -84,13 +84,18 @@ def run(dry_run: bool = False):
     else:
         print("WARNING: OUTPUT_FOLDER_ID not set — can only use sheet Output File IDs.")
 
-    def locate_output(out_id, expected_name):
-        """Return (file_id, how) for the current edited file, or (None, reason)."""
+    def locate_output(out_id, raw_filename, expected_name):
+        """Return (file_id, how) for the current edited file, or (None, reason).
+
+        Outputs in this library are named after the original raw filename, so the
+        raw name is the most reliable key; the sheet's stored Output File ID can be
+        stale, and build_output_name() is useless when the sheet metadata is junk."""
         if out_id and out_id in folder_ids:
             return out_id, "sheet id"
+        if raw_filename in name_to_id:
+            return name_to_id[raw_filename], f"raw name '{raw_filename}'"
         if expected_name in name_to_id:
             return name_to_id[expected_name], f"name '{expected_name}'"
-        # last resort: the sheet id may be valid but live outside the indexed folder
         if out_id and not output_folder_id:
             return out_id, "sheet id (unverified)"
         return None, "no current output found"
@@ -137,7 +142,7 @@ def run(dry_run: bool = False):
             raw_missing += 1
             continue
 
-        dest_id, how = locate_output(t["out_id"], expected_name)
+        dest_id, how = locate_output(t["out_id"], t["filename"], expected_name)
         if not dest_id:
             print(f"  OUTPUT NOT FOUND — {how}; sheet id was {t['out_id'] or '(empty)'} — skipping.")
             no_output += 1
