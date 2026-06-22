@@ -187,6 +187,12 @@ def run(dry_run: bool = False, verify: bool = False):
 
         if verify:
             try:
+                meta = drive.files().get(
+                    fileId=dest_id,
+                    fields="name,size,mimeType,videoMediaMetadata",
+                ).execute()
+                print(f"  drive meta: mime={meta.get('mimeType')} size={meta.get('size')} "
+                      f"driveVideoMeta={meta.get('videoMediaMetadata')}")
                 with tempfile.TemporaryDirectory() as tmpdir:
                     op = os.path.join(tmpdir, "out.mp4")
                     request = drive.files().get_media(fileId=dest_id)
@@ -195,8 +201,14 @@ def run(dry_run: bool = False, verify: bool = False):
                         done = False
                         while not done:
                             _, done = downloader.next_chunk()
-                    size_mb = os.path.getsize(op) / 1e6
-                    print(f"  OUTPUT: {size_mb:.1f}MB  {ffprobe_info(op)}")
+                    print(f"  OUTPUT: {os.path.getsize(op)/1e6:.1f}MB  {ffprobe_info(op)}")
+                    # Full decode test — reads every frame; surfaces corruption a header probe misses.
+                    dec = subprocess.run(
+                        ["ffmpeg", "-v", "error", "-xerror", "-i", op, "-f", "null", "-"],
+                        capture_output=True, text=True,
+                    )
+                    errs = (dec.stderr or "").strip()
+                    print(f"  decode test: {'CLEAN (fully playable)' if dec.returncode == 0 and not errs else 'ERRORS: ' + errs[:240]}")
                 reskinned += 1
             except Exception as e:
                 print(f"  OUTPUT DOWNLOAD/PROBE FAILED: {str(e)[:160]}")
