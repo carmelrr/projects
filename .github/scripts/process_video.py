@@ -24,12 +24,16 @@ import subprocess
 import sys
 import tempfile
 
-# ── Layout constants (match www/index.html CSS) ────────────────
-BANNER_HEIGHT_RATIO = 0.06       # 6% of video height — compact banner
-LOGO_HEIGHT_RATIO = 0.55         # logo = 55% of banner height
-LOGO_RIGHT_MARGIN_RATIO = 0.01   # 1% from right edge
-LOGO_TOP_MARGIN_RATIO = 0.08     # 8% from top of banner
-FONT_SIZE_RATIO = 0.038          # font size relative to shorter dimension
+# ── Layout constants ───────────────────────────────────────────
+# Bottom decorative banner (orange line + dark band with green waves)
+BANNER_HEIGHT_RATIO = 0.09       # 9% of video height (was 6% — taller, more presence)
+BANNER_CROP_RATIO = 0.12         # crop bottom 12% of banner image (includes the orange line)
+# Top-right brand logo (white TOTEM "Climbing House" mark)
+LOGO_HEIGHT_RATIO = 0.13         # logo height as % of video height
+LOGO_RIGHT_MARGIN_RATIO = 0.025  # right margin as % of video width
+LOGO_TOP_MARGIN_RATIO = 0.040    # top margin as % of video height
+# Text
+FONT_SIZE_RATIO = 0.040          # font size relative to shorter dimension
 SEPARATOR = " | "
 CRF = 20                         # quality: 18 = near-lossless, 23 = default
 MAX_HEIGHT = 1080                 # scale down to 1080p for TV compatibility
@@ -110,6 +114,21 @@ def find_default_font():
     return None
 
 
+def resolve_asset(repo_root: str, name: str) -> str:
+    """Locate a brand asset whether the script runs from the totemtv/ folder
+    or from the repo root (the cloud workflow checks out the whole repo and
+    runs the synced copy at <root>/.github/, while the assets live under
+    <root>/totemtv/)."""
+    candidates = [
+        os.path.join(repo_root, name),
+        os.path.join(repo_root, "totemtv", name),
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    return candidates[0]  # fall through so the caller errors with a clear path
+
+
 def build_ffmpeg_command(
     input_path: str,
     output_path: str,
@@ -132,29 +151,26 @@ def build_ffmpeg_command(
         vw = vw + (vw % 2)
 
     banner_h = int(vh * BANNER_HEIGHT_RATIO)
-    logo_h = int(banner_h * LOGO_HEIGHT_RATIO)
+    logo_h = int(vh * LOGO_HEIGHT_RATIO)
     logo_right = int(vw * LOGO_RIGHT_MARGIN_RATIO)
-    logo_top = int(banner_h * LOGO_TOP_MARGIN_RATIO)
+    logo_top = int(vh * LOGO_TOP_MARGIN_RATIO)
+    # Soft drop shadow keeps the white logo readable over bright skies/rock
+    shadow_blur = max(3, int(logo_h * 0.04))
+    shadow_offset = max(2, int(logo_h * 0.02))
     # Use the shorter dimension so text never overflows on portrait videos
     ref_dim = min(vw, vh)
     font_size = int(ref_dim * FONT_SIZE_RATIO)
 
-    # Build the display text: "climber | route | grade"
+    # Build the display text: "climber | route | grade".
+    # Kept raw — it is passed to drawtext via a sidecar file (see below),
+    # so no FFmpeg quoting/escaping is applied to it.
     parts = [p for p in [climber, route, grade] if p]
     display_text = SEPARATOR.join(parts)
-
-    # Escape special FFmpeg drawtext characters
-    display_text = (
-        display_text
-        .replace("\\", "\\\\")
-        .replace(":", "\\:")
-        .replace("'", "\\'")
-    )
 
     # ── Filter graph ──────────────────────────────────────────
     # [0:v] = input video
     # [1:v] = banner background image (mostly white, design only at bottom ~12%)
-    # [2:v] = logo image
+    # [2:v] = white TOTEM logo (already trimmed to its content bounds)
     filters = []
 
     # 0) Scale video to target resolution and limit framerate for TV compatibility
@@ -163,47 +179,71 @@ def build_ffmpeg_command(
         f"pad={vw}:{vh}:(ow-iw)/2:(oh-ih)/2,fps={MAX_FPS}[scaled]"
     )
 
-    # 1) Crop only the dark design strip from the very bottom of the
-    #    banner image (orange line + green waves on dark background).
-    #    Original image is 1600x900; the design is ~bottom 7%.
-    #    Then scale to fill the banner area exactly.
+    # 1) Crop the decorative strip from the bottom of the banner image
+    #    (orange line + green waves + figure on dark background) and scale
+    #    it to fill the banner area. The 12% crop keeps the orange line
+    #    that gives the band its finished look.
     filters.append(
-        f"[1:v]crop=iw:ih*0.07:0:ih-ih*0.07,scale={vw}:{banner_h}[banner]"
+        f"[1:v]crop=iw:ih*{BANNER_CROP_RATIO}:0:ih-ih*{BANNER_CROP_RATIO},"
+        f"scale={vw}:{banner_h}[banner]"
     )
 
-    # 2) Scale logo proportionally to logo_h height
-    filters.append(f"[2:v]scale=-1:{logo_h}[logo]")
+    # 2) Scale logo to logo_h, then split into a soft dark shadow + the
+    #    white mark so it stays visible on any background.
+    filters.append(f"[2:v]scale=-1:{logo_h}:flags=lanczos,split=2[logo_main][logo_src]")
+    filters.append(
+        f"[logo_src]format=rgba,lutrgb=r=0:g=0:b=0,"
+        f"gblur=sigma={shadow_blur}:steps=2,colorchannelmixer=aa=0.55[logo_shadow]"
+    )
 
     # 3) Overlay banner at bottom of video
     banner_y = vh - banner_h
     filters.append(f"[scaled][banner]overlay=0:{banner_y}[with_banner]")
 
-    # 4) Overlay logo at top-right of banner area
-    logo_x = f"W-overlay_w-{logo_right}"
-    logo_y = banner_y + logo_top
-    filters.append(f"[with_banner][logo]overlay={logo_x}:{logo_y}[with_logo]")
-
-    # 5) Draw text centered on the banner (transparent — no box/border)
-    text_y = banner_y + int(banner_h * 0.45) - (font_size // 2)
-    resolved_font = font_file or find_default_font()
-    if resolved_font:
-        # Escape backslashes and colons for FFmpeg on Windows
-        escaped_font = resolved_font.replace("\\", "/").replace(":", "\\:")
-        font_spec = f"fontfile='{escaped_font}'"
-    else:
-        font_spec = "font='Arial'"
-    drawtext = (
-        f"drawtext="
-        f"{font_spec}:"
-        f"text='{display_text}':"
-        f"fontsize={font_size}:"
-        f"fontcolor=white:"
-        f"shadowcolor=black@0.7:"
-        f"shadowx=2:shadowy=2:"
-        f"x=(w-text_w)/2:"
-        f"y={text_y}"
+    # 4) Overlay the logo at top-right: shadow first, then the white mark on top
+    logo_x = f"W-w-{logo_right}"
+    filters.append(
+        f"[with_banner][logo_shadow]"
+        f"overlay={logo_x}+{shadow_offset}:{logo_top}+{shadow_offset}[with_shadow]"
     )
-    filters.append(f"[with_logo]{drawtext}[out]")
+    filters.append(f"[with_shadow][logo_main]overlay={logo_x}:{logo_top}[with_logo]")
+
+    # 5) Draw text centered on the dark part of the banner (no box/border).
+    #    The text is written to a sidecar file and read via drawtext's
+    #    `textfile` option. This sidesteps every FFmpeg inline-text quoting
+    #    pitfall — apostrophes ("מוצ'י"), colons, and RTL punctuation that
+    #    would otherwise truncate the text or break the whole filtergraph.
+    if display_text:
+        resolved_font = font_file or find_default_font()
+        if resolved_font:
+            escaped_font = resolved_font.replace("\\", "/").replace(":", "\\:")
+            font_spec = f"fontfile='{escaped_font}'"
+        else:
+            font_spec = "font='Arial'"
+
+        out_dir = os.path.dirname(os.path.abspath(output_path))
+        os.makedirs(out_dir, exist_ok=True)
+        text_path = os.path.join(out_dir, ".banner_text.txt")
+        with open(text_path, "w", encoding="utf-8") as tf:
+            tf.write(display_text)
+        escaped_text_path = text_path.replace("\\", "/").replace(":", "\\:")
+
+        text_y = banner_y + int(banner_h * 0.58) - (font_size // 2)
+        drawtext = (
+            f"drawtext="
+            f"{font_spec}:"
+            f"textfile='{escaped_text_path}':"
+            f"fontsize={font_size}:"
+            f"fontcolor=white:"
+            f"shadowcolor=black@0.7:"
+            f"shadowx=2:shadowy=2:"
+            f"x=(w-text_w)/2:"
+            f"y={text_y}"
+        )
+        filters.append(f"[with_logo]{drawtext}[out]")
+    else:
+        # No climber/route/grade — finalize with just the logo + banner.
+        filters[-1] = filters[-1].replace("[with_logo]", "[out]")
 
     filter_complex = ";".join(filters)
 
@@ -235,8 +275,8 @@ def process_local(args):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
 
-    banner_path = args.banner or os.path.join(repo_root, "totem-banner.jpeg")
-    logo_path = args.logo or os.path.join(repo_root, "totem-logo.png")
+    banner_path = args.banner or resolve_asset(repo_root, "totem-banner.jpeg")
+    logo_path = args.logo or resolve_asset(repo_root, "totem-logo-white-trim.png")
 
     if not os.path.isfile(banner_path):
         sys.exit(f"Banner image not found: {banner_path}")
@@ -306,8 +346,8 @@ def process_cloud():
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
-    banner_path = os.path.join(repo_root, "totem-banner.jpeg")
-    logo_path = os.path.join(repo_root, "totem-logo.png")
+    banner_path = resolve_asset(repo_root, "totem-banner.jpeg")
+    logo_path = resolve_asset(repo_root, "totem-logo-white-trim.png")
 
     # ── Update sheet: processing ──
     gc = None
