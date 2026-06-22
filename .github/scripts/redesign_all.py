@@ -100,6 +100,14 @@ def run(dry_run: bool = False):
             return out_id, "sheet id (unverified)"
         return None, "no current output found"
 
+    # Optional per-file text overrides (the sheet metadata is unreliable for older
+    # rows). JSON: { "<raw filename>": {"climber":..,"route":..,"grade":..}, ... }.
+    # When supplied, ONLY the listed files are processed, using the given text.
+    overrides_raw = os.environ.get("RESKIN_OVERRIDES", "").strip()
+    overrides = json.loads(overrides_raw) if overrides_raw else {}
+    if overrides:
+        print(f"Text overrides supplied for {len(overrides)} file(s) — only those will be re-skinned.")
+
     rows = sheet.get_all_values()
 
     def cell(row, i):
@@ -110,16 +118,20 @@ def run(dry_run: bool = False):
         if cell(row, COL_STATUS).lower() != STATUS_DONE:
             continue
         raw_id = cell(row, COL_FILE_ID)
+        filename = cell(row, COL_FILENAME)
         if not raw_id:
             continue
+        if overrides and filename not in overrides:
+            continue  # restrict to the explicitly-listed files
+        ov = overrides.get(filename, {})
         targets.append({
             "sheet_row": sheet_row,
             "raw_id": raw_id,
             "out_id": cell(row, COL_OUTPUT_ID),
-            "climber": cell(row, COL_CLIMBER),
-            "route": cell(row, COL_ROUTE),
-            "grade": cell(row, COL_GRADE),
-            "filename": cell(row, COL_FILENAME),
+            "climber": ov.get("climber", cell(row, COL_CLIMBER)),
+            "route": ov.get("route", cell(row, COL_ROUTE)),
+            "grade": ov.get("grade", cell(row, COL_GRADE)),
+            "filename": filename,
         })
 
     print(f"Found {len(targets)} done video(s) in the sheet.\n")

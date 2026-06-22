@@ -16,6 +16,10 @@ on:
         options:
           - "true"
           - "false"
+      overrides:
+        description: 'Optional JSON: {"raw filename.mp4": {"climber":..,"route":..,"grade":..}} — only listed files are re-skinned'
+        required: false
+        default: ""
 
 jobs:
   redesign:
@@ -44,6 +48,7 @@ jobs:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           OUTPUT_FOLDER_ID: ${{ secrets.OUTPUT_FOLDER_ID }}
+          RESKIN_OVERRIDES: ${{ inputs.overrides }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python .github/scripts/redesign_all.py --dry-run
