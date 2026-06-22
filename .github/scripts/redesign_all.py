@@ -44,8 +44,32 @@ COL_OUTPUT_ID, COL_ERROR = 7, 8
 STATUS_DONE = "done"
 
 
-def run(dry_run: bool = False):
-    if dry_run:
+def ffprobe_info(path: str) -> str:
+    """Return a one-line summary of a video file, or a failure note."""
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-show_entries", "format=duration:stream=codec_name,width,height,codec_type",
+        "-of", "json", path,
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        return "PROBE FAILED (file likely corrupt/incomplete): " + (r.stderr or "")[-120:]
+    try:
+        d = json.loads(r.stdout)
+        dur = d.get("format", {}).get("duration", "?")
+        vs = [s for s in d.get("streams", []) if s.get("codec_type") == "video"]
+        if not vs:
+            return f"dur={dur}s — NO VIDEO STREAM (bad)"
+        v = vs[0]
+        return f"dur={dur}s codec={v.get('codec_name')} {v.get('width')}x{v.get('height')}"
+    except Exception as e:
+        return "probe parse error: " + str(e)
+
+
+def run(dry_run: bool = False, verify: bool = False):
+    if verify:
+        print("=== VERIFY — downloading each current output and probing it (no replace) ===")
+    elif dry_run:
         print("=== DRY RUN — checking targets only, nothing is downloaded or replaced ===")
 
     sheet_id = os.environ["SHEET_ID"]
@@ -161,6 +185,24 @@ def run(dry_run: bool = False):
             continue
         print(f"  output target: {dest_id} (via {how})")
 
+        if verify:
+            try:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    op = os.path.join(tmpdir, "out.mp4")
+                    request = drive.files().get_media(fileId=dest_id)
+                    with open(op, "wb") as f:
+                        downloader = MediaIoBaseDownload(f, request)
+                        done = False
+                        while not done:
+                            _, done = downloader.next_chunk()
+                    size_mb = os.path.getsize(op) / 1e6
+                    print(f"  OUTPUT: {size_mb:.1f}MB  {ffprobe_info(op)}")
+                reskinned += 1
+            except Exception as e:
+                print(f"  OUTPUT DOWNLOAD/PROBE FAILED: {str(e)[:160]}")
+                failed += 1
+            continue
+
         if dry_run:
             print("  would re-skin (dry-run)")
             reskinned += 1
@@ -210,7 +252,9 @@ def run(dry_run: bool = False):
             failed += 1
 
     print("\n" + "=" * 50)
-    if dry_run:
+    if verify:
+        print(f"VERIFY: {reskinned} output(s) probed OK, {no_output} not found, {failed} probe failed")
+    elif dry_run:
         print(f"DRY RUN: {reskinned} ready to re-skin, {raw_missing} raw missing, {no_output} output not found")
     else:
         print(f"Done: {reskinned} re-skinned, {raw_missing} raw missing, {no_output} output not found, {failed} failed")
@@ -220,8 +264,10 @@ def main():
     parser = argparse.ArgumentParser(description="TotemTV — re-skin edited videos with the current design")
     parser.add_argument("--dry-run", action="store_true",
                         help="Only check targets, raw availability and output match (no download/replace)")
+    parser.add_argument("--verify", action="store_true",
+                        help="Download each current output and ffprobe it (no replace)")
     args = parser.parse_args()
-    run(dry_run=args.dry_run)
+    run(dry_run=args.dry_run, verify=args.verify)
 
 
 if __name__ == "__main__":

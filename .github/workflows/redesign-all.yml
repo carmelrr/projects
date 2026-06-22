@@ -16,6 +16,14 @@ on:
         options:
           - "true"
           - "false"
+      verify:
+        description: "Verify mode: download each current output and ffprobe it (no replace)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
       overrides:
         description: 'Optional JSON: {"raw filename.mp4": {"climber":..,"route":..,"grade":..}} — only listed files are re-skinned'
         required: false
@@ -50,7 +58,9 @@ jobs:
           OUTPUT_FOLDER_ID: ${{ secrets.OUTPUT_FOLDER_ID }}
           RESKIN_OVERRIDES: ${{ inputs.overrides }}
         run: |
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
+          if [ "${{ inputs.verify }}" = "true" ]; then
+            python .github/scripts/redesign_all.py --verify
+          elif [ "${{ inputs.dry_run }}" = "true" ]; then
             python .github/scripts/redesign_all.py --dry-run
           else
             python .github/scripts/redesign_all.py
