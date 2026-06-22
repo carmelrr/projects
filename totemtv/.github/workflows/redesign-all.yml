@@ -43,6 +43,7 @@ jobs:
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
+          OUTPUT_FOLDER_ID: ${{ secrets.OUTPUT_FOLDER_ID }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python .github/scripts/redesign_all.py --dry-run
