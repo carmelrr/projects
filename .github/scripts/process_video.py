@@ -27,7 +27,7 @@ import tempfile
 # ── Layout constants ───────────────────────────────────────────
 # Bottom decorative banner (orange line + dark band with green waves)
 BANNER_HEIGHT_RATIO = 0.09       # 9% of video height (was 6% — taller, more presence)
-BANNER_CROP_RATIO = 0.12         # crop bottom 12% of banner image (includes the orange line)
+BANNER_CROP_RATIO = 0.095        # crop from the orange line down (no white strip above it)
 # Top-right brand logo (white TOTEM "Climbing House" mark)
 LOGO_HEIGHT_RATIO = 0.13         # logo height as % of video height
 LOGO_RIGHT_MARGIN_RATIO = 0.025  # right margin as % of video width
