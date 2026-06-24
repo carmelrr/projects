@@ -38,6 +38,8 @@ SEPARATOR = " | "
 CRF = 20                         # quality: 18 = near-lossless, 23 = default
 MAX_HEIGHT = 1080                 # scale down to 1080p for TV compatibility
 MAX_FPS = 30                      # 30fps is plenty for TV playback
+OUT_W = 1920                      # TV canvas — every output is a full 16:9 frame
+OUT_H = 1080
 # Characters not allowed in filenames (Windows + Drive)
 INVALID_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
 
@@ -140,15 +142,12 @@ def build_ffmpeg_command(
     font_file: str | None = None,
 ):
     """Build the FFmpeg command that burns the banner into the video."""
-    vw, vh = get_video_dimensions(input_path)
-
-    # Scale down to 1080p if larger (keep aspect ratio, ensure even dimensions)
-    if vh > MAX_HEIGHT:
-        scale_factor = MAX_HEIGHT / vh
-        vw = int(vw * scale_factor)
-        vh = MAX_HEIGHT
-        # Ensure even dimensions (required by libx264)
-        vw = vw + (vw % 2)
+    # Always render a 16:9 landscape frame sized for the TV. Portrait / off-ratio
+    # sources would otherwise be squished — the banner, text and logo crammed
+    # into a narrow width. Instead we centre the source at full height over a
+    # blurred, filled copy of itself, so the video is never distorted and the
+    # banner/logo always sit on a full-width frame.
+    vw, vh = OUT_W, OUT_H
 
     banner_h = int(vh * BANNER_HEIGHT_RATIO)
     logo_h = int(vh * LOGO_HEIGHT_RATIO)
@@ -173,11 +172,19 @@ def build_ffmpeg_command(
     # [2:v] = white TOTEM logo (already trimmed to its content bounds)
     filters = []
 
-    # 0) Scale video to target resolution and limit framerate for TV compatibility
+    # 0) Build the 16:9 frame: a blurred "cover" copy fills the whole canvas,
+    #    and the source is fit at full size and centred on top. Landscape
+    #    sources fill the frame (no blur visible); portrait sources get soft
+    #    side fills instead of black bars, and are never stretched.
+    filters.append("[0:v]split=2[bgsrc][fgsrc]")
     filters.append(
-        f"[0:v]scale={vw}:{vh}:force_original_aspect_ratio=decrease,"
-        f"pad={vw}:{vh}:(ow-iw)/2:(oh-ih)/2,fps={MAX_FPS}[scaled]"
+        f"[bgsrc]scale={vw}:{vh}:force_original_aspect_ratio=increase,"
+        f"crop={vw}:{vh},gblur=sigma=22[bg]"
     )
+    filters.append(
+        f"[fgsrc]scale={vw}:{vh}:force_original_aspect_ratio=decrease[fg]"
+    )
+    filters.append(f"[bg][fg]overlay=(W-w)/2:(H-h)/2,fps={MAX_FPS}[scaled]")
 
     # 1) Crop the decorative strip from the bottom of the banner image
     #    (orange line + green waves + figure on dark background) and scale
