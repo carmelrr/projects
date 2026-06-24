@@ -131,6 +131,33 @@ def resolve_asset(repo_root: str, name: str) -> str:
     return candidates[0]  # fall through so the caller errors with a clear path
 
 
+def build_upload_drive(sa_credentials):
+    """Return (drive_client, label) for CREATING new files in Drive.
+
+    Service accounts have no personal storage quota, so creating a file in a
+    normal (non-Shared) folder fails with 403 "Service Accounts do not have
+    storage quota". When the GDRIVE_CLIENT_ID / GDRIVE_CLIENT_SECRET /
+    GDRIVE_REFRESH_TOKEN secrets are set we upload as the user (who has quota,
+    and owns the resulting file); otherwise we fall back to the service account
+    (which only works for in-place updates or Shared Drives)."""
+    from googleapiclient.discovery import build
+    cid = os.environ.get("GDRIVE_CLIENT_ID", "")
+    csec = os.environ.get("GDRIVE_CLIENT_SECRET", "")
+    rtok = os.environ.get("GDRIVE_REFRESH_TOKEN", "")
+    if cid and csec and rtok:
+        from google.oauth2.credentials import Credentials
+        oauth = Credentials(
+            None,
+            refresh_token=rtok,
+            client_id=cid,
+            client_secret=csec,
+            token_uri="https://oauth2.googleapis.com/token",
+            scopes=["https://www.googleapis.com/auth/drive"],
+        )
+        return build("drive", "v3", credentials=oauth), "user OAuth"
+    return build("drive", "v3", credentials=sa_credentials), "service account"
+
+
 def build_ffmpeg_command(
     input_path: str,
     output_path: str,
@@ -407,14 +434,15 @@ def process_cloud():
                 sheet.update_cell(row, 9, error_msg[:200])
             sys.exit(1)
 
-        # ── Upload ──
-        print(f"Uploading {output_name} to Drive...")
+        # ── Upload (as the user via OAuth when configured — SAs have no quota) ──
+        upload_drive, up_label = build_upload_drive(credentials)
+        print(f"Uploading {output_name} to Drive via {up_label}...")
         file_metadata = {
             "name": output_name,
             "parents": [output_folder_id],
         }
         media = MediaFileUpload(output_path, mimetype="video/mp4", resumable=True)
-        uploaded = drive.files().create(
+        uploaded = upload_drive.files().create(
             body=file_metadata, media_body=media, fields="id"
         ).execute()
         output_file_id = uploaded["id"]
