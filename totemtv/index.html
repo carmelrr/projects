@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Office Slideshow</title>
+  <title>TotemTV</title>
+  <!-- Samsung TV product API (screensaver control). Resolves only on Tizen TVs and
+       harmlessly 404s elsewhere (e.g. Android). The src attr makes the Tizen build's
+       inline-script extractor skip it. -->
+  <script src="$WEBAPIS/webapis/webapis.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=DM+Sans:wght@400;600;700&family=DM+Mono&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,7 +37,7 @@
     #setup-screen::before {
       content: '';
       position: absolute;
-      top: 0; right: 0; bottom: 0; left: 0;
+      inset: 0;
       background: radial-gradient(ellipse at 30% 20%, rgba(180,140,80,0.08) 0%, transparent 60%),
                   radial-gradient(ellipse at 70% 80%, rgba(120,90,50,0.06) 0%, transparent 50%);
     }
@@ -179,11 +183,56 @@
       font-size: 14px;
     }
 
+    /* ── Download Progress ── */
+    #download-screen {
+      display: none;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0D0B08;
+    }
+
+    #download-screen .progress-container {
+      width: 360px;
+      max-width: 90%;
+      text-align: center;
+    }
+
+    #download-screen .progress-text {
+      color: rgba(245,237,224,0.7);
+      font-size: 15px;
+      margin-bottom: 16px;
+    }
+
+    #download-screen .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(200,170,110,0.15);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    #download-screen .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #C4A265, #E8D5B7);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    #download-screen .progress-detail {
+      color: rgba(245,237,224,0.35);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+
     /* ── Slideshow ── */
     #slideshow-screen {
       display: none;
       position: fixed;
-      top: 0; right: 0; bottom: 0; left: 0;
+      inset: 0;
       background: #000;
       overflow: hidden;
       cursor: none;
@@ -191,7 +240,7 @@
 
     #media-container {
       position: absolute;
-      top: 0; right: 0; bottom: 0; left: 0;
+      inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -200,9 +249,9 @@
 
     #media-container img,
     #media-container video {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
+      display: block;
+      object-fit: contain;   /* fallback; exact px size set by fitMedia() so the
+                                letterbox bars the download panels sit in exist */
       background: #000;
     }
 
@@ -212,108 +261,10 @@
       height: 100%;
     }
 
-    .video-wrapper iframe {
+    .video-wrapper video {
       width: 100%;
       height: 100%;
-      border: none;
-    }
-
-    /* Block interaction with iframe controls */
-    .video-wrapper::after {
-      content: '';
-      position: absolute;
-      top: 0; right: 0; bottom: 0; left: 0;
-      z-index: 10;
-    }
-
-    /* ── Side download panels (shown only over the black bars of portrait media) ── */
-    #side-panels {
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      z-index: 15;
-      pointer-events: none;
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.6s ease;
-    }
-
-    #side-panels.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    /* NOTE: target is a 2017 Samsung Tizen 3.0 TV (Chromium M47). Avoid
-       CSS custom properties, clamp(), min(), and aspect-ratio — all sizing
-       below is computed in JS and applied as inline styles. */
-    .side-panel {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 0;            /* set by JS to the black-bar width */
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      font-family: 'Assistant', 'DM Sans', sans-serif;
-    }
-
-    .side-panel--left { left: 0; }
-    .side-panel--right { right: 0; }
-
-    .sp-card {
-      width: 100%;
-      max-width: 460px;
-      background: rgba(20, 17, 12, 0.86);
-      border: 1px solid rgba(200, 170, 110, 0.28);
-      border-radius: 22px;
-      padding: 24px;       /* overridden by JS */
-      -webkit-backdrop-filter: blur(14px);
-      backdrop-filter: blur(14px);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .sp-qr {
-      width: 180px;        /* width + height set by JS (square) */
-      height: 180px;
-      background: #fff;
-      border-radius: 12px;
-      padding: 8px;
-      display: block;
-    }
-
-    .sp-logo {
-      width: 130px;        /* set by JS */
-      height: auto;
-      display: block;
-      -webkit-filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.4));
-      filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.4));
-    }
-
-    .sp-title {
-      color: #F5EDE0;
-      font-weight: 800;
-      line-height: 1.22;
-      font-size: 22px;     /* set by JS */
-    }
-
-    .sp-label {
-      color: #F5EDE0;
-      font-weight: 700;
-      line-height: 1.3;
-      font-size: 16px;     /* set by JS */
-    }
-
-    .sp-sub {
-      color: rgba(245, 237, 224, 0.62);
-      line-height: 1.4;
-      font-size: 14px;     /* set by JS */
+      object-fit: contain;
     }
 
     #overlay {
@@ -321,7 +272,6 @@
       bottom: 0;
       left: 0;
       right: 0;
-      z-index: 30;
       background: linear-gradient(transparent, rgba(0,0,0,0.8));
       padding: 60px 32px 24px;
       opacity: 0;
@@ -462,6 +412,66 @@
       animation: spin 0.8s linear infinite;
     }
 
+    /* ── Side download panels (shown over the black bars of portrait/narrow media) ── */
+    #side-panels {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      z-index: 15;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease;
+    }
+    #side-panels.visible { opacity: 1; visibility: visible; }
+
+    .side-panel {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 0;            /* set by JS to the black-bar width */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: 'Assistant', 'DM Sans', sans-serif;
+    }
+    .side-panel--left { left: 0; }
+    .side-panel--right { right: 0; }
+
+    .sp-card {
+      width: 100%;
+      max-width: 460px;
+      background: rgba(20, 17, 12, 0.86);
+      border: 1px solid rgba(200, 170, 110, 0.28);
+      border-radius: 22px;
+      padding: 24px;       /* overridden by JS */
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .sp-qr {
+      width: 180px;        /* width + height set by JS (square) */
+      height: 180px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 8px;
+      display: block;
+    }
+    .sp-logo {
+      width: 130px;        /* set by JS */
+      height: auto;
+      display: block;
+      -webkit-filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.4));
+      filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.4));
+    }
+    .sp-title { color: #F5EDE0; font-weight: 800; line-height: 1.22; font-size: 22px; }
+    .sp-label { color: #F5EDE0; font-weight: 700; line-height: 1.3; font-size: 16px; }
+    .sp-sub { color: rgba(245, 237, 224, 0.62); line-height: 1.4; font-size: 14px; }
+
 
   </style>
 </head>
@@ -476,8 +486,8 @@
         <circle cx="24" cy="24" r="5" fill="#E8D5B7"/>
         <path d="M21 24L23 26L27 22" stroke="#1A1410" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <h1>Office Slideshow</h1>
-      <p class="subtitle">Connect your Google Drive folder to display photos and videos on your TV</p>
+      <h1>TotemTV</h1>
+      <p class="subtitle">Connect your Google Drive folder to display photos and videos on your TV — with offline caching</p>
 
       <div class="input-group">
         <label>Google API Key</label>
@@ -507,14 +517,26 @@
   <!-- ── Loading Screen ── -->
   <div id="loading-screen">
     <div class="spinner"></div>
-    <p>Fetching your photos...</p>
+    <p>Fetching your files...</p>
+  </div>
+
+  <!-- ── Download Progress Screen ── -->
+  <div id="download-screen">
+    <div class="progress-container">
+      <div class="spinner" style="margin: 0 auto 24px;"></div>
+      <p class="progress-text" id="download-text">Downloading files for offline use...</p>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="download-bar"></div>
+      </div>
+      <p class="progress-detail" id="download-detail">0 / 0</p>
+    </div>
   </div>
 
   <!-- ── Slideshow Screen ── -->
   <div id="slideshow-screen">
     <div id="media-container"></div>
 
-    <!-- Download panels: filled into the black side bars of portrait media -->
+    <!-- Download panels: filled into the black side bars of portrait/narrow media -->
     <div id="side-panels">
       <aside class="side-panel side-panel--left">
         <div class="sp-card">
@@ -558,15 +580,323 @@
   <div id="buffering-indicator"><div class="spinner"></div></div>
   <div id="sync-status"></div>
 
+  <!--
+    Capacitor native bridge is injected automatically by the Android WebView shell.
+    No external script needed — window.Capacitor and Capacitor.Plugins are available at runtime.
+  -->
+
   <script>
+    // ── Capacitor Filesystem bridge ──
+    // We detect if Capacitor native is available; if not, fall back to in-memory (browser mode)
+    let isNative = false;
+    let Filesystem = null;
+    let FilesystemDirectory = null;
+
+    try {
+      isNative = window.Capacitor && Capacitor.isNativePlatform();
+      if (isNative && Capacitor.Plugins && Capacitor.Plugins.Filesystem) {
+        Filesystem = Capacitor.Plugins.Filesystem;
+        FilesystemDirectory = { Documents: 'DOCUMENTS', Data: 'DATA', Cache: 'CACHE', External: 'EXTERNAL' };
+      }
+    } catch (e) {
+      console.warn('Capacitor not available, running in browser mode', e);
+    }
+
+    // ── Cache Manager ──
+    const CACHE_DIR = 'totemtv_cache';
+    const MANIFEST_KEY = 'totemtv_manifest';
+
+    class CacheManager {
+      constructor() {
+        this.manifest = this._loadManifest();
+      }
+
+      _loadManifest() {
+        try {
+          return JSON.parse(localStorage.getItem(MANIFEST_KEY) || '{}');
+        } catch { return {}; }
+      }
+
+      _saveManifest() {
+        try {
+          localStorage.setItem(MANIFEST_KEY, JSON.stringify(this.manifest));
+        } catch (e) {
+          console.warn('Failed to save manifest:', e);
+        }
+      }
+
+      async init() {
+        if (!Filesystem) return;
+        try {
+          await Filesystem.mkdir({
+            path: CACHE_DIR,
+            directory: FilesystemDirectory.Data,
+            recursive: true
+          });
+        } catch (e) {
+          // Directory may already exist — this is fine
+        }
+      }
+
+      // Download a file from Google Drive and save to local storage
+      async downloadFile(fileId, fileName, mimeType, apiKey, expectedSize) {
+        if (!Filesystem) {
+          // Browser fallback: just store the URL reference (no actual download)
+          this.manifest[fileId] = {
+            fileId, fileName, mimeType,
+            localPath: null,
+            cachedAt: Date.now()
+          };
+          this._saveManifest();
+          return;
+        }
+
+        const isVideoFile = VIDEO_TYPES.some(t => mimeType?.startsWith(t.split('/')[0]));
+        const ext = this._getExtension(fileName, mimeType);
+        const localFileName = `${fileId}.${ext}`;
+        const localPath = `${CACHE_DIR}/${localFileName}`;
+
+        // Build download URL
+        // For both images and videos, use Drive API alt=media (reliable, works with API key)
+        const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
+
+        try {
+          // Use Filesystem.downloadFile — streams directly to disk without loading into JS memory
+          // This prevents OOM crashes on large video files
+          await Filesystem.downloadFile({
+            url: downloadUrl,
+            path: localPath,
+            directory: FilesystemDirectory.Data
+          });
+
+          // Validate file integrity by checking size
+          if (expectedSize && expectedSize > 0) {
+            try {
+              const stat = await Filesystem.stat({
+                path: localPath,
+                directory: FilesystemDirectory.Data
+              });
+              const localSize = stat.size || 0;
+              // Allow 1KB tolerance for metadata differences
+              if (localSize < expectedSize - 1024) {
+                console.warn(`Size mismatch for ${fileName}: expected ${expectedSize}, got ${localSize}`);
+                await Filesystem.deleteFile({ path: localPath, directory: FilesystemDirectory.Data });
+                throw new Error(`Incomplete download: ${fileName} (${localSize}/${expectedSize} bytes)`);
+              }
+            } catch (statErr) {
+              if (statErr.message && statErr.message.includes('Incomplete download')) throw statErr;
+              console.warn(`Could not verify file size for ${fileName}:`, statErr);
+            }
+          }
+
+          this.manifest[fileId] = {
+            fileId, fileName, mimeType,
+            localPath: localPath,
+            cachedAt: Date.now()
+          };
+          this._saveManifest();
+        } catch (e) {
+          console.error(`Failed to cache ${fileName}:`, e);
+          // If native download fails, try the fetch+base64 approach for small images only
+          if (!isVideoFile) {
+            try {
+              await this._downloadViaFetch(fileId, fileName, mimeType, localPath);
+              return;
+            } catch (e2) {
+              console.error(`Fallback download also failed for ${fileName}:`, e2);
+            }
+          }
+          throw e;
+        }
+      }
+
+      // Fallback download for small images only — fetch, convert to base64, write
+      async _downloadViaFetch(fileId, fileName, mimeType, localPath) {
+        const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-rj`;
+        const response = await fetch(imageUrl);
+        if (!response.ok) throw new Error(`Image download failed: ${response.status}`);
+
+        const blob = await response.blob();
+        // Safety: don't convert files larger than 10MB to base64
+        if (blob.size > 10 * 1024 * 1024) throw new Error('File too large for base64 fallback');
+
+        const base64 = await this._blobToBase64(blob);
+
+        await Filesystem.writeFile({
+          path: localPath,
+          data: base64,
+          directory: FilesystemDirectory.Data
+        });
+
+        this.manifest[fileId] = {
+          fileId, fileName, mimeType,
+          localPath: localPath,
+          cachedAt: Date.now()
+        };
+        this._saveManifest();
+      }
+
+      // Delete a cached file
+      async deleteFile(fileId) {
+        const entry = this.manifest[fileId];
+        if (!entry) return;
+
+        if (Filesystem && entry.localPath) {
+          try {
+            await Filesystem.deleteFile({
+              path: entry.localPath,
+              directory: FilesystemDirectory.Data
+            });
+          } catch (e) {
+            console.warn(`Failed to delete cached file ${entry.localPath}:`, e);
+          }
+        }
+
+        delete this.manifest[fileId];
+        this._saveManifest();
+      }
+
+      // Get a local URL for a cached file (usable in <img> or <video> src)
+      async getCachedUrl(fileId) {
+        const entry = this.manifest[fileId];
+        if (!entry) return null;
+
+        if (!Filesystem || !entry.localPath) {
+          // Non-native/browser fallback (e.g. Samsung Tizen): no local cache, so
+          // stream — images from the Drive CDN, videos through the proxy if set.
+          const isVideoFile = VIDEO_TYPES.some(t => entry.mimeType?.startsWith(t.split('/')[0]));
+          if (isVideoFile) return proxyBase ? proxyBase.replace(/\/$/, '') + '/drive/' + fileId : null;
+          return `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-rj`;
+        }
+
+        try {
+          const result = await Filesystem.getUri({
+            path: entry.localPath,
+            directory: FilesystemDirectory.Data
+          });
+          // Convert native file URI to web-viewable URI
+          return Capacitor.convertFileSrc(result.uri);
+        } catch (e) {
+          console.warn(`Failed to get URI for ${fileId}:`, e);
+          return null;
+        }
+      }
+
+      isCached(fileId) {
+        return !!this.manifest[fileId];
+      }
+
+      // Validate all cached files against Drive file sizes.
+      // Removes entries for files that are missing or incomplete on disk.
+      async validateCache(driveFiles, onProgress) {
+        if (!Filesystem) return 0;
+
+        const driveMap = new Map();
+        for (const f of driveFiles) {
+          driveMap.set(f.id, parseInt(f.size) || 0);
+        }
+
+        const ids = Object.keys(this.manifest);
+        let removed = 0;
+
+        for (let i = 0; i < ids.length; i++) {
+          const fileId = ids[i];
+          const entry = this.manifest[fileId];
+          if (!entry || !entry.localPath) continue;
+
+          const expectedSize = driveMap.get(fileId);
+          // Skip if file no longer in Drive (syncFiles handles deletion)
+          if (expectedSize === undefined) continue;
+
+          if (onProgress) onProgress(i + 1, ids.length, entry.fileName);
+
+          try {
+            const stat = await Filesystem.stat({
+              path: entry.localPath,
+              directory: FilesystemDirectory.Data
+            });
+            const localSize = stat.size || 0;
+
+            // If Drive reports a size and local file is significantly smaller → incomplete
+            if (expectedSize > 0 && localSize < expectedSize - 1024) {
+              console.warn(`Integrity check: ${entry.fileName} incomplete (${localSize}/${expectedSize}). Re-downloading.`);
+              try {
+                await Filesystem.deleteFile({ path: entry.localPath, directory: FilesystemDirectory.Data });
+              } catch (_) {}
+              delete this.manifest[fileId];
+              removed++;
+            }
+          } catch (e) {
+            // File missing from disk — remove from manifest
+            console.warn(`Integrity check: ${entry.fileName} missing from disk. Re-downloading.`);
+            delete this.manifest[fileId];
+            removed++;
+          }
+        }
+
+        if (removed > 0) this._saveManifest();
+        return removed;
+      }
+
+      getCachedIds() {
+        return new Set(Object.keys(this.manifest));
+      }
+
+      getManifestEntry(fileId) {
+        return this.manifest[fileId] || null;
+      }
+
+      // Clear all cached files
+      async clearAll() {
+        if (Filesystem) {
+          try {
+            await Filesystem.rmdir({
+              path: CACHE_DIR,
+              directory: FilesystemDirectory.Data,
+              recursive: true
+            });
+          } catch (e) {}
+        }
+        this.manifest = {};
+        this._saveManifest();
+        await this.init();
+      }
+
+      _blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      _getExtension(fileName, mimeType) {
+        const match = fileName.match(/\.(\w+)$/);
+        if (match) return match[1].toLowerCase();
+        const map = {
+          'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+          'image/webp': 'webp', 'image/bmp': 'bmp',
+          'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov',
+          'video/x-msvideo': 'avi', 'video/3gpp': '3gp'
+        };
+        return map[mimeType] || 'bin';
+      }
+    }
+
     // ── Config ──
     const PHOTO_DURATION = 8000;
     const VIDEO_MAX_DURATION = 120000;
-    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+    const REFRESH_INTERVAL = 5 * 60 * 1000;
     const TRANSITION_MS = 1200;
-    const PRELOAD_AHEAD = 3; // preload next media
-    const MAX_RETRIES = 5;
-    const RETRY_BASE_DELAY = 2000; // 2s, doubles each retry
+    const VIDEO_READY_TIMEOUT = 9000; // max ms to wait before revealing a slow video
+    const PRELOAD_AHEAD = 3;
+    const MAX_RETRIES = 3;
+    const RETRY_BASE_DELAY = 2000;
+    const CONCURRENT_DOWNLOADS = 1; // download one at a time to prevent memory pressure
 
     const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
     const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/3gpp'];
@@ -574,21 +904,28 @@
     // ── State ──
     let apiKey = '';
     let folderId = '';
-    // Optional proxy that streams Drive files over modern TLS (Cloudflare Worker
-    // or the local dev logserver). Required for video playback on the 2017 TV,
-    // whose native player can't handshake googleapis.com and whose webview can't
-    // run the Google Drive preview iframe. Set via the build (tv-config.local.json).
+    // Optional streaming proxy (Cloudflare Worker) used ONLY in non-native/browser
+    // mode (e.g. the old Samsung Tizen TV) where local file caching is unavailable.
+    // On Android (Capacitor) playback is always from the local cache, never this.
     let proxyBase = '';
-    let files = [];
+    let files = [];       // raw files from Drive
+    let playlist = [];    // ordered playlist (interleaved images/videos)
     let currentIndex = 0;
     let isPaused = false;
     let advanceTimer = null;
     let refreshTimer = null;
     let hideUITimer = null;
+    let watchdogTimer = null;
+    let keepAwakeTimer = null;
+    let lastAdvanceTime = 0;
+    const WATCHDOG_INTERVAL = 30000; // check every 30s
+    const MAX_STUCK_TIME = 180000;   // force advance after 3min stuck
+    const cacheManager = new CacheManager();
 
     // ── DOM ──
     const setupScreen = document.getElementById('setup-screen');
     const loadingScreen = document.getElementById('loading-screen');
+    const downloadScreen = document.getElementById('download-screen');
     const slideshowScreen = document.getElementById('slideshow-screen');
     const mediaContainer = document.getElementById('media-container');
     const setupError = document.getElementById('setup-error');
@@ -598,17 +935,18 @@
     const syncStatus = document.getElementById('sync-status');
     const pauseBtn = document.getElementById('pause-btn');
     const bufferingIndicator = document.getElementById('buffering-indicator');
-    const sidePanelsEl = document.getElementById('side-panels');
-    let preloadCache = {}; // cache preloaded blobs
-    let preloadPromises = {}; // track in-flight preloads
+    const downloadText = document.getElementById('download-text');
+    const downloadBar = document.getElementById('download-bar');
+    const downloadDetail = document.getElementById('download-detail');
+    let preloadCache = {};
+    let preloadPromises = {};
 
-    // ── Side download panels (fill the black bars of portrait media) ──
-    const SIDE_PANEL_MIN_BAR = 600; // px: only very narrow media (e.g. 9:16) gets panels;
-                                    // 4:5 ads fill enough width that they don't.
+    // ── Side download panels (fill the black bars of portrait/narrow media) ──
+    const sidePanelsEl = document.getElementById('side-panels');
+    const SIDE_PANEL_MIN_BAR = 300; // px per side: portrait/narrow ads get the panels; 16:9 (no bars) excluded
     let lastMediaW = 0;
     let lastMediaH = 0;
 
-    // Cache panel sub-elements (sizing applied inline for Tizen 3.0 / M47 webview)
     const spLeftPanel = sidePanelsEl.querySelector('.side-panel--left');
     const spRightPanel = sidePanelsEl.querySelector('.side-panel--right');
     const spCards = sidePanelsEl.querySelectorAll('.sp-card');
@@ -626,33 +964,29 @@
       sidePanelsEl.classList.remove('visible');
     }
 
-    // Manual object-fit:contain for the old TV webview (AppleWebKit 538.1).
-    // Scales the image to fit inside the screen while preserving aspect ratio,
-    // leaving the letterbox/pillarbox bars the download panels sit in.
-    function fitImage(img, w, h) {
+    // Manual object-fit:contain — size the element to fit the screen while keeping
+    // aspect ratio, leaving the letterbox/pillarbox bars the panels sit in.
+    function fitMedia(el, w, h) {
       if (!w || !h) return;
-      const screenW = window.innerWidth;
-      const screenH = window.innerHeight;
-      const scale = Math.min(screenW / w, screenH / h);
-      const dispW = Math.round(w * scale);
-      const dispH = Math.round(h * scale);
-      img.style.width = dispW + 'px';
-      img.style.height = dispH + 'px';
+      const scale = Math.min(window.innerWidth / w, window.innerHeight / h);
+      el.style.width = Math.round(w * scale) + 'px';
+      el.style.height = Math.round(h * scale) + 'px';
     }
 
-    // Apply pixel sizes scaled to the available black-bar width.
     function sizeSidePanels(barWidth) {
       spLeftPanel.style.width = barWidth + 'px';
       spRightPanel.style.width = barWidth + 'px';
-
-      const cardPad = clampPx(barWidth * 0.08, 20, 44);
-      const gap = clampPx(barWidth * 0.055, 16, 30);
-      const qrSize = clampPx(barWidth * 0.78, 180, 420);
-      const logoW = clampPx(barWidth * 0.66, 130, 300);
-      const titleFs = clampPx(barWidth * 0.11, 28, 52);
-      const labelFs = clampPx(barWidth * 0.085, 22, 38);
-      const subFs = clampPx(barWidth * 0.07, 18, 32);
-
+      // Derive sizes from the usable width inside the card so the QR/logo never
+      // overflow on the narrower bars.
+      const cardW = Math.min(barWidth - 40, 460);  // 40 = .side-panel padding (20px x2)
+      const cardPad = clampPx(cardW * 0.09, 14, 40);
+      const innerW = cardW - cardPad * 2;
+      const gap = clampPx(cardW * 0.07, 14, 30);
+      const qrSize = clampPx(innerW, 120, 420);
+      const logoW = clampPx(innerW * 0.82, 90, 300);
+      const titleFs = clampPx(barWidth * 0.10, 22, 50);
+      const labelFs = clampPx(barWidth * 0.075, 18, 36);
+      const subFs = clampPx(barWidth * 0.06, 14, 30);
       for (let i = 0; i < spCards.length; i++) {
         spCards[i].style.padding = cardPad + 'px';
         const kids = spCards[i].children;
@@ -668,6 +1002,8 @@
       spSub.style.fontSize = subFs + 'px';
     }
 
+    // Show the panels only when the media is narrower than the screen and leaves
+    // black bars wider than SIDE_PANEL_MIN_BAR per side.
     function updateSidePanels(mediaW, mediaH) {
       lastMediaW = mediaW || 0;
       lastMediaH = mediaH || 0;
@@ -676,8 +1012,7 @@
       const screenH = window.innerHeight;
       const mediaAR = mediaW / mediaH;
       const screenAR = screenW / screenH;
-      // Side bars only exist when the media is narrower than the screen (portrait).
-      if (mediaAR >= screenAR) { hideSidePanels(); return; }
+      if (mediaAR >= screenAR) { hideSidePanels(); return; } // wide/16:9 → no bars
       const displayedWidth = screenH * mediaAR;
       const barWidth = (screenW - displayedWidth) / 2;
       if (barWidth < SIDE_PANEL_MIN_BAR) { hideSidePanels(); return; }
@@ -689,27 +1024,43 @@
       if (lastMediaW && lastMediaH) updateSidePanels(lastMediaW, lastMediaH);
     });
 
-    // ── Save/Load config from URL hash ──
+    // ── Save/Load config ──
     function saveConfig() {
       const data = btoa(JSON.stringify({ apiKey, folderId }));
+      try {
+        localStorage.setItem('totemtv_config', data);
+      } catch (e) {}
       window.location.hash = data;
     }
 
     function loadConfig() {
       try {
+        // Baked-in build credentials (set by the build for the TV) win immediately.
+        if (apiKey && folderId) return true;
+        // Try localStorage next (preferred for APK)
+        var stored = localStorage.getItem('totemtv_config');
+        if (stored) {
+          var data = JSON.parse(atob(stored));
+          if (data.apiKey && data.folderId) {
+            apiKey = data.apiKey;
+            folderId = data.folderId;
+            return true;
+          }
+        }
+
+        // Fallback: URL hash
         var source = '';
         if (window.location.hash.length > 1) {
           source = window.location.hash.slice(1);
         } else {
-          // Fallback for TV browsers redirected via 404.html with ?config=
           var match = window.location.search.match(/[?&]config=([^&]+)/);
           if (match) source = decodeURIComponent(match[1]);
         }
         if (source) {
-          const data = JSON.parse(atob(source));
-          if (data.apiKey && data.folderId) {
-            apiKey = data.apiKey;
-            folderId = data.folderId;
+          var data2 = JSON.parse(atob(source));
+          if (data2.apiKey && data2.folderId) {
+            apiKey = data2.apiKey;
+            folderId = data2.folderId;
             return true;
           }
         }
@@ -717,10 +1068,31 @@
       return false;
     }
 
+    // ── Build interleaved playlist ──
+    // Rule: alternate image, video, image, video...
+    // Images repeat if there are more videos (images = ads, show them often)
+    function buildPlaylist(fileList) {
+      const images = fileList.filter(f => !isVideo(f));
+      const videos = fileList.filter(f => isVideo(f));
+
+      // If only one type, return as-is
+      if (images.length === 0 || videos.length === 0) return fileList.slice();
+
+      const result = [];
+      const totalPairs = Math.max(images.length, videos.length);
+
+      for (let i = 0; i < totalPairs; i++) {
+        result.push(images[i % images.length]);
+        result.push(videos[i % videos.length]);
+      }
+
+      return result;
+    }
+
     // ── Fetch files from Drive ──
     async function fetchFiles() {
       const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-      const fields = encodeURIComponent('files(id,name,mimeType,createdTime,videoMediaMetadata)');
+      const fields = encodeURIComponent('files(id,name,mimeType,createdTime,videoMediaMetadata,size)');
       const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&orderBy=createdTime desc&pageSize=1000&key=${apiKey}`;
 
       const res = await fetch(url);
@@ -730,28 +1102,94 @@
       }
 
       const data = await res.json();
-      const media = (data.files || []).filter(f =>
+      return (data.files || []).filter(f =>
         IMAGE_TYPES.includes(f.mimeType) ||
         VIDEO_TYPES.some(t => f.mimeType?.startsWith(t.split('/')[0]))
       );
-      return interleaveImageVideo(media);
     }
 
-    // Build an image, video, image, video, sequence. Images are ads meant to
-    // appear between clips, so every image is separated by a video (and vice
-    // versa) by cycling through each pool. Images may repeat within a round if
-    // there are fewer of them than videos, which is acceptable.
-    function interleaveImageVideo(list) {
-      const images = list.filter(function (f) { return !isVideo(f); });
-      const videos = list.filter(function (f) { return isVideo(f); });
-      if (images.length === 0 || videos.length === 0) return list;
-      const rounds = Math.max(images.length, videos.length);
-      const out = [];
-      for (let i = 0; i < rounds; i++) {
-        out.push(images[i % images.length]);
-        out.push(videos[i % videos.length]);
+    // ── Download all files to device ──
+    async function downloadAllFiles(fileList) {
+      const toDownload = fileList.filter(f => !cacheManager.isCached(f.id));
+      if (toDownload.length === 0) return;
+
+      downloadScreen.style.display = 'flex';
+      let completed = 0;
+      let failed = 0;
+      const total = toDownload.length;
+
+      downloadText.textContent = `Downloading ${total} files for offline use...`;
+      downloadDetail.textContent = `0 / ${total}`;
+      downloadBar.style.width = '0%';
+
+      // Download ONE file at a time to prevent memory pressure / OOM crashes
+      for (const file of toDownload) {
+        let success = false;
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          try {
+            downloadText.textContent = `Downloading: ${file.name}`;
+            await cacheManager.downloadFile(file.id, file.name, file.mimeType, apiKey, parseInt(file.size) || 0);
+            success = true;
+            break;
+          } catch (e) {
+            console.warn(`Download attempt ${attempt + 1} failed for ${file.name}:`, e.message || e);
+            if (attempt < MAX_RETRIES - 1) {
+              await new Promise(r => setTimeout(r, RETRY_BASE_DELAY * Math.pow(2, attempt)));
+            }
+          }
+        }
+
+        completed++;
+        if (!success) {
+          failed++;
+          console.error(`Skipped ${file.name} after ${MAX_RETRIES} attempts`);
+        }
+        const pct = Math.round((completed / total) * 100);
+        downloadBar.style.width = pct + '%';
+        downloadDetail.textContent = `${completed} / ${total}${failed > 0 ? ` (${failed} failed)` : ''}`;
       }
-      return out;
+
+      downloadText.textContent = failed > 0
+        ? `Done — ${completed - failed} downloaded, ${failed} failed`
+        : `All ${completed} files downloaded!`;
+
+      // Brief pause so user sees the completion message
+      await new Promise(r => setTimeout(r, 1500));
+      downloadScreen.style.display = 'none';
+    }
+
+    // ── Sync: add new files, remove deleted ones ──
+    async function syncFiles(newFileList) {
+      const driveIds = new Set(newFileList.map(f => f.id));
+      const cachedIds = cacheManager.getCachedIds();
+
+      // Find files to delete (in cache but not in Drive)
+      const toDelete = [];
+      for (const cachedId of cachedIds) {
+        if (!driveIds.has(cachedId)) {
+          toDelete.push(cachedId);
+        }
+      }
+
+      // Delete removed files
+      for (const id of toDelete) {
+        await cacheManager.deleteFile(id);
+      }
+
+      // Download new files (in Drive but not cached)
+      const toDownload = newFileList.filter(f => !cacheManager.isCached(f.id));
+      if (toDownload.length > 0) {
+        // Download silently in background (no progress screen during sync)
+        for (const file of toDownload) {
+          try {
+            await cacheManager.downloadFile(file.id, file.name, file.mimeType, apiKey, parseInt(file.size) || 0);
+          } catch (e) {
+            console.warn(`Background sync: failed to download ${file.name}`);
+          }
+        }
+      }
+
+      return { added: toDownload.length, removed: toDelete.length };
     }
 
     // ── Show sync status ──
@@ -765,24 +1203,17 @@
     async function refreshFiles() {
       try {
         const newFiles = await fetchFiles();
-        const oldIds = new Set(files.map(f => f.id));
-        const newIds = new Set(newFiles.map(f => f.id));
 
-        const added = newFiles.filter(f => !oldIds.has(f.id)).length;
-        const removed = files.filter(f => !newIds.has(f.id)).length;
+        const { added, removed } = await syncFiles(newFiles);
 
         if (added > 0 || removed > 0) {
-          // Preserve current file if it still exists
-          const currentFileId = files[currentIndex]?.id;
+          const currentFileId = playlist[currentIndex]?.id;
           files = newFiles;
+          playlist = buildPlaylist(files);
 
           if (currentFileId) {
-            const newIdx = files.findIndex(f => f.id === currentFileId);
-            if (newIdx >= 0) {
-              currentIndex = newIdx;
-            } else {
-              currentIndex = 0;
-            }
+            const newIdx = playlist.findIndex(f => f.id === currentFileId);
+            currentIndex = newIdx >= 0 ? newIdx : 0;
           }
 
           updateDots();
@@ -802,39 +1233,50 @@
       return `https://lh3.googleusercontent.com/d/${file.id}=w1920-h1080-rj`;
     }
 
-    function getVideoUrl(file) {
-      // Native <video> via the streaming proxy when configured (works on the old
-      // TV). Falls back to the Drive preview iframe otherwise.
-      if (proxyBase) {
-        return proxyBase.replace(/\/$/, '') + '/drive/' + file.id;
-      }
-      return `https://drive.google.com/file/d/${file.id}/preview?autoplay=1`;
-    }
-
     function getVideoDuration(file) {
       if (file.videoMediaMetadata && file.videoMediaMetadata.durationMillis) {
-        return parseInt(file.videoMediaMetadata.durationMillis) + 3000; // +3s buffer
+        return parseInt(file.videoMediaMetadata.durationMillis) + 3000;
       }
       return VIDEO_MAX_DURATION;
     }
 
-    // ── Preload helpers (images only; videos use iframe streaming) ──
+    // ── Preload helpers ──
     function preloadFile(file) {
       if (!file || preloadCache[file.id]) return Promise.resolve();
-      if (isVideo(file)) return Promise.resolve(); // videos stream via iframe, no preload
+      if (isVideo(file)) return Promise.resolve();
       if (preloadPromises[file.id]) return preloadPromises[file.id];
 
       const promise = (async () => {
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        // Try local cache first
+        const cachedUrl = await cacheManager.getCachedUrl(file.id);
+        if (cachedUrl) {
+          // Verify the cached URL loads
           try {
             await new Promise((resolve, reject) => {
               const img = new Image();
               img.onload = resolve;
               img.onerror = reject;
-              img.src = getImageUrl(file);
+              img.src = cachedUrl;
             });
-            preloadCache[file.id] = getImageUrl(file);
-            return; // success
+            preloadCache[file.id] = cachedUrl;
+            return;
+          } catch (e) {
+            // Cached file corrupt, fall through to remote
+          }
+        }
+
+        // Fallback to remote
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          try {
+            const url = getImageUrl(file);
+            await new Promise((resolve, reject) => {
+              const img = new Image();
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = url;
+            });
+            preloadCache[file.id] = url;
+            return;
           } catch (e) {
             if (attempt < MAX_RETRIES - 1) {
               await new Promise(r => setTimeout(r, RETRY_BASE_DELAY * Math.pow(2, attempt)));
@@ -849,19 +1291,22 @@
 
     function preloadNext() {
       for (let offset = 1; offset <= PRELOAD_AHEAD; offset++) {
-        const idx = (currentIndex + offset) % files.length;
-        preloadFile(files[idx]);
+        const idx = (currentIndex + offset) % playlist.length;
+        preloadFile(playlist[idx]);
       }
     }
 
 
 
     async function showMedia() {
-      if (files.length === 0) return;
+     try {
+      if (playlist.length === 0) return;
 
-      const file = files[currentIndex];
+      lastAdvanceTime = Date.now();
+      const file = playlist[currentIndex];
+      if (!file) { currentIndex = 0; return showMedia(); }
       fileNameEl.textContent = file.name;
-      counterEl.textContent = `${currentIndex + 1} / ${files.length}`;
+      counterEl.textContent = `${currentIndex + 1} / ${playlist.length}`;
       updateDots();
 
       if (!isVideo(file) && !preloadCache[file.id]) {
@@ -873,96 +1318,99 @@
       // Fade out
       mediaContainer.style.opacity = '0';
 
-      setTimeout(() => {
+      setTimeout(async () => {
+        // Clean up previous video elements to free memory
+        const oldVideos = mediaContainer.querySelectorAll('video');
+        oldVideos.forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); });
         mediaContainer.innerHTML = '';
-        hideSidePanels();
 
         if (isVideo(file)) {
-          const meta = file.videoMediaMetadata;
-          const vMetaW = meta && meta.width ? parseInt(meta.width) : 0;
-          const vMetaH = meta && meta.height ? parseInt(meta.height) : 0;
-
-          if (proxyBase) {
-            // Native HTML5 video streamed through the proxy. The old TV webview
-            // cannot run the Google Drive preview iframe, so this is the only
-            // path that actually plays video on it.
-            const video = document.createElement('video');
-            video.src = getVideoUrl(file);
-            video.autoplay = true;
-            video.setAttribute('playsinline', '');
-            video.style.display = 'block';
-
-            const sizeVideo = () => {
-              const w = vMetaW || video.videoWidth;
-              const h = vMetaH || video.videoHeight;
-              if (w && h) { fitImage(video, w, h); updateSidePanels(w, h); }
-            };
-            video.addEventListener('loadedmetadata', sizeVideo);
-            video.addEventListener('canplay', () => {
-              bufferingIndicator.classList.remove('visible');
-              mediaContainer.style.opacity = '1';
-            });
-            // Advance when the clip ends (with a duration-based safety net below).
-            video.addEventListener('ended', goNext);
-            video.addEventListener('error', () => {
-              clearTimeout(advanceTimer);
-              setTimeout(goNext, RETRY_BASE_DELAY);
-            });
-
-            bufferingIndicator.classList.add('visible');
-            mediaContainer.appendChild(video);
-
-            // Pre-size panels from Drive metadata if we have it.
-            if (vMetaW && vMetaH) updateSidePanels(vMetaW, vMetaH); else hideSidePanels();
-
-            // Try to play with sound; if the platform blocks it, mute and retry.
-            const playAttempt = video.play();
-            if (playAttempt && typeof playAttempt.catch === 'function') {
-              playAttempt.catch(() => { video.muted = true; video.play().catch(() => {}); });
-            }
-
-            scheduleAdvance(getVideoDuration(file));
-            preloadNext();
-          } else {
-            // Fallback: Google Drive preview player in an iframe (modern webviews only)
-            const wrapper = document.createElement('div');
-            wrapper.className = 'video-wrapper';
-
-            const iframe = document.createElement('iframe');
-            iframe.src = getVideoUrl(file);
-            iframe.allow = 'autoplay; encrypted-media';
-            iframe.setAttribute('allowfullscreen', '');
-
-            iframe.addEventListener('load', () => {
-              bufferingIndicator.classList.remove('visible');
-              mediaContainer.style.opacity = '1';
-            });
-
-            bufferingIndicator.classList.add('visible');
-            wrapper.appendChild(iframe);
-            mediaContainer.appendChild(wrapper);
-
-            if (vMetaW && vMetaH) updateSidePanels(vMetaW, vMetaH); else hideSidePanels();
-
-            scheduleAdvance(getVideoDuration(file));
-            preloadNext();
+          // Only play videos from local cache — never stream from internet
+          const cachedUrl = await cacheManager.getCachedUrl(file.id);
+          if (!cachedUrl) {
+            // Video not cached yet (still downloading) — skip to next item
+            console.warn(`Skipping uncached video: ${file.name}`);
+            hideSidePanels();
+            mediaContainer.style.opacity = '1';
+            goNext();
+            return;
           }
+
+          const video = document.createElement('video');
+          video.muted = false;
+          video.playsInline = true;
+          video.setAttribute('preload', 'auto');
+          video.style.display = 'block';
+
+          bufferingIndicator.classList.add('visible');
+
+          let videoRevealed = false;
+          function revealVideo() {
+            if (videoRevealed) return; videoRevealed = true;
+            bufferingIndicator.classList.remove('visible');
+            mediaContainer.style.opacity = '1';
+            video.play().catch(() => {
+              // Some platforms block unmuted autoplay — retry muted.
+              video.muted = true;
+              video.play().catch(err => console.warn('Play failed:', err));
+            });
+          }
+
+          // Size the element and show the download panels over its black bars.
+          video.addEventListener('loadedmetadata', () => {
+            fitMedia(video, video.videoWidth, video.videoHeight);
+            updateSidePanels(video.videoWidth, video.videoHeight);
+          });
+
+          // Reveal as soon as first frames are ready. canplaythrough can be slow or
+          // never fire for big local files — loadeddata/canplay fire promptly.
+          video.addEventListener('loadeddata', revealVideo, { once: true });
+          video.addEventListener('canplay', revealVideo, { once: true });
+
+          video.addEventListener('ended', () => {
+            goNext();
+          });
+
+          video.addEventListener('error', async () => {
+            bufferingIndicator.classList.remove('visible');
+            // Delete corrupted cached file so it gets re-downloaded on next sync
+            if (cacheManager.isCached(file.id)) {
+              console.warn(`Video playback error for ${file.name} — deleting corrupt cache`);
+              await cacheManager.deleteFile(file.id);
+            }
+            setTimeout(goNext, 2000);
+          });
+
+          mediaContainer.appendChild(video);
+
+          // Set src after attaching to DOM so events fire properly
+          video.src = cachedUrl;
+          video.load();
+
+          // Safety: never sit on a black screen — reveal even if no media event fires.
+          setTimeout(revealVideo, VIDEO_READY_TIMEOUT);
+
+          // Fallback timer in case video doesn't trigger 'ended'
+          const duration = getVideoDuration(file);
+          scheduleAdvance(duration);
+          preloadNext();
         } else {
           const img = document.createElement('img');
-          img.src = preloadCache[file.id] || getImageUrl(file);
           img.alt = file.name;
-          // object-fit:contain is unsupported on the old TV webview (AppleWebKit
-          // 538.1), so we size the image manually to fit while keeping aspect ratio.
           img.style.display = 'block';
 
-          img.addEventListener('load', () => {
-            fitImage(img, img.naturalWidth, img.naturalHeight);
-            mediaContainer.style.opacity = '1';
+          let imgRevealed = false;
+          function revealImage() {
+            if (imgRevealed) return; imgRevealed = true;
+            // Manual contain so the letterbox bars exist, then place the panels.
+            fitMedia(img, img.naturalWidth, img.naturalHeight);
             updateSidePanels(img.naturalWidth, img.naturalHeight);
+            mediaContainer.style.opacity = '1';
             preloadNext();
-          }, { once: true });
+          }
 
-          // On error: retry loading instead of skipping
+          img.addEventListener('load', revealImage, { once: true });
+
           img.addEventListener('error', () => {
             delete preloadCache[file.id];
             delete preloadPromises[file.id];
@@ -970,17 +1418,20 @@
             setTimeout(() => showMedia(), RETRY_BASE_DELAY);
           });
 
+          // Set src after listeners so a cached (instant) image still reveals.
+          img.src = preloadCache[file.id] || await cacheManager.getCachedUrl(file.id) || getImageUrl(file);
           mediaContainer.appendChild(img);
           scheduleAdvance(PHOTO_DURATION);
 
-          // Fade in immediately if cached
-          if (img.complete && img.naturalWidth) {
-            fitImage(img, img.naturalWidth, img.naturalHeight);
-            mediaContainer.style.opacity = '1';
-            updateSidePanels(img.naturalWidth, img.naturalHeight);
-          }
+          if (img.complete && img.naturalWidth) revealImage();
         }
       }, TRANSITION_MS);
+     } catch (err) {
+      console.error('showMedia error — auto-recovering:', err);
+      // Auto-recover: skip to next item after a short delay
+      clearTimeout(advanceTimer);
+      setTimeout(() => { goNext(); }, 3000);
+     }
     }
 
     function scheduleAdvance(ms) {
@@ -991,14 +1442,14 @@
     }
 
     function goNext() {
-      if (files.length <= 1) return;
-      currentIndex = (currentIndex + 1) % files.length;
+      if (playlist.length <= 1) return;
+      currentIndex = (currentIndex + 1) % playlist.length;
       showMedia();
     }
 
     function goPrev() {
-      if (files.length <= 1) return;
-      currentIndex = (currentIndex - 1 + files.length) % files.length;
+      if (playlist.length <= 1) return;
+      currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
       showMedia();
     }
 
@@ -1009,7 +1460,7 @@
         : '<svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
 
       if (!isPaused) {
-        const file = files[currentIndex];
+        const file = playlist[currentIndex];
         scheduleAdvance(isVideo(file) ? VIDEO_MAX_DURATION : PHOTO_DURATION);
       } else {
         clearTimeout(advanceTimer);
@@ -1019,9 +1470,9 @@
     // ── Dots ──
     function updateDots() {
       dotsEl.innerHTML = '';
-      if (files.length > 30 || files.length <= 1) return;
+      if (playlist.length > 30 || playlist.length <= 1) return;
 
-      files.forEach((_, i) => {
+      playlist.forEach((_, i) => {
         const dot = document.createElement('div');
         dot.className = 'dot' + (i === currentIndex ? ' active' : '');
         dotsEl.appendChild(dot);
@@ -1039,48 +1490,171 @@
       }, 4000);
     }
 
+    // ── Build a playlist source from the local cache manifest (offline boot) ──
+    function filesFromManifest() {
+      const m = cacheManager.manifest || {};
+      return Object.keys(m).map(function (id) {
+        const e = m[id] || {};
+        return { id: e.fileId || id, name: e.fileName || id, mimeType: e.mimeType || '' };
+      });
+    }
+
+    // ── Keep the display awake (Samsung Tizen signage; no-op on Android, which
+    //    uses FLAG_KEEP_SCREEN_ON natively). Wrapped so it never throws. ──
+    function keepAwake() {
+      try {
+        if (typeof webapis !== 'undefined' && webapis.appcommon) {
+          webapis.appcommon.setScreenSaver(webapis.appcommon.AppCommonScreenSaverState.SCREEN_SAVER_OFF);
+        }
+      } catch (e) {}
+      try {
+        if (typeof tizen !== 'undefined' && tizen.power) {
+          tizen.power.request('SCREEN', 'SCREEN_NORMAL');
+        }
+      } catch (e) {}
+    }
+
     // ── Launch ──
     async function launch() {
       setupScreen.style.display = 'none';
       loadingScreen.style.display = 'flex';
 
       try {
-        files = await fetchFiles();
+        // Initialize cache
+        await cacheManager.init();
 
-        if (files.length === 0) {
-          throw new Error('No photos or videos found in this folder. Make sure the folder contains media files and is shared publicly.');
+        // Fetch the file list from Drive — but tolerate no/bad internet.
+        let fetched = null;
+        try {
+          fetched = await fetchFiles();
+        } catch (netErr) {
+          console.warn('fetchFiles failed (offline or API error):', netErr.message || netErr);
         }
 
-        loadingScreen.style.display = 'none';
+        if (fetched && fetched.length > 0) {
+          // ── Online path: validate the cache, then download anything missing ──
+          files = fetched;
+          loadingScreen.style.display = 'none';
+
+          // Validate existing cache — purge incomplete/corrupt files so they re-download
+          try {
+            downloadScreen.style.display = 'flex';
+            downloadText.textContent = 'Checking cached files...';
+            downloadDetail.textContent = '';
+            downloadBar.style.width = '0%';
+
+            const purged = await cacheManager.validateCache(files, (done, total, name) => {
+              downloadText.textContent = `Checking: ${name}`;
+              downloadDetail.textContent = `${done} / ${total}`;
+              downloadBar.style.width = Math.round((done / total) * 100) + '%';
+            });
+
+            if (purged > 0) {
+              downloadText.textContent = `Found ${purged} incomplete file(s) — re-downloading...`;
+              await new Promise(r => setTimeout(r, 1000));
+            }
+            downloadScreen.style.display = 'none';
+          } catch (valErr) {
+            console.warn('Cache validation error (non-fatal):', valErr);
+            downloadScreen.style.display = 'none';
+          }
+
+          // Download all files to the device for offline use (including purged ones)
+          try {
+            await downloadAllFiles(files);
+          } catch (dlErr) {
+            console.error('Download phase error (non-fatal):', dlErr);
+            downloadScreen.style.display = 'none';
+            // Continue to the slideshow even if some downloads failed; uncached
+            // videos are skipped until a later sync downloads them.
+          }
+        } else {
+          // ── Offline path: no network, but we may already have cached media ──
+          const cached = filesFromManifest();
+          loadingScreen.style.display = 'none';
+          downloadScreen.style.display = 'none';
+          if (cached.length === 0) {
+            throw new Error(fetched
+              ? 'No photos or videos found in this folder.'
+              : 'No internet connection and nothing cached yet. The slideshow will start on its own once it can download media.');
+          }
+          files = cached;
+          showSyncStatus('Offline — playing ' + cached.length + ' cached items');
+          console.log('[TotemTV] offline boot — playing ' + cached.length + ' cached items');
+        }
+
+        // Build interleaved playlist
+        playlist = buildPlaylist(files);
+
+        // Show slideshow
         slideshowScreen.style.display = 'block';
-
         currentIndex = 0;
+        keepAwake();
+        if (!keepAwakeTimer) keepAwakeTimer = setInterval(keepAwake, 60000);
 
-        // Preload first few images before starting (videos stream via iframe)
-        const imageBatch = files.filter(f => !isVideo(f)).slice(0, PRELOAD_AHEAD + 1);
-        await Promise.all(imageBatch.map(f => preloadFile(f)));
+        // Preload first few images
+        try {
+          const imageBatch = playlist.filter(f => !isVideo(f)).slice(0, PRELOAD_AHEAD + 1);
+          await Promise.all(imageBatch.map(f => preloadFile(f)));
+        } catch (preloadErr) {
+          console.warn('Preload phase error (non-fatal):', preloadErr);
+        }
 
         showMedia();
+        startWatchdog();
+        startHeartbeat();
 
-        // Periodic refresh
+        // Periodic sync (refresh list + download new / delete removed). This is also
+        // how an offline boot recovers: once internet returns, new media downloads.
         refreshTimer = setInterval(refreshFiles, REFRESH_INTERVAL);
 
       } catch (err) {
+        console.error('Launch error:', err);
         loadingScreen.style.display = 'none';
+        downloadScreen.style.display = 'none';
         setupScreen.style.display = 'flex';
-        setupError.textContent = err.message;
+        setupError.textContent = err.message || 'An unexpected error occurred';
         setupError.style.display = 'block';
       }
+    }
+
+    // ── Heartbeat: log every 60s so logcat shows the app is alive ──
+    let heartbeatTimer = null;
+    function startHeartbeat() {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = setInterval(() => {
+        const idx = currentIndex;
+        const total = playlist.length;
+        const paused = isPaused ? 'paused' : 'playing';
+        console.log(`[TotemTV] heartbeat | ${paused} | slide ${idx + 1}/${total} | ${new Date().toISOString()}`);
+      }, 60000);
+    }
+
+    // ── Watchdog: detect stuck slideshow and force-advance ──
+    function startWatchdog() {
+      clearInterval(watchdogTimer);
+      lastAdvanceTime = Date.now();
+      watchdogTimer = setInterval(() => {
+        if (isPaused || playlist.length === 0) return;
+        const elapsed = Date.now() - lastAdvanceTime;
+        if (elapsed > MAX_STUCK_TIME) {
+          console.warn(`Watchdog: slideshow stuck for ${Math.round(elapsed/1000)}s — forcing advance`);
+          clearTimeout(advanceTimer);
+          goNext();
+        }
+      }, WATCHDOG_INTERVAL);
     }
 
     function backToSetup() {
       clearTimeout(advanceTimer);
       clearInterval(refreshTimer);
+      clearInterval(watchdogTimer);
+      clearInterval(heartbeatTimer);
       slideshowScreen.style.display = 'none';
       setupScreen.style.display = 'flex';
       files = [];
+      playlist = [];
       currentIndex = 0;
-      window.location.hash = '';
     }
 
     // ── Event Listeners ──
@@ -1107,7 +1681,7 @@
     slideshowScreen.addEventListener('mousemove', showUITemporarily);
     slideshowScreen.addEventListener('click', showUITemporarily);
 
-    // Keyboard controls (for TV remote)
+    // Keyboard controls (TV remote compatible)
     document.addEventListener('keydown', (e) => {
       if (slideshowScreen.style.display === 'block') {
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
@@ -1118,7 +1692,25 @@
       }
     });
 
-    // ── Auto-launch if config in URL ──
+    // ── Global error handler — prevent crashes, attempt recovery ──
+    window.addEventListener('error', (e) => {
+      console.error('Global error:', e.message, e.filename, e.lineno);
+      // If slideshow is active, try to recover by advancing
+      if (slideshowScreen.style.display === 'block' && playlist.length > 0) {
+        clearTimeout(advanceTimer);
+        setTimeout(() => { try { goNext(); } catch(ex) {} }, 5000);
+      }
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled promise rejection:', e.reason);
+      // If slideshow is active, try to recover
+      if (slideshowScreen.style.display === 'block' && playlist.length > 0) {
+        clearTimeout(advanceTimer);
+        setTimeout(() => { try { goNext(); } catch(ex) {} }, 5000);
+      }
+    });
+
+    // ── Auto-launch if config saved ──
     if (loadConfig()) {
       document.getElementById('api-key-input').value = apiKey;
       document.getElementById('folder-id-input').value = folderId;
